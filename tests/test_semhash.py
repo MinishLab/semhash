@@ -48,6 +48,5 @@ def test_cross_list_deduplication(semhash: SemHash) -> None:
         "Ganondorf has attacked Hyrule!",  # Semantically similar
     ]
     deduplicated_indices, duplicate_mapping = semhash.deduplicate(texts1, texts2)
-
     np.testing.assert_array_equal(deduplicated_indices, np.array([]))
     assert duplicate_mapping == {0: 0, 1: 0, 2: 2}
