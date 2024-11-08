@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 from model2vec import StaticModel
-from nearest import Nearest
 from nearest.backends.basic import BasicBackend
-from nearest.datatypes import Backend
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
