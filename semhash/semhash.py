@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 from model2vec import StaticModel
-from reach import Reach
+from nearest import Nearest
+from nearest.datatypes import Backend
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
@@ -17,7 +18,6 @@ class SemHash:
         embeddings1: np.ndarray,
         embeddings2: np.ndarray | None = None,
         threshold: float = 0.9,
-        batch_size: int = 1024,
     ) -> tuple[np.ndarray, dict[int, int]]:
         """
         Deduplicate embeddings within one list or across two lists.
@@ -25,48 +25,50 @@ class SemHash:
         :param embeddings1: Embeddings of the first list of texts.
         :param embeddings2: Optional embeddings of the second list of texts.
         :param threshold: Similarity threshold for deduplication.
-        :param batch_size: Batch size for similarity computation.
         :return: Deduplicated indices and a mapping of duplicates to originals.
         """
-        reach = Reach(vectors=embeddings1, items=[str(i) for i in range(len(embeddings1))])
+        # Initialize Nearest with the embeddings and a basic backend
+        nearest = Nearest.from_vectors_and_items(
+            vectors=embeddings1, items=[str(i) for i in range(len(embeddings1))], backend_type=Backend.BASIC
+        )
 
         if embeddings2 is None:
+            # Handle deduplication within one list
             deduplicated_indices = set(range(len(embeddings1)))
             duplicate_to_original_mapping = {}
 
-            results = reach.nearest_neighbor_indices(
-                embeddings1, threshold=threshold, batch_size=batch_size, show_progressbar=True
-            )
+            results = nearest.query_threshold(embeddings1, threshold=1 - threshold)
 
-            for i, similar_indices in enumerate(tqdm(results, total=len(embeddings1))):
+            for idx_in_batch, similar_items in enumerate(tqdm(results, total=len(embeddings1))):
+                i = idx_in_batch  # Since we're processing embeddings1
                 if i not in deduplicated_indices:
                     continue  # Skip already marked duplicates
 
-                # Remove the current index from similar items
-                similar_indices = [sim_idx for sim_idx in similar_indices if sim_idx != i]
+                # Convert similar items (strings) back to integer indices
+                similar_indices = [int(sim_item) for sim_item in similar_items if int(sim_item) != i]
 
                 for sim_idx in similar_indices:
                     if sim_idx in deduplicated_indices:
                         deduplicated_indices.remove(sim_idx)
                         duplicate_to_original_mapping[sim_idx] = i  # Map duplicate to original
 
-            return np.array(list(deduplicated_indices)), duplicate_to_original_mapping
+            return np.array(sorted(deduplicated_indices)), duplicate_to_original_mapping
         else:
+            # Handle deduplication across two lists
             deduplicated_indices_in_b = set()
             duplicate_to_original_mapping = {}
 
-            results = reach.nearest_neighbor_indices(
-                embeddings2, threshold=threshold, batch_size=batch_size, show_progressbar=True
-            )
+            results = nearest.query_threshold(embeddings2, threshold=1 - threshold)
 
-            for i, similar_indices in enumerate(tqdm(results, total=len(embeddings2))):
-                if similar_indices.size == 0:
+            for idx_in_batch, similar_items in enumerate(tqdm(results, total=len(embeddings2))):
+                i = idx_in_batch  # Index in embeddings2
+                if not similar_items:
                     deduplicated_indices_in_b.add(i)
                 else:
                     # Map to the first similar item in embeddings1
-                    duplicate_to_original_mapping[i] = similar_indices[0]
+                    duplicate_to_original_mapping[i] = int(similar_items[0])
 
-            return np.array(list(deduplicated_indices_in_b)), duplicate_to_original_mapping
+            return np.array(sorted(deduplicated_indices_in_b)), duplicate_to_original_mapping
 
     def deduplicate(
         self,

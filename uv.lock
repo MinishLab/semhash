@@ -835,6 +835,15 @@ wheels = [
 ]
 
 [[package]]
+name = "nearest"
+version = "0.1.0"
+source = { git = "https://github.com/minishlab/nearest?rev=main#5cec417d613031063149cc25b47ca27d7fd56acb" }
+dependencies = [
+    { name = "numpy" },
+    { name = "tqdm" },
+]
+
+[[package]]
 name = "networkx"
 version = "3.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1473,15 +1482,6 @@ wheels = [
 ]
 
 [[package]]
-name = "reach"
-version = "5.0.0"
-source = { git = "https://github.com/stephantul/reach?rev=main#f082e1aa879d1a58c34c72f1491ad962f84893f1" }
-dependencies = [
-    { name = "numpy" },
-    { name = "tqdm" },
-]
-
-[[package]]
 name = "regex"
 version = "2024.9.11"
 source = { registry = "https://pypi.org/simple" }
@@ -1749,7 +1749,7 @@ source = { editable = "." }
 dependencies = [
     { name = "datasets" },
     { name = "model2vec" },
-    { name = "reach" },
+    { name = "nearest" },
     { name = "sentence-transformers" },
 ]
 
@@ -1771,10 +1771,10 @@ requires-dist = [
     { name = "ipython", marker = "extra == 'dev'" },
     { name = "model2vec" },
     { name = "mypy", marker = "extra == 'dev'" },
+    { name = "nearest", git = "https://github.com/minishlab/nearest?rev=main" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-coverage", marker = "extra == 'dev'" },
-    { name = "reach", git = "https://github.com/stephantul/reach?rev=main" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "sentence-transformers" },
 ]
