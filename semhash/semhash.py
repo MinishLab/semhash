@@ -52,7 +52,7 @@ class SemHash:
                         deduplicated_indices.remove(sim_idx)
                         duplicate_to_original_mapping[sim_idx] = i  # Map duplicate to original
 
-            return np.array(sorted(deduplicated_indices)), duplicate_to_original_mapping
+            return np.array(list(deduplicated_indices)), duplicate_to_original_mapping
         else:
             # Handle deduplication across two lists
             deduplicated_indices_in_b = set()
@@ -68,7 +68,7 @@ class SemHash:
                     # Map to the first similar item in embeddings1
                     duplicate_to_original_mapping[i] = int(similar_items[0])
 
-            return np.array(sorted(deduplicated_indices_in_b)), duplicate_to_original_mapping
+            return np.array(list(deduplicated_indices_in_b)), duplicate_to_original_mapping
 
     def deduplicate(
         self,
