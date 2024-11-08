@@ -59,7 +59,7 @@ class SemHash:
             results = nearest.threshold(embeddings2, threshold=1 - threshold)
 
             for i, similar_indices in enumerate(tqdm(results, total=len(embeddings2))):
-                if not similar_indices:
+                if len(similar_indices) == 0:
                     deduplicated_indices_in_b.add(i)
                 else:
                     # Map to the first similar item in embeddings1
