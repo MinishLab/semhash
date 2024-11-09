@@ -8,7 +8,7 @@ requires-python = ">=3.10"
 dependencies = [
     "datasets",
     "model2vec",
-    "nearest@git+https://github.com/minishlab/nearest@main",
+    "vicinity",
     "sentence-transformers",
 
 ]

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 from model2vec import StaticModel
-from nearest.backends.basic import BasicBackend
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
+from vicinity.backends.basic import BasicBackend
 
 
 class SemHash:
