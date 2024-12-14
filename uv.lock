@@ -680,23 +680,20 @@ wheels = [
 
 [[package]]
 name = "model2vec"
-version = "0.2.4"
+version = "0.3.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click" },
+    { name = "jinja2" },
     { name = "numpy" },
     { name = "rich" },
-    { name = "scikit-learn" },
+    { name = "safetensors" },
     { name = "setuptools" },
     { name = "tokenizers" },
-    { name = "torch" },
     { name = "tqdm" },
-    { name = "transformers" },
-    { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d5/b0/aa01d00f6face8ff92270948b18a791061b7ec172573836fae609085712b/model2vec-0.2.4.tar.gz", hash = "sha256:08776b57a5c8f7d536534ba8b9fdf6dc1a4ee13fa25b15750aa4d79c7e399b21", size = 1680909 }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/c7/3ff1ed5a97ab789b8c1f148e11c086d96c46ec198649588e87922df963bb/model2vec-0.3.3.tar.gz", hash = "sha256:b4d59afe438bfc1d6d667ee30f1d38d543e129b9498f6fbae01765f32a63ae36", size = 2294749 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/59/65e3f603ba0a33f7a58194a42870035d0c948568810601b91065e56c2b9e/model2vec-0.2.4-py3-none-any.whl", hash = "sha256:1c4eebf7c7a536a40ebf7e1dd0332c1586103164eba3ed39ed661f453f3ffa83", size = 24897 },
+    { url = "https://files.pythonhosted.org/packages/bc/7e/b20830d3231e13905172da0e55cb5a903505c6da513e08c12a9db30ce7bb/model2vec-0.3.3-py3-none-any.whl", hash = "sha256:ac24b8f6fdcfbd46ad4094ca1f598be91008fc6eb409d5a8608de91288ac7715", size = 25956 },
 ]
 
 [[package]]
@@ -794,6 +791,8 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/bc/f7/7ec7fddc92e50714ea3745631f79bd9c96424cb2702632521028e57d3a36/multiprocess-0.70.16-py310-none-any.whl", hash = "sha256:c4a9944c67bd49f823687463660a2d6daae94c289adff97e0f9d696ba6371d02", size = 134824 },
     { url = "https://files.pythonhosted.org/packages/50/15/b56e50e8debaf439f44befec5b2af11db85f6e0f344c3113ae0be0593a91/multiprocess-0.70.16-py311-none-any.whl", hash = "sha256:af4cabb0dac72abfb1e794fa7855c325fd2b55a10a44628a3c1ad3311c04127a", size = 143519 },
     { url = "https://files.pythonhosted.org/packages/0a/7d/a988f258104dcd2ccf1ed40fdc97e26c4ac351eeaf81d76e266c52d84e2f/multiprocess-0.70.16-py312-none-any.whl", hash = "sha256:fc0544c531920dde3b00c29863377f87e1632601092ea2daca74e4beb40faa2e", size = 146741 },
+    { url = "https://files.pythonhosted.org/packages/ea/89/38df130f2c799090c978b366cfdf5b96d08de5b29a4a293df7f7429fa50b/multiprocess-0.70.16-py38-none-any.whl", hash = "sha256:a71d82033454891091a226dfc319d0cfa8019a4e888ef9ca910372a446de4435", size = 132628 },
+    { url = "https://files.pythonhosted.org/packages/da/d9/f7f9379981e39b8c2511c9e0326d212accacb82f12fbfdc1aa2ce2a7b2b6/multiprocess-0.70.16-py39-none-any.whl", hash = "sha256:a0bafd3ae1b732eac64be2e72038231c1ba97724b60b09400d68f229fcc2fbf3", size = 133351 },
 ]
 
 [[package]]
@@ -1783,9 +1782,7 @@ name = "semhash"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "datasets" },
     { name = "model2vec" },
-    { name = "sentence-transformers" },
     { name = "vicinity" },
 ]
 
@@ -1799,20 +1796,26 @@ dev = [
     { name = "pytest-coverage" },
     { name = "ruff" },
 ]
+experiments = [
+    { name = "datasets" },
+]
+sentence-transformers = [
+    { name = "sentence-transformers" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "black", marker = "extra == 'dev'" },
-    { name = "datasets" },
+    { name = "datasets", marker = "extra == 'experiments'" },
     { name = "ipython", marker = "extra == 'dev'" },
-    { name = "model2vec" },
+    { name = "model2vec", specifier = ">=0.3.0" },
     { name = "mypy", marker = "extra == 'dev'" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-coverage", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'" },
-    { name = "sentence-transformers" },
-    { name = "vicinity" },
+    { name = "sentence-transformers", marker = "extra == 'sentence-transformers'" },
+    { name = "vicinity", specifier = ">=0.3.3" },
 ]
 
 [[package]]
@@ -1840,15 +1843,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/27/b8/f21073fde99492b33ca357876430822e4800cdf522011f18041351dfa74b/setuptools-75.1.0.tar.gz", hash = "sha256:d59a21b17a275fb872a9c3dae73963160ae079f1049ed956880cd7c09b120538", size = 1348057 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/ae/f19306b5a221f6a436d8f2238d5b80925004093fa3edea59835b514d9057/setuptools-75.1.0-py3-none-any.whl", hash = "sha256:35ab7fd3bcd95e6b7fd704e4a1539513edad446c097797f2985e0e4b960772f2", size = 1248506 },
-]
-
-[[package]]
-name = "shellingham"
-version = "1.5.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/58/15/8b3609fd3830ef7b27b655beb4b4e9c62313a4e8da8c676e142cc210d58e/shellingham-1.5.4.tar.gz", hash = "sha256:8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de", size = 10310 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl", hash = "sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686", size = 9755 },
 ]
 
 [[package]]
@@ -2053,21 +2047,6 @@ wheels = [
 ]
 
 [[package]]
-name = "typer"
-version = "0.12.5"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "click" },
-    { name = "rich" },
-    { name = "shellingham" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c5/58/a79003b91ac2c6890fc5d90145c662fd5771c6f11447f116b63300436bc9/typer-0.12.5.tar.gz", hash = "sha256:f592f089bedcc8ec1b974125d64851029c3b1af145f04aca64d69410f0c9b722", size = 98953 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a8/2b/886d13e742e514f704c33c4caa7df0f3b89e5a25ef8db02aa9ca3d9535d5/typer-0.12.5-py3-none-any.whl", hash = "sha256:62fe4e471711b147e3365034133904df3e235698399bc4de2b36c8579298d52b", size = 47288 },
-]
-
-[[package]]
 name = "typing-extensions"
 version = "4.12.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2096,16 +2075,16 @@ wheels = [
 
 [[package]]
 name = "vicinity"
-version = "0.1.0"
+version = "0.3.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "orjson" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/30/08/2b6e973a5a5bbf9bb7928f4a2aeab48fbde0791693859a3f2d858ee59ab6/vicinity-0.1.0.tar.gz", hash = "sha256:73c6839ab28203bd7f25b6a37a5f0c04105e191817a968df0d48ad68a94f8e90", size = 49027 }
+sdist = { url = "https://files.pythonhosted.org/packages/d4/07/504b9302ce94661a7b81ca4c77e4ee06d06b2e13b183591189cbb824c461/vicinity-0.3.3.tar.gz", hash = "sha256:ea67fc2fdd309506aedc4e01608313cd41bbef6b8e936eb1e83ab4f9167e5756", size = 1546105 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/b4/6880b852659c214127c7414fac5049a463ee55c243945117722256093652/vicinity-0.1.0-py3-none-any.whl", hash = "sha256:92726eadcc632c2a03a647f1a80858cbb6fee86e5fb7ab87f747333b80918098", size = 12562 },
+    { url = "https://files.pythonhosted.org/packages/0b/c7/bdf809986137812516b39798a3367bbf1cdd2e6ce0f7c51091432952b92d/vicinity-0.3.3-py3-none-any.whl", hash = "sha256:a7104ee1b292023f31d273f89a88f315675efbc59e25cfe25582152ab65f02e1", size = 25810 },
 ]
 
 [[package]]

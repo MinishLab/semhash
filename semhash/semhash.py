@@ -4,7 +4,7 @@ import numpy as np
 from model2vec import StaticModel
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
-from vicinity.backends.basic import BasicBackend
+from vicinity import Backend, Vicinity
 
 
 class SemHash:
@@ -27,14 +27,14 @@ class SemHash:
         :return: Deduplicated indices and a mapping of duplicates to originals.
         """
         # Initialize BasicBackend with the embeddings
-        nearest = BasicBackend.from_vectors(vectors=embeddings1, dim=embeddings1.shape[1])
-
+        items = list(range(len(embeddings1)))
+        vicinity = Vicinity.from_vectors_and_items(vectors=embeddings1, items=items, backend_type=Backend.BASIC)  # type: ignore
         if embeddings2 is None:
             # Handle deduplication within one list
             deduplicated_indices = set(range(len(embeddings1)))
             duplicate_to_original_mapping = {}
 
-            results = nearest.threshold(embeddings1, threshold=1 - threshold)
+            results = vicinity.query_threshold(embeddings1, threshold=1 - threshold)
 
             for i, similar_indices in enumerate(tqdm(results, total=len(embeddings1))):
                 if i not in deduplicated_indices:
@@ -54,7 +54,7 @@ class SemHash:
             deduplicated_indices_in_b = set()
             duplicate_to_original_mapping = {}
 
-            results = nearest.threshold(embeddings2, threshold=1 - threshold)
+            results = vicinity.query_threshold(embeddings2, threshold=1 - threshold)
 
             for i, similar_indices in enumerate(tqdm(results, total=len(embeddings2))):
                 if len(similar_indices) == 0:

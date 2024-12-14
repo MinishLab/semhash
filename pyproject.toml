@@ -6,11 +6,8 @@ version = "0.1.0"
 requires-python = ">=3.10"
 
 dependencies = [
-    "datasets",
-    "model2vec",
-    "vicinity",
-    "sentence-transformers",
-
+    "model2vec>=0.3.0",
+    "vicinity>=0.3.3",
 ]
 
 [build-system]
@@ -26,6 +23,12 @@ dev = [
     "pytest",
     "pytest-coverage",
     "ruff",
+]
+sentence-transformers = [
+    "sentence-transformers",
+]
+experiments = [
+    "datasets",
 ]
 
 [tool.ruff]
