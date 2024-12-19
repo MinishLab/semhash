@@ -8,9 +8,24 @@ from vicinity import Backend, Vicinity
 
 
 class SemHash:
-    def __init__(self, model: SentenceTransformer | StaticModel) -> None:
+    def __init__(self, columns: list[str] | None, model: SentenceTransformer | StaticModel) -> None:
         """Initialize SemHash."""
+        self.columns = columns
         self.model = model
+
+    def featurize(self, record: dict[str, str]) -> np.ndarray:
+        v = []
+        for column in self.columns:
+            v.append(self.model.encode(record[column]))
+
+        return np.concatenate(v)
+
+    def fit(self, records: list[dict[str, str]] | list[str]) -> None:
+        if self.columns is None and isinstance(records[0], dict):
+            raise ValueError()
+
+        self.X = np.array([self.featurize(record) for record in records])
+        self.vicinity = Vicinity.from_vectors_and_items(vectors=X, items=records, backend_type=Backend.BASIC)
 
     def deduplicate_embeddings(
         self,
