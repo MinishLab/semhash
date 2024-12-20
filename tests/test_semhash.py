@@ -1,10 +1,8 @@
-import numpy as np
-
 from semhash import SemHash
 
 
-def test_single_list_deduplication(semhash: SemHash) -> None:
-    """Test single input list deduplication."""
+def test_single_dataset_deduplication(semhash: SemHash) -> None:
+    """Test single dataset deduplication."""
     # No duplicates
     texts = [
         "It's dangerous to go alone!",
@@ -25,8 +23,8 @@ def test_single_list_deduplication(semhash: SemHash) -> None:
     assert deduplicated_texts == ["It's dangerous to go alone!"]
 
 
-def test_cross_list_deduplication(semhash: SemHash) -> None:
-    """Test deduplication across two lists."""
+def test_multi_dataset_deduplication(semhash: SemHash) -> None:
+    """Test deduplication across two datasets."""
     # No duplicates
     texts1 = [
         "It's dangerous to go alone!",
@@ -51,3 +49,49 @@ def test_cross_list_deduplication(semhash: SemHash) -> None:
     ]
     deduplicated_texts = semhash.deduplicate(texts2)
     assert deduplicated_texts == []
+
+
+def test_single_dataset_deduplication_multicolumn(semhash: SemHash) -> None:
+    """Test single dataset deduplication with multi-column records."""
+    records = [
+        {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
+        {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},  # Exact duplicate
+        {
+            "question": "Who is the protagonist?",
+            "context": "In this story, Link is the hero",
+            "answer": "Link",
+        },  # Semantically similar
+        {"question": "Who is the princess?", "context": "The princess is Zelda", "answer": "Zelda"},
+    ]
+
+    semhash.columns = ["question", "context", "answer"]
+    deduplicated = semhash.fit_deduplicate(records)
+    assert deduplicated == [
+        {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
+        {"question": "Who is the princess?", "context": "The princess is Zelda", "answer": "Zelda"},
+    ]
+
+
+def test_multi_dataset_deduplication_multicolumn(semhash: SemHash) -> None:
+    """Test multi dataset deduplication with multi-column records."""
+    train_records = [
+        {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
+        {"question": "Who is the princess?", "context": "The princess is Zelda", "answer": "Zelda"},
+    ]
+
+    test_records = [
+        {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},  # Exact duplicate
+        {
+            "question": "Who is the princess?",
+            "context": "Zelda is the princess",
+            "answer": "Zelda",
+        },  # Semantically similar
+        {"question": "What is the villain's name?", "context": "The villain is Ganon", "answer": "Ganon"},
+    ]
+
+    semhash.columns = ["question", "context", "answer"]
+    semhash.fit(train_records)
+    deduplicated = semhash.deduplicate(test_records)
+    assert deduplicated == [
+        {"question": "What is the villain's name?", "context": "The villain is Ganon", "answer": "Ganon"}
+    ]
