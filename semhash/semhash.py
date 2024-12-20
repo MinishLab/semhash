@@ -6,18 +6,23 @@ import numpy as np
 from model2vec import StaticModel
 from vicinity import Backend, Vicinity
 
+from semhash.utils import Model
+
 Record = Union[str, dict[str, str]]
 
 
 class SemHash:
-    def __init__(self, model: StaticModel, columns: list[str] | None = None) -> None:
+    def __init__(self, model: Model | None = None, columns: list[str] | None = None) -> None:
         """
         Initialize SemHash.
 
-        :param model: A model to use for featurization.
+        :param model: A model to use for featurization. Defaults to minishlab/potion-base-8M.
         :param columns: Columns to featurize. Required if records are dictionaries.
         """
-        self.model = model
+        if model is None:
+            model = StaticModel.from_pretrained("minishlab/potion-base-8M")
+        else:
+            self.model = model
         self.columns = columns
         self.vicinity: Vicinity | None = None
 
@@ -45,8 +50,9 @@ class SemHash:
 
         else:
             # Records is a list of strings
+            records = cast(Sequence[str], records)
             embeddings = self.model.encode(records)
-            return np.stack(embeddings)
+            return embeddings
 
     def _unpack_record(self, record: Record) -> str:
         r"""
