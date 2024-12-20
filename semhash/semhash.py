@@ -100,7 +100,7 @@ class SemHash:
         :return: A deduplicated list of records.
         """
         self.fit(records)
-        assert self.vicinity is not None
+        assert self.vicinity is not None  # Keep mypy happy
 
         embeddings = np.array([self._featurize(record) for record in records])
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
