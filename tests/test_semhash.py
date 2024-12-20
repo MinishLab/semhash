@@ -117,6 +117,9 @@ def test_deduplicate_without_index(semhash: SemHash) -> None:
 
 def test_featurize_without_columns(semhash: SemHash) -> None:
     """Test featurizing without specifying columns."""
-    record = {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"}
+    records = [
+        {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
+        {"question": "Who is the princess?", "context": "The princess is Zelda", "answer": "Zelda"},
+    ]
     with pytest.raises(ValueError):
-        semhash._featurize(record)
+        semhash._featurize(records)

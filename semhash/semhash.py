@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence, Union
+from typing import Sequence, Union, cast
 
 import numpy as np
 from model2vec import StaticModel
@@ -21,25 +21,36 @@ class SemHash:
         self.columns = columns
         self.vicinity: Vicinity | None = None
 
-    def _featurize(self, record: Record) -> np.ndarray:
+    def _featurize(self, records: Sequence[Record]) -> np.ndarray:
         """
-        Featurize a record using the model.
+        Featurize a list of records using the model.
 
-        :param record: A record to featurize. Can be a dictionary or a string.
-        :return: The featurized record.
-        :raises ValueError: If columns are not specified when records are dictionaries.
+        :param records: A list of records (either strings or dictionaries).
+        :return: The embeddings of the records.
+        :raises ValueError: If columns are not specified when passing dictionaries.
         """
-        if isinstance(record, dict):
+        if isinstance(records[0], dict):
             if self.columns is None:
                 raise ValueError("Columns must be specified when passing dictionaries.")
-            vectors = [np.asarray(self.model.encode(record[column])) for column in self.columns]
-            return np.concatenate(vectors)
+
+            records = cast(Sequence[dict[str, str]], records)
+            # Extract the embeddings for each column across all records
+            embeddings_per_column = []
+            for column in self.columns:
+                column_texts = [r[column] for r in records]
+                column_embeddings = self.model.encode(column_texts)
+                embeddings_per_column.append(np.asarray(column_embeddings))
+
+            return np.concatenate(embeddings_per_column, axis=1)
+
         else:
-            return self.model.encode(record)
+            # Records is a list of strings
+            embeddings = self.model.encode(records)
+            return np.stack(embeddings)
 
     def fit(self, records: Sequence[Record]) -> None:
         """
-        Embed the records and fit a a vicinity index on the embeddings.
+        Embed the records and fit a vicinity index on the embeddings.
 
         :param records: The dataset to fit on. Can be a list of dictionaries or a list of strings.
         :raises ValueError: If columns are not specified when records are dictionaries.
@@ -47,7 +58,7 @@ class SemHash:
         if self.columns is None and isinstance(records[0], dict):
             raise ValueError("Columns must be specified when passing dictionaries.")
 
-        embeddings = np.array([self._featurize(record) for record in records])
+        embeddings = self._featurize(records)
         self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=records, backend_type=Backend.BASIC)  # type: ignore
 
     def deduplicate(
@@ -71,7 +82,7 @@ class SemHash:
             raise ValueError("No fitted index found. Call semhash.fit(records) before calling deduplicate.")
 
         # Compute embeddings for the new records
-        embeddings = np.array([self._featurize(record) for record in records])
+        embeddings = self._featurize(records)
 
         # Query the fitted index
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
@@ -99,10 +110,9 @@ class SemHash:
         :param threshold: Similarity threshold for deduplication.
         :return: A deduplicated list of records.
         """
-        self.fit(records)
-        assert self.vicinity is not None  # Keep mypy happy
-
-        embeddings = np.array([self._featurize(record) for record in records])
+        # Fit the index
+        embeddings = self._featurize(records)
+        self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=records, backend_type=Backend.BASIC)  # type: ignore
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
 
         deduplicated_records = []
