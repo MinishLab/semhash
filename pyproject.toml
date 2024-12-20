@@ -1,9 +1,9 @@
 [project]
 name = "semhash"
-description = "Fast text deduplication using semantic hashing"
+description = "Fast Text Deduplication using Semantic Hashing"
 readme = "README.md"
 version = "0.1.0"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 
 dependencies = [
     "model2vec>=0.3.0",
