@@ -6,13 +6,13 @@ import numpy as np
 from model2vec import StaticModel
 from vicinity import Backend, Vicinity
 
-from semhash.utils import Model
+from semhash.utils import Encoder
 
 Record = Union[str, dict[str, str]]
 
 
 class SemHash:
-    def __init__(self, model: Model | None = None, columns: list[str] | None = None) -> None:
+    def __init__(self, model: Encoder | None = None, columns: list[str] | None = None) -> None:
         """
         Initialize SemHash.
 

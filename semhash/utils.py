@@ -4,8 +4,8 @@ import numpy as np
 
 
 @runtime_checkable
-class Model(Protocol):
-    """A model protocol for SemHash."""
+class Encoder(Protocol):
+    """An encoder protocol for SemHash."""
 
     def encode(
         self,
