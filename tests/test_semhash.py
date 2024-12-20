@@ -115,7 +115,7 @@ def test_deduplicate_without_index(semhash: SemHash) -> None:
         semhash.deduplicate(texts)
 
 
-def test_featurize_without_columns(semhash: SemHash) -> None:
+def test__featurize_without_columns(semhash: SemHash) -> None:
     """Test featurizing without specifying columns."""
     records = [
         {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
@@ -123,3 +123,10 @@ def test_featurize_without_columns(semhash: SemHash) -> None:
     ]
     with pytest.raises(ValueError):
         semhash._featurize(records)
+
+
+def test__unpack_record_without_columns(semhash: SemHash) -> None:
+    """Test unpacking records without specifying columns."""
+    record = {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"}
+    with pytest.raises(ValueError):
+        semhash._unpack_record(record)
