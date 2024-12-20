@@ -19,6 +19,7 @@ class SemHash:
         """
         self.model = model
         self.columns = columns
+        self.vicinity: Vicinity | None = None
 
     def _featurize(self, record: Record) -> np.ndarray:
         """
@@ -99,6 +100,7 @@ class SemHash:
         :return: A deduplicated list of records.
         """
         self.fit(records)
+        assert self.vicinity is not None
 
         embeddings = np.array([self._featurize(record) for record in records])
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)

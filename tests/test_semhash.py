@@ -1,3 +1,5 @@
+import pytest
+
 from semhash import SemHash
 
 
@@ -94,3 +96,27 @@ def test_multi_dataset_deduplication_multicolumn(semhash: SemHash) -> None:
     assert deduplicated == [
         {"question": "What is the villain's name?", "context": "The villain is Ganon", "answer": "Ganon"}
     ]
+
+
+def test_fit_without_columns(semhash: SemHash) -> None:
+    """Test fitting without specifying columns."""
+    records = [
+        {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
+        {"question": "Who is the princess?", "context": "The princess is Zelda", "answer": "Zelda"},
+    ]
+    with pytest.raises(ValueError):
+        semhash.fit(records)
+
+
+def test_deduplicate_without_index(semhash: SemHash) -> None:
+    """Test deduplicating without fitting."""
+    texts = ["It's dangerous to go alone!"]
+    with pytest.raises(ValueError):
+        semhash.deduplicate(texts)
+
+
+def test_featurize_without_columns(semhash: SemHash) -> None:
+    """Test featurizing without specifying columns."""
+    record = {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"}
+    with pytest.raises(ValueError):
+        semhash._featurize(record)
