@@ -1,9 +1,8 @@
-from typing import Any, Protocol, Sequence, runtime_checkable
+from typing import Any, Protocol, Sequence
 
 import numpy as np
 
 
-@runtime_checkable
 class Encoder(Protocol):
     """An encoder protocol for SemHash."""
 
