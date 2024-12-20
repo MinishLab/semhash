@@ -48,6 +48,28 @@ class SemHash:
             embeddings = self.model.encode(records)
             return np.stack(embeddings)
 
+    def _unpack_record(self, record: Record) -> str:
+        r"""
+        Unpack a record into a single string.
+
+        If the record is a dictionary, it uses self.columns to determine the order of the text segments.
+        Each text is cleaned by replacing '\t' with ' '. The texts are then joined by '\t'.
+
+        If the record is a string, it just replaces '\t' with ' ' and returns it.
+        """
+        if isinstance(record, dict):
+            if self.columns is None:
+                raise ValueError("Columns must be specified when passing dictionaries.")
+
+            column_texts = []
+            for column in self.columns:
+                text = record[column].replace("\t", " ")
+                column_texts.append(text)
+            return "\t".join(column_texts)
+        else:
+            # record is a string
+            return record.replace("\t", " ")
+
     def fit(self, records: Sequence[Record]) -> None:
         """
         Embed the records and fit a vicinity index on the embeddings.
@@ -59,7 +81,8 @@ class SemHash:
             raise ValueError("Columns must be specified when passing dictionaries.")
 
         embeddings = self._featurize(records)
-        self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=records, backend_type=Backend.BASIC)  # type: ignore
+        items = [self._unpack_record(record) for record in records]
+        self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=items, backend_type=Backend.BASIC)
 
     def deduplicate(
         self,
@@ -112,26 +135,21 @@ class SemHash:
         """
         # Fit the index
         embeddings = self._featurize(records)
-        self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=records, backend_type=Backend.BASIC)  # type: ignore
-        results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
+        items = [self._unpack_record(record) for record in records]
 
+        self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=items, backend_type=Backend.BASIC)
+        results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
         deduplicated_records = []
         seen_items = set()
         for record, similar_items in zip(records, results):
-            # similar_items includes the record itself (since we are querying the same set)
-            # If we haven't chosen any of these similar items yet, this is a new unique item.
-            # If we have chosen one before, this is a duplicate.
-            item_ids = [id(item) for item in similar_items]
-
-            # Check if any similar item is already in seen_items
-            if any(item in seen_items for item in item_ids):
-                # Duplicate found, skip this record
+            # similar_items includes 'record' itself
+            # If we've seen any of these items before, this is a duplicate cluster.
+            if any(item in seen_items for item in similar_items):
                 continue
             else:
                 # This is the first time we see this cluster of similar items
                 deduplicated_records.append(record)
-                # Mark all similar items as seen to handle subsequent duplicates
-                for item in item_ids:
-                    seen_items.add(item)
+                # Mark all items in this cluster as seen
+                seen_items.update(similar_items)
 
         return deduplicated_records
