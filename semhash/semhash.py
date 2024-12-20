@@ -20,7 +20,7 @@ class SemHash:
         self.model = model
         self.columns = columns
 
-    def featurize(self, record: Record) -> np.ndarray:
+    def _featurize(self, record: Record) -> np.ndarray:
         """
         Featurize a record using the model.
 
@@ -46,7 +46,7 @@ class SemHash:
         if self.columns is None and isinstance(records[0], dict):
             raise ValueError("Columns must be specified when passing dictionaries.")
 
-        embeddings = np.array([self.featurize(record) for record in records])
+        embeddings = np.array([self._featurize(record) for record in records])
         self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=records, backend_type=Backend.BASIC)  # type: ignore
 
     def deduplicate(
@@ -70,7 +70,7 @@ class SemHash:
             raise ValueError("No fitted index found. Call semhash.fit(records) before calling deduplicate.")
 
         # Compute embeddings for the new records
-        embeddings = np.array([self.featurize(record) for record in records])
+        embeddings = np.array([self._featurize(record) for record in records])
 
         # Query the fitted index
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
@@ -100,7 +100,7 @@ class SemHash:
         """
         self.fit(records)
 
-        embeddings = np.array([self.featurize(record) for record in records])
+        embeddings = np.array([self._featurize(record) for record in records])
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
 
         deduplicated_records = []
