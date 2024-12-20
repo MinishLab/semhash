@@ -6,10 +6,9 @@ def test_single_dataset_deduplication(semhash: SemHash) -> None:
     # No duplicates
     texts = [
         "It's dangerous to go alone!",
-        "It's a secret to everybody.",
+        "The master sword can seal the darkness.",
         "Ganondorf has invaded Hyrule!",
     ]
-    semhash.fit(records=texts)
     deduplicated_texts = semhash.fit_deduplicate(texts)
     assert deduplicated_texts == texts
 
@@ -17,7 +16,7 @@ def test_single_dataset_deduplication(semhash: SemHash) -> None:
     texts = [
         "It's dangerous to go alone!",
         "It's dangerous to go alone!",  # Exact duplicate
-        "It's risky to go alone!",  # Semantically similar
+        "It's not safe to go alone!",  # Semantically similar
     ]
     deduplicated_texts = semhash.fit_deduplicate(texts)
     assert deduplicated_texts == ["It's dangerous to go alone!"]

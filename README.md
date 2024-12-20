@@ -17,7 +17,6 @@ Deduplicate a single dataset with the following code:
 ```python
 from model2vec import StaticModel
 from semhash import SemHash
-from datasets import load_dataset
 
 # Load an embedding model
 model = StaticModel.from_pretrained("minishlab/potion-base-8M")
@@ -25,11 +24,15 @@ model = StaticModel.from_pretrained("minishlab/potion-base-8M")
 # Initialize a SemHash with the model
 semhash = SemHash(model=model)
 
-# Load some texts to deduplicate
-texts = load_dataset("ag_news", split="train")["text"]
+# Create some texts to deduplicate
+texts = [
+        "It's dangerous to go alone!",
+        "It's dangerous to go alone!",  # Exact duplicate
+        "It's not safe to go by yourself!",  # Semantically similar
+]
 
 # Deduplicate the texts
-deduplicated_indices, duplicate_mapping = semhash.deduplicate(texts)
+deduplicated_texts = semhash.fit_deduplicate(records=texts, threshold=0.5)
 ```
 
 
@@ -38,7 +41,6 @@ Or, deduplicate across two datasets (for example a train and test set) with the 
 ```python
 from model2vec import StaticModel
 from semhash import SemHash
-from datasets import load_dataset
 
 # Load an embedding model
 model = StaticModel.from_pretrained("minishlab/potion-base-8M")
@@ -46,19 +48,20 @@ model = StaticModel.from_pretrained("minishlab/potion-base-8M")
 # Initialize a SemHash with the model
 semhash = SemHash(model=model)
 
-# Load two datasets
-texts1 = load_dataset("ag_news", split="train")["text"]
-texts2 = load_dataset("ag_news", split="test")["text"]
+# Create some texts to deduplicate
+train = [
+    "It's dangerous to go alone!",
+    "It's a secret to everybody.",
+    "Ganondorf has invaded Hyrule!",
+]
+test = [
+    "It's dangerous to go alone!",  # Exact duplicate
+    "It's not safe to go by yourself!",  # Semantically similar
+    "The master sword seals the darkness",
+]
 
-# Deduplicate the texts
-deduplicated_indices, duplicate_mapping = semhash.deduplicate(texts1=texts1, texts2=texts2)
+# Fit on the training data
+semhash.fit(train)
+# Deduplicate the test data against the training data
+deduplicated_texts = semhash.deduplicate(records=test, threshold=0.5)
 ```
-
-SemHash supports two types of deduplication:
-- Exact: uses [reach](https://github.com/stephantul/reach) for efficient exact nearest neighbors computation. This is recommended for smaller datasets.
-- Aproximiate: uses TODO for aproximate nearest neighbors computations. This is recommended for larger datasets.
-
-
-#TODO make a plot of n_embeddings vs time for exact search
-#TODO make a plot of n_embeddings vs time for aproximate search
-#TODO show recall tradeoff for aproximate search
