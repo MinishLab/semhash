@@ -11,9 +11,9 @@ def test_single_list_deduplication(semhash: SemHash) -> None:
         "It's a secret to everybody.",
         "Ganondorf has invaded Hyrule!",
     ]
-    deduplicated_indices, duplicate_mapping = semhash.deduplicate(texts)
-    np.testing.assert_array_equal(deduplicated_indices, np.array([0, 1, 2]))
-    assert duplicate_mapping == {}
+    semhash.fit(records=texts)
+    deduplicated_texts = semhash.fit_deduplicate(texts)
+    assert deduplicated_texts == texts
 
     # With duplicates
     texts = [
@@ -21,9 +21,8 @@ def test_single_list_deduplication(semhash: SemHash) -> None:
         "It's dangerous to go alone!",  # Exact duplicate
         "It's risky to go alone!",  # Semantically similar
     ]
-    deduplicated_indices, duplicate_mapping = semhash.deduplicate(texts)
-    np.testing.assert_array_equal(deduplicated_indices, np.array([0]))
-    assert duplicate_mapping == {1: 0, 2: 0}
+    deduplicated_texts = semhash.fit_deduplicate(texts)
+    assert deduplicated_texts == ["It's dangerous to go alone!"]
 
 
 def test_cross_list_deduplication(semhash: SemHash) -> None:
@@ -39,7 +38,10 @@ def test_cross_list_deduplication(semhash: SemHash) -> None:
         "Zelda is the princess of Hyrule.",
         "Ganon is the king of thieves.",
     ]
-    deduplicated_indices, duplicate_mapping = semhash.deduplicate(texts1, texts2)
+    semhash.fit(texts1)
+    deduplicated_texts = semhash.deduplicate(texts2)
+
+    assert deduplicated_texts == texts2
 
     # # With duplicates
     texts2 = [
@@ -47,6 +49,5 @@ def test_cross_list_deduplication(semhash: SemHash) -> None:
         "It's risky to go alone!",  # Semantically similar
         "Ganondorf has attacked Hyrule!",  # Semantically similar
     ]
-    deduplicated_indices, duplicate_mapping = semhash.deduplicate(texts1, texts2)
-    np.testing.assert_array_equal(deduplicated_indices, np.array([]))
-    assert duplicate_mapping == {0: 0, 1: 0, 2: 2}
+    deduplicated_texts = semhash.deduplicate(texts2)
+    assert deduplicated_texts == []
