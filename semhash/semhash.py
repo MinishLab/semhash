@@ -113,7 +113,7 @@ class SemHash:
         # Keep only those records for which no similar item was found
         deduplicated_records = []
         for record, similar_items in zip(records, results):
-            if len(similar_items) == 0:
+            if not similar_items:
                 # No duplicates found, keep this record
                 deduplicated_records.append(record)
 
