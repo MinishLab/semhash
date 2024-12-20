@@ -67,7 +67,7 @@ class SemHash:
                 column_texts.append(text)
             return "\t".join(column_texts)
         else:
-            # record is a string
+            # Record is a string
             return record.replace("\t", " ")
 
     def fit(self, records: Sequence[Record]) -> None:
@@ -133,12 +133,14 @@ class SemHash:
         :param threshold: Similarity threshold for deduplication.
         :return: A deduplicated list of records.
         """
-        # Fit the index
+        # Create embeddings and fit the index
         embeddings = self._featurize(records)
         items = [self._unpack_record(record) for record in records]
-
         self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=items, backend_type=Backend.BASIC)
+
+        # Get similar items for each record
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
+
         deduplicated_records = []
         seen_items = set()
         for record, similar_items in zip(records, results):
