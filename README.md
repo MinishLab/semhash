@@ -61,7 +61,7 @@ test = [
 ]
 
 # Fit on the training data
-semhash.fit(train)
+semhash.fit(records=train)
 # Deduplicate the test data against the training data
 deduplicated_texts = semhash.deduplicate(records=test, threshold=0.5)
 ```
