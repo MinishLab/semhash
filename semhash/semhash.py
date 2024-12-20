@@ -122,6 +122,7 @@ class SemHash:
             # If we haven't chosen any of these similar items yet, this is a new unique item.
             # If we have chosen one before, this is a duplicate.
             item_ids = [id(item) for item in similar_items]
+
             # Check if any similar item is already in seen_items
             if any(item in seen_items for item in item_ids):
                 # Duplicate found, skip this record
