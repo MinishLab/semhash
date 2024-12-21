@@ -22,6 +22,10 @@ class SemHash:
         self.columns = columns
         self.ann = ann
         self.vicinity: Vicinity | None = None
+        if self.ann:
+            self.backend = Backend.USEARCH
+        else:
+            self.backend = Backend.BASIC
 
     def _featurize(self, records: Sequence[Record]) -> np.ndarray:
         """
@@ -72,11 +76,12 @@ class SemHash:
             # Record is a string
             return record.replace("\t", " ")
 
-    def fit(self, records: Sequence[Record]) -> None:
+    def fit(self, records: Sequence[Record]) -> np.ndarray:
         """
         Embed the records and fit a vicinity index on the embeddings.
 
         :param records: The dataset to fit on. Can be a list of dictionaries or a list of strings.
+        :return: The embeddings of the records.
         :raises ValueError: If columns are not specified when records are dictionaries.
         """
         if self.columns is None and isinstance(records[0], dict):
@@ -84,12 +89,8 @@ class SemHash:
 
         embeddings = self._featurize(records)
         items = [self._unpack_record(record) for record in records]
-        if self.ann:
-            self.vicinity = Vicinity.from_vectors_and_items(
-                vectors=embeddings, items=items, backend_type=Backend.USEARCH
-            )
-        else:
-            self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=items, backend_type=Backend.BASIC)
+        self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=items, backend_type=self.backend)
+        return embeddings
 
     def deduplicate(
         self,
@@ -141,15 +142,9 @@ class SemHash:
         :return: A deduplicated list of records.
         """
         # Create embeddings and fit the index
-        embeddings = self._featurize(records)
-        items = [self._unpack_record(record) for record in records]
-        if self.ann:
-            self.vicinity = Vicinity.from_vectors_and_items(
-                vectors=embeddings, items=items, backend_type=Backend.USEARCH
-            )
-        else:
-            self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=items, backend_type=Backend.BASIC)
+        embeddings = self.fit(records)
 
+        assert self.vicinity is not None
         # Get similar items for each record
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
 
