@@ -7,7 +7,7 @@ requires-python = ">=3.9"
 
 dependencies = [
     "model2vec>=0.3.0",
-    "vicinity>=0.3.3",
+    "vicinity[usearch]>=0.3.3",
 ]
 
 [build-system]
@@ -23,12 +23,6 @@ dev = [
     "pytest",
     "pytest-coverage",
     "ruff",
-]
-sentence-transformers = [
-    "sentence-transformers",
-]
-experiments = [
-    "datasets",
 ]
 
 [tool.ruff]

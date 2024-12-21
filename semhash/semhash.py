@@ -10,15 +10,17 @@ Record = Union[str, dict[str, str]]
 
 
 class SemHash:
-    def __init__(self, model: StaticModel, columns: list[str] | None = None) -> None:
+    def __init__(self, model: StaticModel, columns: list[str] | None = None, ann: bool = False) -> None:
         """
         Initialize SemHash.
 
         :param model: A model to use for featurization.
         :param columns: Columns to featurize. Required if records are dictionaries.
+        :param ann: Whether to use approximate nearest neighbors for deduplication. Default is False.
         """
         self.model = model
         self.columns = columns
+        self.ann = ann
         self.vicinity: Vicinity | None = None
 
     def _featurize(self, records: Sequence[Record]) -> np.ndarray:
@@ -82,7 +84,12 @@ class SemHash:
 
         embeddings = self._featurize(records)
         items = [self._unpack_record(record) for record in records]
-        self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=items, backend_type=Backend.BASIC)
+        if self.ann:
+            self.vicinity = Vicinity.from_vectors_and_items(
+                vectors=embeddings, items=items, backend_type=Backend.USEARCH
+            )
+        else:
+            self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=items, backend_type=Backend.BASIC)
 
     def deduplicate(
         self,
@@ -136,7 +143,12 @@ class SemHash:
         # Create embeddings and fit the index
         embeddings = self._featurize(records)
         items = [self._unpack_record(record) for record in records]
-        self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=items, backend_type=Backend.BASIC)
+        if self.ann:
+            self.vicinity = Vicinity.from_vectors_and_items(
+                vectors=embeddings, items=items, backend_type=Backend.USEARCH
+            )
+        else:
+            self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=items, backend_type=Backend.BASIC)
 
         # Get similar items for each record
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
