@@ -144,9 +144,8 @@ class SemHash:
         # Create embeddings and fit the index
         embeddings = self.fit(records)
 
-        assert self.vicinity is not None
         # Get similar items for each record
-        results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
+        results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)  # type: ignore
 
         deduplicated_records = []
         seen_items = set()
