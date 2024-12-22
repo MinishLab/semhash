@@ -27,6 +27,10 @@ class SemHash:
         self.columns = columns
         self.ann = ann
         self.vicinity: Vicinity | None = None
+        if self.ann:
+            self.backend = Backend.USEARCH
+        else:
+            self.backend = Backend.BASIC
 
     def _featurize(self, records: Sequence[Record]) -> np.ndarray:
         """
@@ -88,16 +92,12 @@ class SemHash:
         """
         if self.columns is None and isinstance(records[0], dict):
             raise ValueError("Columns must be specified when passing dictionaries.")
-        # Compute embeddings for the records
+
+        # Compute embeddings for the records and unpack the records
         embeddings = self._featurize(records)
         items = [self._unpack_record(record) for record in records]
-        # Fit the vicinity index, using approximate nearest neighbors if specified
-        if self.ann:
-            self.vicinity = Vicinity.from_vectors_and_items(
-                vectors=embeddings, items=items, backend_type=Backend.USEARCH
-            )
-        else:
-            self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=items, backend_type=Backend.BASIC)
+        # Fit the index
+        self.vicinity = Vicinity.from_vectors_and_items(vectors=embeddings, items=items, backend_type=self.backend)
         return embeddings
 
     def deduplicate(
