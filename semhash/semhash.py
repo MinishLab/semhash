@@ -20,17 +20,10 @@ class SemHash:
         :param columns: Columns to featurize. Required if records are dictionaries.
         :param ann: Whether to use approximate nearest neighbors for deduplication. Default is False.
         """
-        if model is None:
-            model = StaticModel.from_pretrained("minishlab/potion-base-8M")
-        else:
-            self.model = model
+        self.model = model if model else StaticModel.from_pretrained("minishlab/potion-base-8M")
+        self.backend = Backend.USEARCH if ann else Backend.BASIC
         self.columns = columns
-        self.ann = ann
         self.vicinity: Vicinity | None = None
-        if self.ann:
-            self.backend = Backend.USEARCH
-        else:
-            self.backend = Backend.BASIC
 
     def _featurize(self, records: Sequence[Record]) -> np.ndarray:
         """
