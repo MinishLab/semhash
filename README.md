@@ -65,3 +65,26 @@ semhash.fit(records=train)
 # Deduplicate the test data against the training data
 deduplicated_texts = semhash.deduplicate(records=test, threshold=0.5)
 ```
+
+
+## Benchmarks
+
+| Dataset             | Original Size | Deduplicated Size | Time (seconds) |
+|---------------------|--------------:|-------------------:|---------------:|
+| bbc | 1225 | 1144 | 0.26         |
+| senteval_cr | 3012 | 2990 | 0.12         |
+| tweet_sentiment_extraction | 27481 | 26695 | 1.63         |
+| emotion | 16000 | 15695 | 0.68         |
+| amazon_counterfactual | 5000 | 4992 | 0.33         |
+| ag_news | 120000 | 106921 | 4.39         |
+| enron_spam | 31716 | 20540 | 1.65         |
+| subj | 8000 | 7990 | 0.57         |
+| sst5 | 8544 | 8526 | 0.57         |
+| 20_newgroups | 11314 | 10684 | 0.68         |
+| hatespeech_offensive | 22783 | 22090 | 0.89         |
+| ade | 17637 | 15718 | 0.66         |
+| imdb | 25000 | 24830 | 1.68         |
+| massive_scenario | 11514 | 9366 | 0.46         |
+| student | 117519 | 63858 | 4.11         |
+| squad_v2 | 130319 | 115548 | 11.79         |
+| wikitext | 1801350 | 884698 | 56.96         |

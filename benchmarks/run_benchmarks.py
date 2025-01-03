@@ -82,9 +82,9 @@ def main() -> None:
 
     for r in results:
         print(  # noqa T201
-            f"| {r['dataset']:<20} "
-            f"| {r['original_size']:>13} "
-            f"| {r['deduplicated_size']:>17} "
+            f"| {r['dataset']} "
+            f"| {r['original_size']} "
+            f"| {r['deduplicated_size']} "
             f"| {r['time_seconds']:.2f}         |"
         )
 
