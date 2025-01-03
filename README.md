@@ -1,7 +1,7 @@
 
 <div align="center">
 
-# SemHash: Fast Text Deduplication using Semantic Hashing
+# SemHash: Fast Semantic Text Deduplication
 
 
 [Quickstart](#quickstart) •
