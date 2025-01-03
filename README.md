@@ -45,7 +45,7 @@ texts = [
 deduplicated_texts = semhash.fit_deduplicate(records=texts, threshold=0.5)
 ```
 
-For more advanced usage, you can also deduplicate across multiple datasets, or deduplicate multi-column datasets. Examples are provided in the [Usage](#usage) section.
+For more advanced usage, you can also deduplicate across multiple datasets, or deduplicate multi-column datasets. Examples are provided in the [usage](#usage) section.
 
 
 ## Main Features
