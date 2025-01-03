@@ -1,7 +1,8 @@
-# SemHash: Fast Text Deduplication using Semantic Hashing
-
 
 <div align="center">
+
+# SemHash: Fast Text Deduplication using Semantic Hashing
+
 
 [Quickstart](#quickstart) •
 [Main Features](#main-features) •
@@ -51,7 +52,7 @@ For more advanced usage, you can also deduplicate across multiple datasets, or d
 
 - **Fast**: SemHash uses model2vec to embed texts and vicinity to perform similarity search, making it extremely fast.
 - **Scalable**: SemHash can deduplicate large datasets with millions of records thanks to the ANN backends in Vicinity.
-- **Flexible**: SemHash can be used to deduplicate a single dataset or across two datasets, and can also be used to deduplicate multi-column datasets.
+- **Flexible**: SemHash can be used to deduplicate a single dataset or across two datasets, and can also be used to deduplicate multi-column datasets (such as QA datasets).
 
 ## Usage
 
