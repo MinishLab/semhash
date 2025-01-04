@@ -1,0 +1,138 @@
+[
+  {
+    "dataset": "bbc",
+    "train_size": 1225,
+    "test_size": 1000,
+    "deduplicated_test_size": 873,
+    "percent_removed": 12.7,
+    "time_seconds": 0.4193903749692254
+  },
+  {
+    "dataset": "senteval_cr",
+    "train_size": 3012,
+    "test_size": 753,
+    "deduplicated_test_size": 750,
+    "percent_removed": 0.3984063745019917,
+    "time_seconds": 0.11990962497657165
+  },
+  {
+    "dataset": "tweet_sentiment_extraction",
+    "train_size": 27481,
+    "test_size": 3534,
+    "deduplicated_test_size": 3411,
+    "percent_removed": 3.4804753820034007,
+    "time_seconds": 0.9103280419949442
+  },
+  {
+    "dataset": "emotion",
+    "train_size": 16000,
+    "test_size": 2000,
+    "deduplicated_test_size": 1927,
+    "percent_removed": 3.6499999999999977,
+    "time_seconds": 0.5851674159639515
+  },
+  {
+    "dataset": "amazon_counterfactual",
+    "train_size": 5000,
+    "test_size": 5000,
+    "deduplicated_test_size": 4990,
+    "percent_removed": 0.20000000000000018,
+    "time_seconds": 0.5262217079871334
+  },
+  {
+    "dataset": "ag_news",
+    "train_size": 120000,
+    "test_size": 7600,
+    "deduplicated_test_size": 6197,
+    "percent_removed": 18.460526315789473,
+    "time_seconds": 3.5916346249869093
+  },
+  {
+    "dataset": "enron_spam",
+    "train_size": 31716,
+    "test_size": 2000,
+    "deduplicated_test_size": 1066,
+    "percent_removed": 46.699999999999996,
+    "time_seconds": 2.085106959042605
+  },
+  {
+    "dataset": "subj",
+    "train_size": 8000,
+    "test_size": 2000,
+    "deduplicated_test_size": 1999,
+    "percent_removed": 0.04999999999999449,
+    "time_seconds": 0.6246941249701194
+  },
+  {
+    "dataset": "sst5",
+    "train_size": 8544,
+    "test_size": 2210,
+    "deduplicated_test_size": 2205,
+    "percent_removed": 0.2262443438914019,
+    "time_seconds": 0.6048837499693036
+  },
+  {
+    "dataset": "20_newgroups",
+    "train_size": 11314,
+    "test_size": 7532,
+    "deduplicated_test_size": 7311,
+    "percent_removed": 2.934147636749862,
+    "time_seconds": 2.3208745419979095
+  },
+  {
+    "dataset": "hatespeech_offensive",
+    "train_size": 22783,
+    "test_size": 2000,
+    "deduplicated_test_size": 1925,
+    "percent_removed": 3.749999999999998,
+    "time_seconds": 0.7137714580167085
+  },
+  {
+    "dataset": "ade",
+    "train_size": 17637,
+    "test_size": 5879,
+    "deduplicated_test_size": 4957,
+    "percent_removed": 15.682939275386975,
+    "time_seconds": 0.8991532500367612
+  },
+  {
+    "dataset": "imdb",
+    "train_size": 25000,
+    "test_size": 25000,
+    "deduplicated_test_size": 24804,
+    "percent_removed": 0.7839999999999958,
+    "time_seconds": 2.9860474159941077
+  },
+  {
+    "dataset": "massive_scenario",
+    "train_size": 11514,
+    "test_size": 2974,
+    "deduplicated_test_size": 2187,
+    "percent_removed": 26.46267652992602,
+    "time_seconds": 0.43525291699916124
+  },
+  {
+    "dataset": "student",
+    "train_size": 117519,
+    "test_size": 5000,
+    "deduplicated_test_size": 2398,
+    "percent_removed": 52.04,
+    "time_seconds": 3.2160338750109076
+  },
+  {
+    "dataset": "squad_v2",
+    "train_size": 130319,
+    "test_size": 11873,
+    "deduplicated_test_size": 11869,
+    "percent_removed": 0.03368988461214251,
+    "time_seconds": 9.876927667006385
+  },
+  {
+    "dataset": "wikitext",
+    "train_size": 1801350,
+    "test_size": 4358,
+    "deduplicated_test_size": 2153,
+    "percent_removed": 50.596603946764574,
+    "time_seconds": 37.79167879198212
+  }
+]

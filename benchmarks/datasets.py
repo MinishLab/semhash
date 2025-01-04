@@ -10,6 +10,8 @@ class DatasetRecord:
     label_name: str | None = None
     sub_directory: str = ""
     columns: list[str] | None = None
+    split_one: str = "train"
+    split_two: str = "test"
 
 
 DATASET_DICT: dict[str, DatasetRecord] = {
@@ -34,7 +36,7 @@ DATASET_DICT: dict[str, DatasetRecord] = {
         name="SetFit/amazon_massive_scenario_en-US", text_name="text", label_name="label"
     ),
     "student": DatasetRecord(name="SetFit/student-question-categories", text_name="text", label_name="label"),
-    "squad_v2": DatasetRecord(name="squad_v2", columns=["question", "context", "answers"]),
+    "squad_v2": DatasetRecord(name="squad_v2", columns=["question", "context", "answers"], split_two="validation"),
     "wikitext": DatasetRecord(
         name="Salesforce/wikitext", text_name="text", label_name="text", sub_directory="wikitext-103-raw-v1"
     ),
