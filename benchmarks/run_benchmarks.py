@@ -149,7 +149,7 @@ def main() -> None:  # noqa: C901
             f"| {r['train_size']} "
             f"| {r['test_size']} "
             f"| {r['deduplicated_test_size']} "
-            f"| {r['percent_removed']:.2} "
+            f"| {r['percent_removed']:.2f} "
             f"| {r['time_seconds']:.2f} |"
         )
 
