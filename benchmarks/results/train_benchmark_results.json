@@ -1,0 +1,121 @@
+[
+  {
+    "dataset": "bbc",
+    "original_train_size": 1225,
+    "deduplicated_train_size": 1144,
+    "percent_removed": 6.612244897959185,
+    "time_seconds": 0.2340224579675123
+  },
+  {
+    "dataset": "senteval_cr",
+    "original_train_size": 3012,
+    "deduplicated_train_size": 2990,
+    "percent_removed": 0.7304116865869847,
+    "time_seconds": 0.12587350001558661
+  },
+  {
+    "dataset": "tweet_sentiment_extraction",
+    "original_train_size": 27481,
+    "deduplicated_train_size": 26695,
+    "percent_removed": 2.860157927295226,
+    "time_seconds": 1.6396740000345744
+  },
+  {
+    "dataset": "emotion",
+    "original_train_size": 16000,
+    "deduplicated_train_size": 15696,
+    "percent_removed": 1.9000000000000017,
+    "time_seconds": 0.6559336250065826
+  },
+  {
+    "dataset": "amazon_counterfactual",
+    "original_train_size": 5000,
+    "deduplicated_train_size": 4992,
+    "percent_removed": 0.16000000000000458,
+    "time_seconds": 0.31189216702478006
+  },
+  {
+    "dataset": "ag_news",
+    "original_train_size": 120000,
+    "deduplicated_train_size": 106921,
+    "percent_removed": 10.899166666666671,
+    "time_seconds": 4.212547875009477
+  },
+  {
+    "dataset": "enron_spam",
+    "original_train_size": 31716,
+    "deduplicated_train_size": 20539,
+    "percent_removed": 35.24088787993441,
+    "time_seconds": 1.5730693750083447
+  },
+  {
+    "dataset": "subj",
+    "original_train_size": 8000,
+    "deduplicated_train_size": 7990,
+    "percent_removed": 0.12499999999999734,
+    "time_seconds": 0.5712950410088524
+  },
+  {
+    "dataset": "sst5",
+    "original_train_size": 8544,
+    "deduplicated_train_size": 8526,
+    "percent_removed": 0.2106741573033699,
+    "time_seconds": 0.5535796250333078
+  },
+  {
+    "dataset": "20_newgroups",
+    "original_train_size": 11314,
+    "deduplicated_train_size": 10685,
+    "percent_removed": 5.559483825349121,
+    "time_seconds": 0.6852752080303617
+  },
+  {
+    "dataset": "hatespeech_offensive",
+    "original_train_size": 22783,
+    "deduplicated_train_size": 22090,
+    "percent_removed": 3.0417416494754823,
+    "time_seconds": 0.8417802919866517
+  },
+  {
+    "dataset": "ade",
+    "original_train_size": 17637,
+    "deduplicated_train_size": 15718,
+    "percent_removed": 10.880535238419231,
+    "time_seconds": 0.6774359170231037
+  },
+  {
+    "dataset": "imdb",
+    "original_train_size": 25000,
+    "deduplicated_train_size": 24832,
+    "percent_removed": 0.6719999999999948,
+    "time_seconds": 1.6542092500021681
+  },
+  {
+    "dataset": "massive_scenario",
+    "original_train_size": 11514,
+    "deduplicated_train_size": 9366,
+    "percent_removed": 18.655549765502865,
+    "time_seconds": 0.43401645799167454
+  },
+  {
+    "dataset": "student",
+    "original_train_size": 117519,
+    "deduplicated_train_size": 63865,
+    "percent_removed": 45.65559611637268,
+    "time_seconds": 4.179083333991002
+  },
+  {
+    "dataset": "squad_v2",
+    "original_train_size": 130319,
+    "deduplicated_train_size": 115546,
+    "percent_removed": 11.336029281992644,
+    "time_seconds": 11.197732166969217
+  },
+  {
+    "dataset": "wikitext",
+    "original_train_size": 1801350,
+    "deduplicated_train_size": 884586,
+    "percent_removed": 50.89316346073778,
+    "time_seconds": 56.107051917002536
+  }
+]

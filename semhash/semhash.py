@@ -75,6 +75,22 @@ class SemHash:
             # Record is a string
             return record.replace("\t", " ")
 
+    def _remove_exact_duplicates(self, records: Sequence[Record]) -> list[Record]:
+        """
+        Remove exact duplicates based on the unpacked string representation of each record.
+
+        :param records: A list of records.
+        :return: A list of deduplicated records.
+        """
+        seen = set()
+        deduplicated = []
+        for record in records:
+            unpacked = self._unpack_record(record)
+            if unpacked not in seen:
+                seen.add(unpacked)
+                deduplicated.append(record)
+        return deduplicated
+
     def fit(self, records: Sequence[Record]) -> np.ndarray:
         """
         Embed the records and fit a vicinity index on the embeddings.
@@ -85,6 +101,9 @@ class SemHash:
         """
         if self.columns is None and isinstance(records[0], dict):
             raise ValueError("Columns must be specified when passing dictionaries.")
+
+        # Remove exact duplicates before embedding
+        records = self._remove_exact_duplicates(records)
 
         # Compute embeddings for the records and unpack the records
         embeddings = self._featurize(records)
@@ -142,6 +161,8 @@ class SemHash:
         :param threshold: Similarity threshold for deduplication.
         :return: A deduplicated list of records.
         """
+        # Remove exact duplicates before embedding
+        records = self._remove_exact_duplicates(records)
         # Create embeddings and fit the index
         embeddings = self.fit(records)
 
