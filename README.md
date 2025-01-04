@@ -7,6 +7,7 @@
 [Quickstart](#quickstart) •
 [Main Features](#main-features) •
 [Usage](#usage)
+[Benchmarks](#benchmarks)
 
 </div>
 
@@ -155,6 +156,16 @@ deduplicated_records = semhash.fit_deduplicate(records=records, threshold=0.5)
 </details>
 
 ## Benchmarks
+
+We've benchmarked SemHash on a variety of datasets to measure the deduplication performance and speed. The benchmarks are all run on CPU. All benchmarks are run with `ann=True`. The timings include the encoding time, index building time, and deduplication time.
+
+To run the benchmarks yourself, you can use the following command:
+
+```bash
+python -m benchmarks.run_benchmarks
+```
+Optionally, the datasets can be updated in the [datasets.py](https://github.com/MinishLab/semhash/blob/main/benchmarks/datasets.py) file.
+
 ### Train Deduplication Benchmark
 
 | Dataset | Original Train Size | Deduplicated Train Size | % Removed | Deduplication Time (s) |
