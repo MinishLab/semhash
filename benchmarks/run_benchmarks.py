@@ -85,6 +85,7 @@ def main() -> None:  # noqa: C901
             f" - Time (seconds): {train_only_dedup_time:.2f}\n"
         )
 
+        # Time how long it takes to deduplicate the test set
         train_test_start = perf_counter()
         semhash.fit(records=train_records)
 
