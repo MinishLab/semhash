@@ -118,10 +118,10 @@ def main() -> None:  # noqa: C901
         )
 
     # Write the results to JSON files
-    with open("benchmarks/train_benchmark_results.json", "w", encoding="utf-8") as f:
+    with open("results/benchmarks/train_benchmark_results.json", "w", encoding="utf-8") as f:
         json.dump(train_dedup_results, f, ensure_ascii=False, indent=2)
 
-    with open("benchmarks/train_test_benchmark_results.json", "w", encoding="utf-8") as f:
+    with open("results/benchmarks/train_test_benchmark_results.json", "w", encoding="utf-8") as f:
         json.dump(train_test_dedup_results, f, ensure_ascii=False, indent=2)
 
     # Print the train table
