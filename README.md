@@ -95,7 +95,7 @@ deduplicated_texts = semhash.deduplicate(records=test, threshold=0.5)
 ### Train/Test Deduplication Benchmark
 
 | Dataset | Train Size | Test Size | Deduplicated Test Size | % Removed | Deduplication Time (s) |
-| --- | --- | --- | --- | --- |
+| --- | --- | --- | --- | --- | --- |
 | bbc | 1225 | 1000 | 873 | 1.3e+01 | 0.42 |
 | senteval_cr | 3012 | 753 | 750 | 0.4 | 0.12 |
 | tweet_sentiment_extraction | 27481 | 3534 | 3411 | 3.5 | 0.91 |

@@ -142,7 +142,7 @@ def main() -> None:  # noqa: C901
     # Print the train/test table
     print("### Train/Test Deduplication Benchmark\n")  # noqa T201
     print("| Dataset | Train Size | Test Size | Deduplicated Test Size | % Removed | Deduplication Time (s) |")  # noqa T201
-    print("| --- | --- | --- | --- | --- |")  # noqa T201
+    print("| --- | --- | --- | --- | --- | --- |")  # noqa T201
     for r in train_test_dedup_results:
         print(  # noqa T201
             f"| {r['dataset']} "
