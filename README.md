@@ -92,7 +92,7 @@ The following examples show the various ways you can use SemHash to deduplicate 
 <summary>  Deduplicate a single dataset </summary>
 <br>
 
-The following code snippet shows how to deduplicate a single dataset using SemHash (in this example, the train portion of the [AG News dataset](https://huggingface.co/datasets/fancyzhx/ag_news)):
+The following code snippet shows how to deduplicate a single dataset using SemHash (in this example, the train split of the [AG News dataset](https://huggingface.co/datasets/fancyzhx/ag_news)):
 
 ```python
 from datasets import load_dataset
@@ -139,7 +139,7 @@ deduplicated_test_texts = semhash.deduplicate(records=test_texts)
 <summary>  Deduplicate multi-column datasets </summary>
 <br>
 
-The following code snippet shows how to deduplicate multi-column datasets using SemHash (in this example, the well known QA dataset [SQuAD 2.0](https://huggingface.co/datasets/rajpurkar/squad_v2), which consists of questions, contexts, and answers):
+The following code snippet shows how to deduplicate multi-column datasets using SemHash (in this example, the train split of the QA dataset [SQuAD 2.0](https://huggingface.co/datasets/rajpurkar/squad_v2), which consists of questions, contexts, and answers):
 
 ```python
 from datasets import load_dataset
@@ -173,12 +173,20 @@ The following code snippet shows how to use a custom encoder with SemHash:
 from model2vec import StaticModel
 from semhash import SemHash
 
-# Load an embedding model
-model = StaticModel.from_pretrained("minishlab/potion-base-8M")
+# Load an embedding model (in this example, a multilingual model)
+model = StaticModel.from_pretrained("minishlab/M2V_multilingual_output")
 
 # Initialize a SemHash with the model and custom encoder
 semhash = SemHash(model=model)
 
+# Load a dataset to deduplicate
+texts = load_dataset("ag_news", split="train")["text"]
+
+# Deduplicate the texts
+deduplicated_texts = semhash.fit_deduplicate(records=texts)
+```
+
+</details>
 
 ## Benchmarks
 
