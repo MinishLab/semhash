@@ -186,6 +186,24 @@ texts = load_dataset("ag_news", split="train")["text"]
 deduplicated_texts = semhash.fit_deduplicate(records=texts)
 ```
 
+Any encoder can be used that adheres to our [encoder protocol](https://github.com/MinishLab/semhash/blob/main/semhash/utils.py). For example, any [sentence-transformers](https://github.com/UKPLab/sentence-transformers) model can be used as an encoder:
+
+```python
+from sentence_transformers import SentenceTransformer
+
+# Load a sentence-transformers model
+model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
+# Initialize a SemHash with the model and custom encoder
+semhash = SemHash(model=model)
+
+# Load a dataset to deduplicate
+texts = load_dataset("ag_news", split="train")["text"]
+
+# Deduplicate the texts
+deduplicated_texts = semhash.fit_deduplicate(records=texts)
+```
+
 </details>
 
 ## Benchmarks
