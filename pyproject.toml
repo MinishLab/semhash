@@ -1,9 +1,26 @@
 [project]
 name = "semhash"
 description = "Fast Semantic Text Deduplication"
-readme = "README.md"
-version = "0.1.0"
+authors = [{name = "Thomas van Dongen", email = "thomas123@live.nl"}, { name = "Stéphan Tulkens", email = "stephantul@gmail.com"}]
+readme = { file = "README.md", content-type = "text/markdown" }
+dynamic = ["version"]
+license = { file = "LICENSE" }
 requires-python = ">=3.9"
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Natural Language :: English",
+]
 
 dependencies = [
     "model2vec>=0.3.0",
@@ -24,6 +41,11 @@ dev = [
     "pytest-coverage",
     "ruff",
 ]
+
+[project.urls]
+"Homepage" = "https://github.com/MinishLab"
+"Bug Reports" = "https://github.com/MinishLab/semhash/issues"
+"Source" = "https://github.com/MinishLab/semhash"
 
 [tool.ruff]
 exclude = [".venv/"]
@@ -72,3 +94,6 @@ packages = ["semhash"]
 
 [tool.setuptools_scm]
 # can be empty if no extra settings are needed, presence enables setuptools_scm
+
+[tool.setuptools.dynamic]
+version = {attr = "semhash.version.__version__"}
