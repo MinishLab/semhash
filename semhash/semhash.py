@@ -12,13 +12,13 @@ Record = Union[str, dict[str, str]]
 
 
 class SemHash:
-    def __init__(self, model: Encoder | None = None, columns: list[str] | None = None, ann: bool = False) -> None:
+    def __init__(self, model: Encoder | None = None, columns: list[str] | None = None, ann: bool = True) -> None:
         """
         Initialize SemHash.
 
         :param model: A model to use for featurization. Defaults to minishlab/potion-base-8M.
         :param columns: Columns to featurize. Required if records are dictionaries.
-        :param ann: Whether to use approximate nearest neighbors for deduplication. Default is False.
+        :param ann: Whether to use approximate nearest neighbors for deduplication. Default is True.
         """
         self.model = model if model else StaticModel.from_pretrained("minishlab/potion-base-8M")
         self.backend = Backend.USEARCH if ann else Backend.BASIC

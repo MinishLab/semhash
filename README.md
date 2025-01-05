@@ -58,6 +58,11 @@ deduplicated_texts = semhash.fit_deduplicate(records=texts, threshold=0.5)
 
 For more advanced usage, you can also deduplicate across multiple datasets, or deduplicate multi-column datasets. Examples are provided in the [usage](#usage) section.
 
+NOTE: By default, we use the `ann` (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ann. If you want to use the flat/exact-matching backend, you can set `ann=False` in the SemHash constructor:
+
+```python
+semhash = SemHash(model=model, ann=False)
+```
 
 ## Main Features
 
