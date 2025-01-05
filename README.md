@@ -189,6 +189,8 @@ deduplicated_texts = semhash.fit_deduplicate(records=texts)
 Any encoder can be used that adheres to our [encoder protocol](https://github.com/MinishLab/semhash/blob/main/semhash/utils.py). For example, any [sentence-transformers](https://github.com/UKPLab/sentence-transformers) model can be used as an encoder:
 
 ```python
+from datasets import load_dataset
+from semhash import SemHash
 from sentence_transformers import SentenceTransformer
 
 # Load a sentence-transformers model
