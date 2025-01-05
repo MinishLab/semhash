@@ -11,8 +11,8 @@ def model() -> StaticModel:
     return model
 
 
-@pytest.fixture
-def semhash(model: StaticModel) -> SemHash:
-    """Load a SemHash object for testing."""
-    semhash = SemHash(model=model)
-    return semhash
+@pytest.fixture(params=[True, False], ids=["ann=True", "ann=False"])
+def semhash(request: pytest.FixtureRequest, model: StaticModel) -> SemHash:
+    """Load a SemHash object for testing with parametrized ann."""
+    ann = request.param
+    return SemHash(model=model, ann=ann)
