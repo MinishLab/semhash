@@ -157,14 +157,10 @@ deduplicated_records = semhash.fit_deduplicate(records=records, threshold=0.5)
 
 ## Benchmarks
 
-We've benchmarked SemHash on a variety of datasets to measure the deduplication performance and speed. The benchmarks are all run on CPU. All benchmarks are run with `ann=True`. The timings include the encoding time, index building time, and deduplication time.
-
-To run the benchmarks yourself, you can use the following command:
-
-```bash
-python -m benchmarks.run_benchmarks
-```
-Optionally, the datasets can be updated in the [datasets.py](https://github.com/MinishLab/semhash/blob/main/benchmarks/datasets.py) file.
+We've benchmarked SemHash on a variety of datasets to measure the deduplication performance and speed. The benchmarks were run with the following setup:
+- The benchmarks were all run on CPU
+- The benchmarks were all run with `ann=True`
+- The timings include the encoding time, index building time, and deduplication time.
 
 ### Train Deduplication Benchmark
 
@@ -210,3 +206,15 @@ Optionally, the datasets can be updated in the [datasets.py](https://github.com/
 | student | 117519 | 5000 | 2395 | 52.10 | 3.02 |
 | squad_v2 | 130319 | 11873 | 11869 | 0.03 | 9.11 |
 | wikitext | 1801350 | 4358 | 3610 | 17.16 | 36.10 |
+
+
+As can be seen, SemHash is extremely fast, and scales to large datasets with millions of records. There are some notable examples of train/test leakage, such as `enron_spam` and `student`, where the test dataset contains a significant amount of semantic overlap with the training dataset.
+
+### Reproding the Benchmarks
+
+To run the benchmarks yourself, you can use the following command:
+
+```bash
+python -m benchmarks.run_benchmarks
+```
+Optionally, the datasets can be updated in the [datasets.py](https://github.com/MinishLab/semhash/blob/main/benchmarks/datasets.py) file.
