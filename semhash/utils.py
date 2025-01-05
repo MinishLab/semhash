@@ -1,4 +1,4 @@
-from typing import Any, Protocol, Sequence
+from typing import Any, Protocol, Sequence, Union
 
 import numpy as np
 
@@ -8,7 +8,7 @@ class Encoder(Protocol):
 
     def encode(
         self,
-        sentences: list[str] | str | Sequence[str],
+        sentences: Union[list[str], str, Sequence[str]],
         **kwargs: Any,
     ) -> np.ndarray:
         """

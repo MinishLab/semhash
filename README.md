@@ -6,7 +6,7 @@
 
 [Quickstart](#quickstart) •
 [Main Features](#main-features) •
-[Usage](#usage)
+[Usage](#usage) •
 [Benchmarks](#benchmarks)
 
 </div>
