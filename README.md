@@ -4,7 +4,6 @@
 # SemHash: Fast Semantic Text Deduplication
 
 
-<div align="center">
   <h2>
     <a href="https://pypi.org/project/semhash/"><img src="https://img.shields.io/pypi/v/semhash?color=%23007ec6&label=pypi%20package" alt="Package version"></a>
     <a href="https://pypi.org/project/semhash/"><img src="https://img.shields.io/pypi/pyversions/semhash" alt="Supported Python versions"></a>
