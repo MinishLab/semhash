@@ -4,6 +4,17 @@
 # SemHash: Fast Semantic Text Deduplication
 
 
+<div align="center">
+  <h2>
+    <a href="https://pypi.org/project/semhash/"><img src="https://img.shields.io/pypi/v/semhash?color=%23007ec6&label=pypi%20package" alt="Package version"></a>
+    <a href="https://pypi.org/project/semhash/"><img src="https://img.shields.io/pypi/pyversions/semhash" alt="Supported Python versions"></a>
+    <a href="https://app.codecov.io/gh/MinishLab/semhash">
+    <img src="https://codecov.io/gh/MinishLab/semhash/graph/badge.svg?token=YPOD6HD0MG" alt="Codecov">
+    </a>
+    <a href="https://github.com/MinishLab/semhash/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License - MIT"></a>
+  </h2>
+
+
 [Quickstart](#quickstart) •
 [Main Features](#main-features) •
 [Usage](#usage) •
