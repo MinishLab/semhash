@@ -33,27 +33,40 @@ Install the package with:
 pip install semhash
 ```
 
-Deduplicate a single dataset with the following code:
+Deduplicate a single dataset with the following code (note: this example assumes you have `datasets` installed, which you can install with `pip install datasets`):
 
 ```python
-from model2vec import StaticModel
+from datasets import load_dataset
 from semhash import SemHash
 
-# Load an embedding model
-model = StaticModel.from_pretrained("minishlab/potion-base-8M")
+# Initialize a SemHash instance
+semhash = SemHash()
 
-# Initialize a SemHash with the model
-semhash = SemHash(model=model)
-
-# Create some texts to deduplicate
-texts = [
-        "It's dangerous to go alone!",
-        "It's dangerous to go alone!",  # Exact duplicate
-        "It's not safe to go by yourself!",  # Semantically similar
-]
+# Load a dataset to deduplicate
+texts = load_dataset("ag_news", split="train")["text"]
 
 # Deduplicate the texts
-deduplicated_texts = semhash.fit_deduplicate(records=texts, threshold=0.5)
+deduplicated_texts = semhash.fit_deduplicate(records=texts)
+```
+
+Or, deduplicate across two datasets with the following code (eliminating train/test leakage):
+
+```python
+from datasets import load_dataset
+from semhash import SemHash
+
+# Initialize a SemHash instance
+semhash = SemHash()
+
+# Load two datasets to deduplicate
+train_texts = load_dataset("ag_news", split="train")["text"]
+test_texts = load_dataset("ag_news", split="test")["text"]
+
+# Fit on the training data
+semhash.fit(records=train_texts)
+
+# Deduplicate the test data against the training data
+deduplicated_texts = semhash.deduplicate(records=test_texts)
 ```
 
 For more advanced usage, you can also deduplicate across multiple datasets, or deduplicate multi-column datasets. Examples are provided in the [usage](#usage) section.
@@ -176,6 +189,7 @@ deduplicated_records = semhash.fit_deduplicate(records=records, threshold=0.5)
 We've benchmarked SemHash on a variety of datasets to measure the deduplication performance and speed. The benchmarks were run with the following setup:
 - The benchmarks were all run on CPU
 - The benchmarks were all run with `ann=True`
+- The used encoder is the default encoder ([potion-base-8M](https://huggingface.co/minishlab/potion-base-8M)).
 - The timings include the encoding time, index building time, and deduplication time.
 
 ### Train Deduplication Benchmark
