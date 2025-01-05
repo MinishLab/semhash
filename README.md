@@ -210,7 +210,7 @@ We've benchmarked SemHash on a variety of datasets to measure the deduplication 
 
 As can be seen, SemHash is extremely fast, and scales to large datasets with millions of records. There are some notable examples of train/test leakage, such as `enron_spam` and `student`, where the test dataset contains a significant amount of semantic overlap with the training dataset.
 
-### Reproding the Benchmarks
+### Reproducing the Benchmarks
 
 To run the benchmarks yourself, you can use the following command:
 
