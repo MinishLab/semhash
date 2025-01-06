@@ -12,7 +12,7 @@ class DuplicateRecord(Generic[Record]):
     duplicates: list[str]
     exact: bool
     # This is not implemented yet.
-    score: list[float] = field(default_factory=list)
+    scores: list[float] = field(default_factory=list)
 
 
 @dataclass
