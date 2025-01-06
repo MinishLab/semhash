@@ -5,11 +5,10 @@ from time import perf_counter
 from datasets import load_dataset
 from model2vec import StaticModel
 
-from benchmarks.datasets import DATASET_DICT
+from benchmarks.data import DATASET_DICT
 from semhash import SemHash
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -35,6 +34,8 @@ def main() -> None:  # noqa: C901
 
         # If the dataset has columns, use them
         if record.columns:
+            # Set the columns for the SemHash instance
+            semhash.columns = record.columns
             train_records = []
             for row in train_ds:
                 item = {}
@@ -53,13 +54,9 @@ def main() -> None:  # noqa: C901
             train_records = train_ds[record.text_name]
             test_records = test_ds[record.text_name]
 
-        if record.columns:
-            # Set the columns for the SemHash instance
-            semhash.columns = record.columns
-
         # Time how long it takes to deduplicate the train set
         train_only_start = perf_counter()
-        deduplicated_train = semhash.fit_deduplicate(records=train_records)
+        deduplicated_train = semhash.fit_deduplicate(records=train_records).deduplicated
         train_only_end = perf_counter()
 
         train_only_dedup_time = train_only_end - train_only_start
@@ -91,7 +88,7 @@ def main() -> None:  # noqa: C901
 
         deduped_test = semhash.deduplicate(
             records=test_records,
-        )
+        ).deduplicated
         train_test_end = perf_counter()
         train_test_dedup_time = train_test_end - train_test_start
         original_test_size = len(test_records)
@@ -156,4 +153,5 @@ def main() -> None:  # noqa: C901
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()

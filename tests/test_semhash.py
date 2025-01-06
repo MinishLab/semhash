@@ -11,7 +11,7 @@ def test_single_dataset_deduplication(semhash: SemHash) -> None:
         "The master sword can seal the darkness.",
         "Ganondorf has invaded Hyrule!",
     ]
-    deduplicated_texts = semhash.fit_deduplicate(texts)
+    deduplicated_texts = semhash.fit_deduplicate(texts).deduplicated
     assert deduplicated_texts == texts
 
     # With duplicates
@@ -20,7 +20,7 @@ def test_single_dataset_deduplication(semhash: SemHash) -> None:
         "It's dangerous to go alone!",  # Exact duplicate
         "It's not safe to go alone!",  # Semantically similar
     ]
-    deduplicated_texts = semhash.fit_deduplicate(texts)
+    deduplicated_texts = semhash.fit_deduplicate(texts).deduplicated
     assert deduplicated_texts == ["It's dangerous to go alone!"]
 
 
@@ -38,7 +38,7 @@ def test_multi_dataset_deduplication(semhash: SemHash) -> None:
         "Ganon is the king of thieves.",
     ]
     semhash.fit(texts1)
-    deduplicated_texts = semhash.deduplicate(texts2)
+    deduplicated_texts = semhash.deduplicate(texts2).deduplicated
 
     assert deduplicated_texts == texts2
 
@@ -48,7 +48,7 @@ def test_multi_dataset_deduplication(semhash: SemHash) -> None:
         "It's risky to go alone!",  # Semantically similar
         "Ganondorf has attacked Hyrule!",  # Semantically similar
     ]
-    deduplicated_texts = semhash.deduplicate(texts2)
+    deduplicated_texts = semhash.deduplicate(texts2).deduplicated
     assert deduplicated_texts == []
 
 
@@ -67,7 +67,7 @@ def test_single_dataset_deduplication_multicolumn(semhash: SemHash) -> None:
 
     semhash.columns = ["question", "context", "answer"]
     deduplicated = semhash.fit_deduplicate(records)
-    assert deduplicated == [
+    assert deduplicated.deduplicated == [
         {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
         {"question": "Who is the princess?", "context": "The princess is Zelda", "answer": "Zelda"},
     ]
@@ -92,7 +92,7 @@ def test_multi_dataset_deduplication_multicolumn(semhash: SemHash) -> None:
 
     semhash.columns = ["question", "context", "answer"]
     semhash.fit(train_records)
-    deduplicated = semhash.deduplicate(test_records)
+    deduplicated = semhash.deduplicate(test_records).deduplicated
     assert deduplicated == [
         {"question": "What is the villain's name?", "context": "The villain is Ganon", "answer": "Ganon"}
     ]
