@@ -91,14 +91,15 @@ class SemHash:
         in_one_set = True
         if reference_records is not None:
             # If the reference records are provided, we need to add them to the seen set
-            # to avoid duplicates within the reference set
-            seen.update(reference_records)
+            # to deduplicate within the reference set
+            seen = set(reference_records)
             in_one_set = False
 
         for record in records:
             unpacked_record = self._unpack_record(record)
             if unpacked_record not in seen:
                 deduplicated.append(record)
+                # Only add current documents to seen if we don't have a reference set.
                 if in_one_set:
                     seen.add(unpacked_record)
             else:
