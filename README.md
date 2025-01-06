@@ -46,7 +46,17 @@ semhash = SemHash()
 texts = load_dataset("ag_news", split="train")["text"]
 
 # Deduplicate the texts
-deduplicated_texts = semhash.fit_deduplicate(records=texts)
+result = semhash.fit_deduplicate(records=texts)
+
+# Check the texts
+result.deduplicated
+# Check the duplicates
+result.duplicates
+# See how many texts were duplicates
+result.duplicate_ratio
+# See how many were exact duplicates
+result.exact_duplicate_ratio
+
 ```
 
 Or, deduplicate across two datasets with the following code (eliminating train/test leakage):
@@ -66,12 +76,39 @@ test_texts = load_dataset("ag_news", split="test")["text"]
 semhash.fit(records=train_texts)
 
 # Deduplicate the test data against the training data
-deduplicated_test_texts = semhash.deduplicate(records=test_texts)
+deduplicated_test_texts = semhash.deduplicate(records=test_texts).deduplicated
+```
+
+As seen above, the `deduplicate` and `fit_deduplicate` functions return a `DeduplicationResult`. This object stores the deduplicated corpus, and a set of duplicate objects, along with the objects that caused duplication. For example:
+
+```python
+from datasets import load_dataset
+from semhash import SemHash
+
+# Initialize a SemHash instance
+semhash = SemHash()
+
+# Load a dataset to deduplicate
+texts = load_dataset("ag_news", split="train")["text"]
+
+# Deduplicate the texts
+result = semhash.fit_deduplicate(records=texts, threshold=0.99)
+for duplicate in result.duplicates:
+  print("RECORD:")
+  print(duplicate.record)
+  if duplicate.exact:
+    print("Exact match!")
+  else:
+    print("DUPLICATES:")
+    for corpus_duplicate in duplicate.duplicates:
+      print(corpus_duplicate)
+  print("-" * 25)
+
 ```
 
 For more advanced usage, you can also deduplicate across multiple datasets, or deduplicate multi-column datasets. Examples are provided in the [usage](#usage) section.
 
-NOTE: By default, we use the `use_ann` (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ANN. If you want to use the flat/exact-matching backend, you can set `use_ann=False` in the SemHash constructor:
+NOTE: By default, we use the ANN (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ANN. If you want to use the flat/exact-matching backend, you can set `use_ann=False` in the SemHash constructor:
 
 ```python
 semhash = SemHash(model=model, use_ann=False)

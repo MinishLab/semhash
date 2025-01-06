@@ -162,21 +162,29 @@ class SemHash:
 
         # Remove exact duplicates before embedding
         records, exact_duplicates = self._remove_exact_duplicates(records, self.vicinity.items)
+        duplicate_records = [DuplicateRecord(record=record, duplicates=[], exact=True) for record in exact_duplicates]
+
+        # If no records are left after removing exact duplicates, return early
+        if not records:
+            return DeduplicationResult(deduplicated=[], duplicates=duplicate_records)
+
         # Compute embeddings for the new records
         embeddings = self._featurize(records)
-
         # Query the fitted index
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
 
-        # Keep only those records for which no similar item was found
-        duplicate_records = [DuplicateRecord(record=record, duplicates=[], exact=True) for record in exact_duplicates]
         deduplicated_records = []
         for record, similar_items in zip(records, results):
             if not similar_items:
                 # No duplicates found, keep this record
                 deduplicated_records.append(record)
             else:
-                duplicate_records.append(DuplicateRecord(record=record, duplicates=similar_items, exact=False))
+                duplicates: list[Record]
+                if self.columns is not None:
+                    duplicates = [dict(zip(self.columns, duplicate.split("\t"))) for duplicate in similar_items]  # type: ignore
+                else:
+                    duplicates = similar_items  # type: ignore
+                duplicate_records.append(DuplicateRecord(record=record, duplicates=duplicates, exact=False))
 
         return DeduplicationResult(deduplicated=deduplicated_records, duplicates=duplicate_records)
 
@@ -196,18 +204,26 @@ class SemHash:
         """
         # Create embeddings and fit the index
         embeddings, records, exact_duplicates = self._sub_fit(records)
+        duplicate_records = [DuplicateRecord(record=record, duplicates=[], exact=True) for record in exact_duplicates]
+
+        # If no records are left after removing exact duplicates, return early
+        if not records:
+            return DeduplicationResult(deduplicated=[], duplicates=duplicate_records)
 
         # Get similar items for each record
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)  # type: ignore
 
-        duplicate_records = [DuplicateRecord(record=record, duplicates=[], exact=True) for record in exact_duplicates]
         deduplicated_records = []
         seen_items = set()
         for record, similar_items in zip(records, results):
             # similar_items includes 'record' itself
             # If we've seen any of these items before, this is a duplicate cluster.
             if any(item in seen_items for item in similar_items):
-                duplicate_records.append(DuplicateRecord(record=record, duplicates=similar_items, exact=False))
+                record_unpacked = self._unpack_record(record)
+                duplicates = list(set(similar_items) - {record_unpacked})
+                if self.columns is not None:
+                    duplicates = [dict(zip(self.columns, duplicate.split("\t"))) for duplicate in duplicates]
+                duplicate_records.append(DuplicateRecord(record=record, duplicates=duplicates, exact=False))
                 continue
             # This is the first time we see this cluster of similar items
             deduplicated_records.append(record)
