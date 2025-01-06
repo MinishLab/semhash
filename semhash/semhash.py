@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence, Union, cast
+from typing import Sequence, TypeVar
 
 import numpy as np
 from model2vec import StaticModel
@@ -8,20 +8,22 @@ from vicinity import Backend, Vicinity
 
 from semhash.utils import Encoder
 
-Record = Union[str, dict[str, str]]
+Record = TypeVar("Record", str, dict[str, str])
 
 
 class SemHash:
-    def __init__(self, model: Encoder | None = None, columns: list[str] | None = None, ann: bool = True) -> None:
+    def __init__(
+        self, model: Encoder | None = None, columns: Sequence[str] | None = None, use_ann: bool = True
+    ) -> None:
         """
         Initialize SemHash.
 
         :param model: A model to use for featurization. Defaults to minishlab/potion-base-8M.
         :param columns: Columns to featurize. Required if records are dictionaries.
-        :param ann: Whether to use approximate nearest neighbors for deduplication. Default is True.
+        :param use_ann: Whether to use approximate nearest neighbors for deduplication. Default is True.
         """
         self.model = model if model else StaticModel.from_pretrained("minishlab/potion-base-8M")
-        self.backend = Backend.USEARCH if ann else Backend.BASIC
+        self.backend = Backend.USEARCH if use_ann else Backend.BASIC
         self.columns = columns
         self.vicinity: Vicinity | None = None
 
@@ -37,7 +39,6 @@ class SemHash:
             if self.columns is None:
                 raise ValueError("Columns must be specified when passing dictionaries.")
 
-            records = cast(Sequence[dict[str, str]], records)
             # Extract the embeddings for each column across all records
             embeddings_per_column = []
             for column in self.columns:
@@ -47,11 +48,9 @@ class SemHash:
 
             return np.concatenate(embeddings_per_column, axis=1)
 
-        else:
-            # Records is a list of strings
-            records = cast(Sequence[str], records)
-            embeddings = self.model.encode(records)
-            return embeddings
+        # Records is a list of strings
+        embeddings = self.model.encode(records)
+        return embeddings
 
     def _unpack_record(self, record: Record) -> str:
         r"""
@@ -71,9 +70,9 @@ class SemHash:
                 text = record[column].replace("\t", " ")
                 column_texts.append(text)
             return "\t".join(column_texts)
-        else:
-            # Record is a string
-            return record.replace("\t", " ")
+
+        # Record is a string
+        return record.replace("\t", " ")
 
     def _remove_exact_duplicates(self, records: Sequence[Record]) -> list[Record]:
         """
@@ -91,14 +90,26 @@ class SemHash:
                 deduplicated.append(record)
         return deduplicated
 
-    def fit(self, records: Sequence[Record]) -> np.ndarray:
+    def fit(self, records: Sequence[Record]) -> SemHash:
         """
         Embed the records and fit a vicinity index on the embeddings.
 
         :param records: The dataset to fit on. Can be a list of dictionaries or a list of strings.
-        :return: The embeddings of the records.
-        :raises ValueError: If columns are not specified when records are dictionaries.
+        :return: The fitted Semhash.
         """
+        self._sub_fit(records)
+        return self
+
+    def fit_transform(self, records: Sequence[Record]) -> np.ndarray:
+        """
+        Embed the records and fit a vicinity index on the embeddings, and return the resulting embeddings.
+
+        :param records: The dataset to fit on. Can be a list of dictionaries or a list of strings.
+        :return: The embeddings of the records.
+        """
+        return self._sub_fit(records)
+
+    def _sub_fit(self, records: Sequence[Record]) -> np.ndarray:
         if self.columns is None and isinstance(records[0], dict):
             raise ValueError("Columns must be specified when passing dictionaries.")
 
@@ -164,7 +175,7 @@ class SemHash:
         # Remove exact duplicates before embedding
         records = self._remove_exact_duplicates(records)
         # Create embeddings and fit the index
-        embeddings = self.fit(records)
+        embeddings = self.fit_transform(records)
 
         # Get similar items for each record
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)  # type: ignore
@@ -176,10 +187,9 @@ class SemHash:
             # If we've seen any of these items before, this is a duplicate cluster.
             if any(item in seen_items for item in similar_items):
                 continue
-            else:
-                # This is the first time we see this cluster of similar items
-                deduplicated_records.append(record)
-                # Mark all items in this cluster as seen
-                seen_items.update(similar_items)
+            # This is the first time we see this cluster of similar items
+            deduplicated_records.append(record)
+            # Mark all items in this cluster as seen
+            seen_items.update(similar_items)
 
         return deduplicated_records

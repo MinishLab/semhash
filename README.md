@@ -71,10 +71,10 @@ deduplicated_test_texts = semhash.deduplicate(records=test_texts)
 
 For more advanced usage, you can also deduplicate across multiple datasets, or deduplicate multi-column datasets. Examples are provided in the [usage](#usage) section.
 
-NOTE: By default, we use the `ann` (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ann. If you want to use the flat/exact-matching backend, you can set `ann=False` in the SemHash constructor:
+NOTE: By default, we use the `use_ann` (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ANN. If you want to use the flat/exact-matching backend, you can set `use_ann=False` in the SemHash constructor:
 
 ```python
-semhash = SemHash(model=model, ann=False)
+semhash = SemHash(model=model, use_ann=False)
 ```
 
 ## Main Features
@@ -212,7 +212,7 @@ deduplicated_texts = semhash.fit_deduplicate(records=texts)
 
 We've benchmarked SemHash on a variety of datasets to measure the deduplication performance and speed. The benchmarks were run with the following setup:
 - The benchmarks were all run on CPU
-- The benchmarks were all run with `ann=True`
+- The benchmarks were all run with `use_ann=True`
 - The used encoder is the default encoder ([potion-base-8M](https://huggingface.co/minishlab/potion-base-8M)).
 - The timings include the encoding time, index building time, and deduplication time.
 
