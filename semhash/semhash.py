@@ -213,6 +213,7 @@ class SemHash:
                 duplicate_records.append(DuplicateRecord(record=record, duplicates=duplicates_dicts, exact=False))
 
         if self.was_string:
+            # Convert records back to strings if the records were originally strings
             deduplicated_str = [self._unpack_record(r, self.columns) for r in deduplicated_records]
             duplicates_str = self._map_deduplication_result_to_strings(duplicate_records)
             return DeduplicationResult(deduplicated=deduplicated_str, duplicates=duplicates_str)
@@ -268,6 +269,7 @@ class SemHash:
             seen_items.update(similar_items)
 
         if self.was_string:
+            # Convert records back to strings if the records were originally strings
             deduplicated_str = [self._unpack_record(r, self.columns) for r in deduplicated_records]
             duplicates_str = self._map_deduplication_result_to_strings(duplicate_records)
             return DeduplicationResult(deduplicated=deduplicated_str, duplicates=duplicates_str)
