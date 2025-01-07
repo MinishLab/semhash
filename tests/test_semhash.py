@@ -1,9 +1,10 @@
 import pytest
 
 from semhash import SemHash
+from semhash.utils import Encoder
 
 
-def test_single_dataset_deduplication(semhash: SemHash) -> None:
+def test_single_dataset_deduplication(use_ann: bool, model: Encoder) -> None:
     """Test single dataset deduplication."""
     # No duplicates
     texts = [
@@ -11,7 +12,9 @@ def test_single_dataset_deduplication(semhash: SemHash) -> None:
         "The master sword can seal the darkness.",
         "Ganondorf has invaded Hyrule!",
     ]
-    deduplicated_texts = semhash.fit_deduplicate(texts).deduplicated
+    semhash = SemHash.from_records(records=texts, use_ann=use_ann, model=model)
+    deduplicated_texts = semhash.self_deduplicate(texts).deduplicated
+
     assert deduplicated_texts == texts
 
     # With duplicates
@@ -20,11 +23,12 @@ def test_single_dataset_deduplication(semhash: SemHash) -> None:
         "It's dangerous to go alone!",  # Exact duplicate
         "It's not safe to go alone!",  # Semantically similar
     ]
-    deduplicated_texts = semhash.fit_deduplicate(texts).deduplicated
+    semhash = SemHash.from_records(records=texts, use_ann=use_ann, model=model)
+    deduplicated_texts = semhash.self_deduplicate(texts).deduplicated
     assert deduplicated_texts == ["It's dangerous to go alone!"]
 
 
-def test_multi_dataset_deduplication(semhash: SemHash) -> None:
+def test_multi_dataset_deduplication(use_ann: bool, model: Encoder) -> None:
     """Test deduplication across two datasets."""
     # No duplicates
     texts1 = [
@@ -37,12 +41,11 @@ def test_multi_dataset_deduplication(semhash: SemHash) -> None:
         "Zelda is the princess of Hyrule.",
         "Ganon is the king of thieves.",
     ]
-    semhash.fit(texts1)
+    semhash = SemHash.from_records(texts1, columns=None, use_ann=use_ann, model=model)
     deduplicated_texts = semhash.deduplicate(texts2).deduplicated
-
     assert deduplicated_texts == texts2
 
-    # # With duplicates
+    # With duplicates
     texts2 = [
         "It's dangerous to go alone!",  # Exact duplicate
         "It's risky to go alone!",  # Semantically similar
@@ -52,7 +55,7 @@ def test_multi_dataset_deduplication(semhash: SemHash) -> None:
     assert deduplicated_texts == []
 
 
-def test_single_dataset_deduplication_multicolumn(semhash: SemHash) -> None:
+def test_single_dataset_deduplication_multicolumn(use_ann: bool, model: Encoder) -> None:
     """Test single dataset deduplication with multi-column records."""
     records = [
         {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
@@ -64,22 +67,26 @@ def test_single_dataset_deduplication_multicolumn(semhash: SemHash) -> None:
         },  # Semantically similar
         {"question": "Who is the princess?", "context": "The princess is Zelda", "answer": "Zelda"},
     ]
+    semhash = SemHash.from_records(
+        records,
+        columns=["question", "context", "answer"],
+        use_ann=use_ann,
+        model=model,
+    )
+    deduplicated = semhash.self_deduplicate(records)
 
-    semhash.columns = ["question", "context", "answer"]
-    deduplicated = semhash.fit_deduplicate(records)
     assert deduplicated.deduplicated == [
         {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
         {"question": "Who is the princess?", "context": "The princess is Zelda", "answer": "Zelda"},
     ]
 
 
-def test_multi_dataset_deduplication_multicolumn(semhash: SemHash) -> None:
+def test_multi_dataset_deduplication_multicolumn(use_ann: bool, model: Encoder) -> None:
     """Test multi dataset deduplication with multi-column records."""
     train_records = [
         {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
         {"question": "Who is the princess?", "context": "The princess is Zelda", "answer": "Zelda"},
     ]
-
     test_records = [
         {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},  # Exact duplicate
         {
@@ -89,44 +96,43 @@ def test_multi_dataset_deduplication_multicolumn(semhash: SemHash) -> None:
         },  # Semantically similar
         {"question": "What is the villain's name?", "context": "The villain is Ganon", "answer": "Ganon"},
     ]
-
-    semhash.columns = ["question", "context", "answer"]
-    semhash.fit(train_records)
+    semhash = SemHash.from_records(
+        train_records,
+        columns=["question", "context", "answer"],
+        use_ann=use_ann,
+        model=model,
+    )
     deduplicated = semhash.deduplicate(test_records).deduplicated
     assert deduplicated == [
         {"question": "What is the villain's name?", "context": "The villain is Ganon", "answer": "Ganon"}
     ]
 
 
-def test_fit_without_columns(semhash: SemHash) -> None:
+def test_from_records_without_columns(use_ann: bool, model: Encoder) -> None:
     """Test fitting without specifying columns."""
     records = [
         {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
         {"question": "Who is the princess?", "context": "The princess is Zelda", "answer": "Zelda"},
     ]
     with pytest.raises(ValueError):
-        semhash.fit(records)
+        SemHash.from_records(records, columns=None, use_ann=use_ann, model=model)
 
 
-def test_deduplicate_without_index(semhash: SemHash) -> None:
-    """Test deduplicating without fitting."""
-    texts = ["It's dangerous to go alone!"]
-    with pytest.raises(ValueError):
-        semhash.deduplicate(texts)
-
-
-def test__featurize_without_columns(semhash: SemHash) -> None:
-    """Test featurizing without specifying columns."""
-    records = [
-        {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
-        {"question": "Who is the princess?", "context": "The princess is Zelda", "answer": "Zelda"},
+def test_deduplicate_with_only_exact_duplicates(use_ann: bool, model: Encoder) -> None:
+    """Test deduplicating with only exact duplicates."""
+    texts1 = [
+        "It's dangerous to go alone!",
+        "It's dangerous to go alone!",
+        "It's dangerous to go alone!",
     ]
-    with pytest.raises(ValueError):
-        semhash._featurize(records)
+    texts2 = [
+        "It's dangerous to go alone!",
+        "It's dangerous to go alone!",
+        "It's dangerous to go alone!",
+    ]
+    semhash = SemHash.from_records(texts1, use_ann=use_ann, model=model)
+    deduplicated = semhash.self_deduplicate(texts1)
+    assert deduplicated.deduplicated == ["It's dangerous to go alone!"]
 
-
-def test__unpack_record_without_columns(semhash: SemHash) -> None:
-    """Test unpacking records without specifying columns."""
-    record = {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"}
-    with pytest.raises(ValueError):
-        semhash._unpack_record(record)
+    deduplicated = semhash.deduplicate(texts2)
+    assert deduplicated.deduplicated == []
