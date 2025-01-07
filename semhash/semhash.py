@@ -124,7 +124,7 @@ class SemHash:
 
         :param records: A list of records (strings or dictionaries).
         :param columns: Columns to featurize if records are dictionaries.
-        :param use_ann: Whether to use approximate nearest neighbors (True) or basic search (False).
+        :param use_ann: Whether to use approximate nearest neighbors (True) or basic search (False). Default is True.
         :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
         :return: A SemHash instance with a fitted vicinity index.
         :raises ValueError: If columns are not provided for dictionary records.
@@ -171,7 +171,7 @@ class SemHash:
         """
         Perform deduplication against the fitted index.
 
-        This method assumes you have already fit on a reference dataset (e.g., a train set).
+        This method assumes you have already fit on a reference dataset (e.g., a train set) with from_records.
         It will remove any items from 'records' that are similar above a certain threshold
         to any item in the fitted dataset.
 
@@ -234,7 +234,7 @@ class SemHash:
         :raises ValueError: If the vector store is None.
         """
         if self.vicinity.vector_store is None:
-            raise ValueError("vector_store is None. Make sure vicinity is fitted.")
+            raise ValueError("vector_store is None. Make sure vicinity is fitted and store_vectors=True.")
 
         # Create embeddings and fit the index
         embeddings = self.vicinity.vector_store.vectors
