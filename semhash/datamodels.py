@@ -1,8 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Generic, TypeVar
 
-RecordDict = dict[str, str]
-Record = TypeVar("Record", str, RecordDict)
+Record = TypeVar("Record", str, dict[str, str])
 
 
 @dataclass

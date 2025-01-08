@@ -6,7 +6,7 @@ import numpy as np
 from model2vec import StaticModel
 from vicinity import Backend, Vicinity
 
-from semhash.datamodels import DeduplicationResult, DuplicateRecord, Record, RecordDict
+from semhash.datamodels import DeduplicationResult, DuplicateRecord, Record
 from semhash.utils import Encoder
 
 
@@ -23,11 +23,11 @@ class SemHash:
         self.vicinity = vicinity
         self.model = model
         self.columns = columns
-        self.was_string = was_string
+        self._was_string = was_string
 
     @staticmethod
     def _featurize(
-        records: Sequence[RecordDict],
+        records: Sequence[dict[str, str]],
         columns: Sequence[str],
         model: Encoder,
     ) -> np.ndarray:
@@ -48,12 +48,13 @@ class SemHash:
 
         return np.concatenate(embeddings_per_col, axis=1)
 
-    @staticmethod
+    @classmethod
     def _remove_exact_duplicates(
-        records: Sequence[RecordDict],
+        cls,
+        records: Sequence[dict[str, str]],
         columns: Sequence[str],
         reference_records: list[str] | None = None,
-    ) -> tuple[list[RecordDict], list[RecordDict]]:
+    ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
         """
         Remove exact duplicates based on the unpacked string representation of each record.
 
@@ -72,7 +73,7 @@ class SemHash:
         in_one_set = reference_records is None
 
         for record in records:
-            unpacked_record = SemHash._unpack_record(record, columns)
+            unpacked_record = cls._unpack_record(record, columns)
             if unpacked_record not in seen:
                 deduplicated.append(record)
                 # Only add current documents to seen if no reference set is used
@@ -83,8 +84,8 @@ class SemHash:
 
         return deduplicated, duplicates
 
-    @staticmethod
-    def _unpack_record(record: RecordDict, columns: Sequence[str]) -> str:
+    @classmethod
+    def _unpack_record(cls, record: dict[str, str], columns: Sequence[str]) -> str:
         r"""
         Unpack a record into a single string.
 
@@ -116,6 +117,7 @@ class SemHash:
         columns: Sequence[str] | None = None,
         use_ann: bool = True,
         model: Encoder | None = None,
+        store_vectors: bool = True,
     ) -> SemHash:
         """
         Initialize a SemHash instance from records.
@@ -126,6 +128,7 @@ class SemHash:
         :param columns: Columns to featurize if records are dictionaries.
         :param use_ann: Whether to use approximate nearest neighbors (True) or basic search (False). Default is True.
         :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
+        :param store_vectors: Whether to explicitely store the vectors in the vicinity index. This is only needed when using self_deduplicate.
         :return: A SemHash instance with a fitted vicinity index.
         :raises ValueError: If columns are not provided for dictionary records.
         """
@@ -137,7 +140,7 @@ class SemHash:
             was_string = True
             # If records are strings, convert to dictionaries with a single column
             columns = ["text"]
-            dict_records: list[RecordDict] = [{"text": record} for record in records]
+            dict_records: list[dict[str, str]] = [{"text": record} for record in records]
         else:
             dict_records = list(records)
 
@@ -158,7 +161,7 @@ class SemHash:
             vectors=embeddings,
             items=items,
             backend_type=backend,
-            store_vectors=True,
+            store_vectors=store_vectors,
         )
 
         return cls(vicinity=vicinity, columns=columns, model=model, was_string=was_string)
@@ -206,13 +209,13 @@ class SemHash:
                 # No duplicates found, keep this record
                 deduplicated_records.append(record)
             else:
-                duplicates_dicts: list[RecordDict] = [
+                duplicates_dicts: list[dict[str, str]] = [
                     dict(zip(self.columns, duplicate.split("\t"))) for duplicate in similar_items
                 ]
 
                 duplicate_records.append(DuplicateRecord(record=record, duplicates=duplicates_dicts, exact=False))
 
-        if self.was_string:
+        if self._was_string:
             # Convert records back to strings if the records were originally strings
             deduplicated_str = [self._unpack_record(r, self.columns) for r in deduplicated_records]
             duplicates_str = self._map_deduplication_result_to_strings(duplicate_records)
@@ -250,7 +253,7 @@ class SemHash:
         duplicate_records = [DuplicateRecord(record=record, duplicates=[], exact=True) for record in exact_duplicates]
 
         # Get similar items for each record
-        results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)  # type: ignore
+        results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
 
         deduplicated_records = []
         seen_items = set()
@@ -268,7 +271,7 @@ class SemHash:
             # Mark all items in this cluster as seen
             seen_items.update(similar_items)
 
-        if self.was_string:
+        if self._was_string:
             # Convert records back to strings if the records were originally strings
             deduplicated_str = [self._unpack_record(r, self.columns) for r in deduplicated_records]
             duplicates_str = self._map_deduplication_result_to_strings(duplicate_records)
