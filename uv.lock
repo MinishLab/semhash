@@ -1059,7 +1059,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-coverage", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'" },
-    { name = "vicinity", extras = ["usearch"], specifier = ">=0.3.4" },
+    { name = "vicinity", extras = ["usearch"], specifier = ">=0.3.4,<0.4" },
 ]
 
 [[package]]

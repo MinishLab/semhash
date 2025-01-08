@@ -24,7 +24,7 @@ classifiers = [
 
 dependencies = [
     "model2vec>=0.3.0",
-    "vicinity[usearch]>=0.3.4",
+    "vicinity[usearch]>=0.3.4,<0.4",
 ]
 
 [build-system]
