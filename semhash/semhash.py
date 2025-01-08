@@ -117,7 +117,6 @@ class SemHash:
         columns: Sequence[str] | None = None,
         use_ann: bool = True,
         model: Encoder | None = None,
-        store_vectors: bool = True,
     ) -> SemHash:
         """
         Initialize a SemHash instance from records.
@@ -128,7 +127,6 @@ class SemHash:
         :param columns: Columns to featurize if records are dictionaries.
         :param use_ann: Whether to use approximate nearest neighbors (True) or basic search (False). Default is True.
         :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
-        :param store_vectors: Whether to explicitely store the vectors in the vicinity index. This is only needed when using self_deduplicate.
         :return: A SemHash instance with a fitted vicinity index.
         :raises ValueError: If columns are not provided for dictionary records.
         """
@@ -161,7 +159,6 @@ class SemHash:
             vectors=embeddings,
             items=items,
             backend_type=backend,
-            store_vectors=store_vectors,
         )
 
         return cls(vicinity=vicinity, columns=columns, model=model, was_string=was_string)
@@ -234,25 +231,17 @@ class SemHash:
         :param records: The dataset to fit and deduplicate.
         :param threshold: Similarity threshold for deduplication.
         :return: A deduplicated list of records.
-        :raises ValueError: If the vector store is None.
         """
-        if self.vicinity.vector_store is None:
-            raise ValueError("vector_store is None. Make sure vicinity is fitted and store_vectors=True.")
-
-        # Create embeddings and fit the index
-        embeddings = self.vicinity.vector_store.vectors
-
         if isinstance(records[0], str):
             # If records are strings, convert to dictionaries with a single column
             dict_records = [{"text": record} for record in records]
         else:
             dict_records = list(records)
 
-        # Remove exact duplicates
-        dict_records, exact_duplicates = self._remove_exact_duplicates(records=dict_records, columns=self.columns)
-        duplicate_records = [DuplicateRecord(record=record, duplicates=[], exact=True) for record in exact_duplicates]
-
-        # Get similar items for each record
+        duplicate_records = []
+        # Compute embeddings for the new records
+        embeddings = self._featurize(records=dict_records, columns=self.columns, model=self.model)
+        # Query the fitted index
         results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
 
         deduplicated_records = []
