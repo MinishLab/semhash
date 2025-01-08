@@ -109,7 +109,7 @@ For more advanced usage, you can also deduplicate across multiple datasets, or d
 NOTE: By default, we use the ANN (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ANN. If you want to use the flat/exact-matching backend, you can set `use_ann=False` in the SemHash constructor:
 
 ```python
-semhash = SemHash(model=model, use_ann=False)
+semhash = SemHash.from_records(records=texts, use_ann=False)
 ```
 
 ## Main Features
