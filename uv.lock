@@ -163,7 +163,7 @@ name = "click"
 version = "8.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/96/d3/f04c7bfcf5c1862a2a5b845c6b2b360488cf47af55dfa79c98f6a6bf98b5/click-8.1.7.tar.gz", hash = "sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de", size = 336121 }
 wheels = [
@@ -1059,7 +1059,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-coverage", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'" },
-    { name = "vicinity", extras = ["usearch"], specifier = ">=0.3.4,<0.4" },
+    { name = "vicinity", extras = ["usearch"], specifier = ">=0.4.0" },
 ]
 
 [[package]]
@@ -1274,7 +1274,7 @@ name = "tqdm"
 version = "4.66.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/58/83/6ba9844a41128c62e810fddddd72473201f3eacde02046066142a2d96cc5/tqdm-4.66.5.tar.gz", hash = "sha256:e1020aef2e5096702d8a025ac7d16b1577279c9d63f8375b63083e9a5f0fcbad", size = 169504 }
 wheels = [
@@ -1367,16 +1367,16 @@ wheels = [
 
 [[package]]
 name = "vicinity"
-version = "0.3.4"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "orjson" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/af/75/be90e68f15adae6a19689d18452e9abf2f323a80569c969cb4e99cba2553/vicinity-0.3.4.tar.gz", hash = "sha256:1c523f33200ea4c461044dc7f060dddf71c9bfda3116b503e8a42e3ed04810fc", size = 1546176 }
+sdist = { url = "https://files.pythonhosted.org/packages/05/58/70cc16d8530e123dbfd5f5debc9664f104244803d3f613fd28572bd883c7/vicinity-0.4.0.tar.gz", hash = "sha256:93130eafed2acfede1f980927e371f675705e6cb79c66f01c8a159da791ede2a", size = 1546223 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/ad/efce47c8b8f9da675070ae8ad45762c94803b090f814ae8a20a9ff97b0f8/vicinity-0.3.4-py3-none-any.whl", hash = "sha256:80bc26e1e284417cab35d5ba284146465e281bfef0d08ea45bc65626e6562c76", size = 25850 },
+    { url = "https://files.pythonhosted.org/packages/84/6b/5621cf995e6fab253f7d1988ef02873db91318778005b9a04d2b5f42183a/vicinity-0.4.0-py3-none-any.whl", hash = "sha256:4c13532589e3a4906479015253e424c162345e441c43385ae2865791ccd4dd88", size = 25990 },
 ]
 
 [package.optional-dependencies]

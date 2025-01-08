@@ -9,10 +9,22 @@ class DuplicateRecord(Generic[Record]):
     """Duplicate record."""
 
     record: Record
-    duplicates: list[Record]
     exact: bool
-    # This is not implemented yet.
-    score: list[float] = field(default_factory=list)
+    duplicates: list[Record] = field(default_factory=list)
+    scores: list[float] = field(default_factory=list)
+
+    def least_similar(self, n: int = 1) -> list[tuple[Record, float]]:
+        """Return the least similar duplicate."""
+        ascending_by_score = sorted(zip(self.duplicates, self.scores), key=lambda x: x[1])
+
+        return ascending_by_score[:n]
+
+    def _rethreshold(self, threshold: float) -> None:
+        """Rethreshold the duplicates."""
+        for i, score in enumerate(self.scores):
+            if score < threshold:
+                self.duplicates.pop(i)
+                self.scores.pop(i)
 
 
 @dataclass
@@ -21,6 +33,7 @@ class DeduplicationResult(Generic[Record]):
 
     deduplicated: list[Record]
     duplicates: list[DuplicateRecord]
+    at_threshold: float
 
     @property
     def duplicate_ratio(self) -> float:
@@ -35,3 +48,18 @@ class DeduplicationResult(Generic[Record]):
         if denom := len(self.deduplicated) + len(self.duplicates):
             return len([dup for dup in self.duplicates if dup.exact]) / denom
         return 0.0
+
+    def get_least_similar_from_duplicates(self, n: int = 1) -> list[tuple[Record, list[tuple[Record, float]]]]:
+        """Return the least similar duplicates."""
+        return [(dup.record, dup.least_similar(n)) for dup in self.duplicates]
+
+    def rethreshold(self, threshold: float) -> None:
+        """Rethreshold the duplicates."""
+        if self.at_threshold > threshold:
+            raise ValueError("Threshold is smaller than the given value.")
+        for dup in self.duplicates:
+            dup._rethreshold(threshold)
+            if not dup.duplicates:
+                self.duplicates.remove(dup)
+                self.deduplicated.append(dup.record)
+        self.at_threshold = threshold
