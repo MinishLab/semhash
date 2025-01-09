@@ -56,5 +56,9 @@ def map_deduplication_result_to_strings(
     for dup_rec in duplicates:
         record_as_str = unpack_record(dup_rec.record, columns)
         duplicates_as_str = unpack_records(dup_rec.duplicates, columns)
-        mapped.append(DuplicateRecord(record=record_as_str, duplicates=duplicates_as_str, exact=dup_rec.exact))
+        mapped.append(
+            DuplicateRecord(
+                record=record_as_str, duplicates=duplicates_as_str, exact=dup_rec.exact, scores=dup_rec.scores
+            )
+        )
     return mapped

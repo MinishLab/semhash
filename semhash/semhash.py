@@ -173,7 +173,7 @@ class SemHash(Generic[Record]):
 
         # If no records are left after removing exact duplicates, return early
         if not dict_records:
-            return DeduplicationResult(deduplicated=[], duplicates=duplicate_records, at_threshold=threshold)
+            return DeduplicationResult(deduplicated=[], duplicates=duplicate_records, threshold=threshold)
 
         # Compute embeddings for the new records
         embeddings = self._featurize(records=dict_records, columns=self.columns, model=self.model)
@@ -195,11 +195,9 @@ class SemHash(Generic[Record]):
             # Convert records back to strings if the records were originally strings
             deduplicated_str = [unpack_record(r, self.columns) for r in deduplicated_records]
             duplicates_str = map_deduplication_result_to_strings(duplicate_records, self.columns)
-            return DeduplicationResult(deduplicated=deduplicated_str, duplicates=duplicates_str, at_threshold=threshold)
+            return DeduplicationResult(deduplicated=deduplicated_str, duplicates=duplicates_str, threshold=threshold)
 
-        return DeduplicationResult(
-            deduplicated=deduplicated_records, duplicates=duplicate_records, at_threshold=threshold
-        )
+        return DeduplicationResult(deduplicated=deduplicated_records, duplicates=duplicate_records, threshold=threshold)
 
     def self_deduplicate(
         self,
@@ -250,8 +248,6 @@ class SemHash(Generic[Record]):
             # Convert records back to strings if the records were originally strings
             deduplicated_str = [unpack_record(r, self.columns) for r in deduplicated_records]
             duplicates_str = map_deduplication_result_to_strings(duplicate_records, self.columns)
-            return DeduplicationResult(deduplicated=deduplicated_str, duplicates=duplicates_str, at_threshold=threshold)
+            return DeduplicationResult(deduplicated=deduplicated_str, duplicates=duplicates_str, threshold=threshold)
 
-        return DeduplicationResult(
-            deduplicated=deduplicated_records, duplicates=duplicate_records, at_threshold=threshold
-        )
+        return DeduplicationResult(deduplicated=deduplicated_records, duplicates=duplicate_records, threshold=threshold)

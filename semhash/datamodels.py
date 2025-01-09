@@ -33,7 +33,7 @@ class DeduplicationResult(Generic[Record]):
 
     deduplicated: list[Record]
     duplicates: list[DuplicateRecord]
-    at_threshold: float
+    threshold: float
 
     @property
     def duplicate_ratio(self) -> float:
@@ -55,11 +55,11 @@ class DeduplicationResult(Generic[Record]):
 
     def rethreshold(self, threshold: float) -> None:
         """Rethreshold the duplicates."""
-        if self.at_threshold > threshold:
+        if self.threshold > threshold:
             raise ValueError("Threshold is smaller than the given value.")
         for dup in self.duplicates:
             dup._rethreshold(threshold)
             if not dup.duplicates:
                 self.duplicates.remove(dup)
                 self.deduplicated.append(dup.record)
-        self.at_threshold = threshold
+        self.threshold = threshold
