@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Generic, Sequence
 
 import numpy as np
@@ -125,7 +126,19 @@ class SemHash(Generic[Record]):
             model = StaticModel.from_pretrained("minishlab/potion-base-8M")
 
         # Remove exact duplicates
-        deduplicated_records, _ = cls._remove_exact_duplicates(dict_records, columns)
+        deduplicated_records, duplicates = cls._remove_exact_duplicates(dict_records, columns)
+
+        duplicate_map = defaultdict(list)
+        for x in duplicates:
+            frozen_record = to_frozendict(x, set(columns))
+            duplicate_map[frozen_record].append(x)
+
+        items: list[list[dict[str, str]]] = []
+        for record in deduplicated_records:
+            i = [record]
+            frozen_record = to_frozendict(record, set(columns))
+            i.extend(duplicate_map[frozen_record])
+            items.append(i)
 
         # Create embeddings and unpack records
         embeddings = cls._featurize(deduplicated_records, columns, model)
@@ -134,7 +147,7 @@ class SemHash(Generic[Record]):
         backend = Backend.USEARCH if use_ann else Backend.BASIC
         index = Index.from_vectors_and_items(
             vectors=embeddings,
-            items=[[x] for x in deduplicated_records],
+            items=items,
             backend_type=backend,
         )
 
