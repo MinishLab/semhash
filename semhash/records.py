@@ -21,10 +21,7 @@ def unpack_record(record: dict[str, str], columns: Sequence[str]) -> str:
     :param columns: Columns to unpack.
     :return: A single string representation of the record.
     """
-    parts = []
-    for c in columns:
-        parts.append(record[c].replace("\t", " "))
-    return "\t".join(parts)
+    return "\t".join(record.get(c, "").replace("\t", " ") for c in columns)
 
 
 def unpack_records(records: Sequence[dict[str, str]], columns: Sequence[str]) -> list[str]:
