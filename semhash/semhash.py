@@ -1,26 +1,29 @@
 from __future__ import annotations
 
-from typing import Sequence
+from typing import Generic, Sequence
 
 import numpy as np
+from frozendict import frozendict
 from model2vec import StaticModel
-from vicinity import Backend, Vicinity
+from vicinity import Backend
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, Record
+from semhash.index import Index
+from semhash.records import map_deduplication_result_to_strings, to_frozendict, unpack_record
 from semhash.utils import Encoder
 
 
-class SemHash:
-    def __init__(self, vicinity: Vicinity, model: Encoder, columns: Sequence[str], was_string: bool) -> None:
+class SemHash(Generic[Record]):
+    def __init__(self, index: Index, model: Encoder, columns: Sequence[str], was_string: bool) -> None:
         """
         Initialize SemHash.
 
-        :param vicinity: A fitted vicinity index.
+        :param index: An index.
         :param model: A model to use for featurization.
         :param columns: Columns of the records.
         :param was_string: Whether the records were strings. Used for mapping back to strings.
         """
-        self.vicinity = vicinity
+        self.index = index
         self.model = model
         self.columns = columns
         self._was_string = was_string
@@ -53,7 +56,7 @@ class SemHash:
         cls,
         records: Sequence[dict[str, str]],
         columns: Sequence[str],
-        reference_records: list[str] | None = None,
+        reference_records: list[dict[str, str]] | None = None,
     ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
         """
         Remove exact duplicates based on the unpacked string representation of each record.
@@ -68,47 +71,22 @@ class SemHash:
         deduplicated = []
         duplicates = []
 
+        column_set = set(columns)
         # Build a seen set from reference_records if provided
-        seen = set(reference_records) if reference_records else set()
+        seen = {to_frozendict(x, column_set) for x in reference_records} if reference_records else set()
         in_one_set = reference_records is None
 
         for record in records:
-            unpacked_record = cls._unpack_record(record, columns)
-            if unpacked_record not in seen:
+            frozen_record = frozendict({k: v for k, v in record.items() if k in column_set})
+            if frozen_record not in seen:
                 deduplicated.append(record)
                 # Only add current documents to seen if no reference set is used
                 if in_one_set:
-                    seen.add(unpacked_record)
+                    seen.add(frozen_record)
             else:
                 duplicates.append(record)
 
         return deduplicated, duplicates
-
-    @classmethod
-    def _unpack_record(cls, record: dict[str, str], columns: Sequence[str]) -> str:
-        r"""
-        Unpack a record into a single string.
-
-        Uses self.columns to determine the order of the text segments.
-        Each text is cleaned by replacing '\t' with ' '. The texts are then joined by '\t'.
-
-        :param record: A record to unpack.
-        :param columns: Columns to unpack.
-        :return: A single string representation of the record.
-        """
-        parts = []
-        for c in columns:
-            parts.append(record[c].replace("\t", " "))
-        return "\t".join(parts)
-
-    def _map_deduplication_result_to_strings(self, duplicates: list[DuplicateRecord]) -> list[DuplicateRecord]:
-        """Convert the record and duplicates in each DuplicateRecord back to strings if self.was_string is True."""
-        mapped = []
-        for dup_rec in duplicates:
-            record_as_str = self._unpack_record(dup_rec.record, self.columns)
-            duplicates_as_str = [self._unpack_record(d, self.columns) for d in dup_rec.duplicates]
-            mapped.append(DuplicateRecord(record=record_as_str, duplicates=duplicates_as_str, exact=dup_rec.exact))
-        return mapped
 
     @classmethod
     def from_records(
@@ -133,14 +111,14 @@ class SemHash:
         if columns is None and isinstance(records[0], dict):
             raise ValueError("Columns must be specified when passing dictionaries.")
 
-        was_string = False
         if isinstance(records[0], str):
-            was_string = True
             # If records are strings, convert to dictionaries with a single column
             columns = ["text"]
             dict_records: list[dict[str, str]] = [{"text": record} for record in records]
+            was_string = True
         else:
             dict_records = list(records)
+            was_string = False
 
         # If no model is provided, load the default model
         if model is None:
@@ -151,17 +129,16 @@ class SemHash:
 
         # Create embeddings and unpack records
         embeddings = cls._featurize(deduplicated_records, columns, model)
-        items = [cls._unpack_record(r, columns) for r in deduplicated_records]
 
         # Build the Vicinity index
         backend = Backend.USEARCH if use_ann else Backend.BASIC
-        vicinity = Vicinity.from_vectors_and_items(
+        index = Index.from_vectors_and_items(
             vectors=embeddings,
-            items=items,
+            items=[(x,) for x in deduplicated_records],
             backend_type=backend,
         )
 
-        return cls(vicinity=vicinity, columns=columns, model=model, was_string=was_string)
+        return cls(index=index, columns=columns, model=model, was_string=was_string)
 
     def deduplicate(
         self,
@@ -178,16 +155,19 @@ class SemHash:
         :param records: A new set of records (e.g., test set) to deduplicate against the fitted dataset.
         :param threshold: Similarity threshold for deduplication.
         :return: A deduplicated list of records.
+        :raises: ValueError if passed records are strings and the original records were not strings.
         """
         if isinstance(records[0], str):
+            if not self._was_string:
+                raise ValueError("Records were not originally strings, but you passed strings.")
             # If records are strings, convert to dictionaries with a single column
             dict_records = [{"text": record} for record in records]
         else:
-            dict_records = list(records)
+            dict_records = records
 
         # Remove exact duplicates before embedding
         dict_records, exact_duplicates = self._remove_exact_duplicates(
-            records=dict_records, columns=self.columns, reference_records=self.vicinity.items
+            records=dict_records, columns=self.columns, reference_records=self.index.items_as_sequence()
         )
         duplicate_records = [DuplicateRecord(record=record, duplicates=[], exact=True) for record in exact_duplicates]
 
@@ -198,7 +178,7 @@ class SemHash:
         # Compute embeddings for the new records
         embeddings = self._featurize(records=dict_records, columns=self.columns, model=self.model)
         # Query the fitted index
-        results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
+        results = self.index.query_threshold(embeddings, threshold=threshold)
 
         deduplicated_records = []
         for record, similar_items in zip(dict_records, results):
@@ -206,18 +186,15 @@ class SemHash:
                 # No duplicates found, keep this record
                 deduplicated_records.append(record)
             else:
-                items, distances = zip(*similar_items)
-                scores = [1 - score for score in distances]
-                duplicates_dicts: list[dict[str, str]] = [dict(zip(self.columns, item.split("\t"))) for item in items]
-
+                items, scores = zip(*similar_items)
                 duplicate_records.append(
-                    DuplicateRecord(record=record, duplicates=duplicates_dicts, scores=scores, exact=False)
+                    DuplicateRecord(record=record, duplicates=list(items), scores=list(scores), exact=False)
                 )
 
         if self._was_string:
             # Convert records back to strings if the records were originally strings
-            deduplicated_str = [self._unpack_record(r, self.columns) for r in deduplicated_records]
-            duplicates_str = self._map_deduplication_result_to_strings(duplicate_records)
+            deduplicated_str = [unpack_record(r, self.columns) for r in deduplicated_records]
+            duplicates_str = map_deduplication_result_to_strings(duplicate_records, self.columns)
             return DeduplicationResult(deduplicated=deduplicated_str, duplicates=duplicates_str, at_threshold=threshold)
 
         return DeduplicationResult(
@@ -226,57 +203,53 @@ class SemHash:
 
     def self_deduplicate(
         self,
-        records: Sequence[Record],
         threshold: float = 0.9,
     ) -> DeduplicationResult:
         """
         Deduplicate within the same dataset. This can be used to remove duplicates from a single dataset.
 
-        :param records: The dataset to fit and deduplicate.
         :param threshold: Similarity threshold for deduplication.
         :return: A deduplicated list of records.
         """
-        if isinstance(records[0], str):
-            # If records are strings, convert to dictionaries with a single column
-            dict_records = [{"text": record} for record in records]
-        else:
-            dict_records = list(records)
+        # Query the fitted index
+        results = self.index.query_threshold(self.index.vectors, threshold=threshold)
+        dict_records = self.index.items_as_sequence()
+
+        column_set = set(self.columns)
 
         duplicate_records = []
-        # Compute embeddings for the new records
-        embeddings = self._featurize(records=dict_records, columns=self.columns, model=self.model)
-        # Query the fitted index
-        results = self.vicinity.query_threshold(embeddings, threshold=1 - threshold)
-
         deduplicated_records = []
-        seen_items = set()
+        seen_items: set[frozendict[str, str]] = set()
         for record, similar_items in zip(dict_records, results):
+            # If we don't see any similar_items, we know the record is not a duplicate.
+            # in rare cases, the item itself might not be a duplicate of itself.
+            if not similar_items:
+                deduplicated_records.append(record)
+                continue
+            items, _ = zip(*similar_items)
+            frozen_items = [to_frozendict(item, column_set) for item in items]
             # similar_items includes 'record' itself
             # If we've seen any of these items before, this is a duplicate cluster.
-            items, _ = zip(*similar_items)
-            if any(item in seen_items for item in items):
-                record_unpacked = self._unpack_record(record, self.columns)
-                if record_unpacked in seen_items:
+            if similar_items and any(item in seen_items for item in frozen_items):
+                frozen_record = to_frozendict(record, column_set)
+                if frozen_record in seen_items:
                     continue
-                duplicates: tuple[str, ...]
+                duplicates: tuple[dict[str, str], ...]
                 scores: tuple[float, ...]
-                duplicates, scores = zip(
-                    *[(item, 1 - distance) for item, distance in similar_items if item != record_unpacked]
-                )
-                duplicates_dicts = [dict(zip(self.columns, d.split("\t"))) for d in duplicates]
+                duplicates, scores = zip(*[(item, score) for item, score in similar_items if item != record])
                 duplicate_records.append(
-                    DuplicateRecord(record=record, duplicates=duplicates_dicts, scores=list(scores), exact=False)
+                    DuplicateRecord(record=record, duplicates=list(duplicates), scores=list(scores), exact=False)
                 )
                 continue
             # This is the first time we see this cluster of similar items
             deduplicated_records.append(record)
             # Mark all items in this cluster as seen
-            seen_items.update(items)
+            seen_items.update(frozen_items)
 
         if self._was_string:
             # Convert records back to strings if the records were originally strings
-            deduplicated_str = [self._unpack_record(r, self.columns) for r in deduplicated_records]
-            duplicates_str = self._map_deduplication_result_to_strings(duplicate_records)
+            deduplicated_str = [unpack_record(r, self.columns) for r in deduplicated_records]
+            duplicates_str = map_deduplication_result_to_strings(duplicate_records, self.columns)
             return DeduplicationResult(deduplicated=deduplicated_str, duplicates=duplicates_str, at_threshold=threshold)
 
         return DeduplicationResult(

@@ -13,7 +13,7 @@ def test_single_dataset_deduplication(use_ann: bool, model: Encoder) -> None:
         "Ganondorf has invaded Hyrule!",
     ]
     semhash = SemHash.from_records(records=texts, use_ann=use_ann, model=model)
-    deduplicated_texts = semhash.self_deduplicate(texts).deduplicated
+    deduplicated_texts = semhash.self_deduplicate().deduplicated
 
     assert deduplicated_texts == texts
 
@@ -24,7 +24,7 @@ def test_single_dataset_deduplication(use_ann: bool, model: Encoder) -> None:
         "It's not safe to go alone!",  # Semantically similar
     ]
     semhash = SemHash.from_records(records=texts, use_ann=use_ann, model=model)
-    deduplicated_texts = semhash.self_deduplicate(texts).deduplicated
+    deduplicated_texts = semhash.self_deduplicate().deduplicated
     assert deduplicated_texts == ["It's dangerous to go alone!"]
 
 
@@ -73,7 +73,7 @@ def test_single_dataset_deduplication_multicolumn(use_ann: bool, model: Encoder)
         use_ann=use_ann,
         model=model,
     )
-    deduplicated = semhash.self_deduplicate(records)
+    deduplicated = semhash.self_deduplicate()
 
     assert deduplicated.deduplicated == [
         {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
@@ -131,7 +131,7 @@ def test_deduplicate_with_only_exact_duplicates(use_ann: bool, model: Encoder) -
         "It's dangerous to go alone!",
     ]
     semhash = SemHash.from_records(texts1, use_ann=use_ann, model=model)
-    deduplicated = semhash.self_deduplicate(texts1)
+    deduplicated = semhash.self_deduplicate()
     assert deduplicated.deduplicated == ["It's dangerous to go alone!"]
 
     deduplicated = semhash.deduplicate(texts2)

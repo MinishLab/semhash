@@ -3,7 +3,6 @@ import logging
 from time import perf_counter
 
 from datasets import load_dataset
-from model2vec import StaticModel
 
 from benchmarks.data import DATASET_DICT
 from semhash import SemHash
@@ -18,8 +17,6 @@ def main() -> None:  # noqa: C901
     train_dedup_results = []
     train_test_dedup_results = []
     # Load the model and initialize SemHash
-    model = StaticModel.from_pretrained("minishlab/potion-base-8M")
-    semhash = SemHash(model=model, use_ann=True)
 
     for dataset_name, record in DATASET_DICT.items():
         logger.info(f"Loading dataset: {dataset_name} from {record.name}")
@@ -35,7 +32,6 @@ def main() -> None:  # noqa: C901
         # If the dataset has columns, use them
         if record.columns:
             # Set the columns for the SemHash instance
-            semhash.columns = record.columns
             train_records = []
             for row in train_ds:
                 item = {}
@@ -49,14 +45,18 @@ def main() -> None:  # noqa: C901
                 for col in record.columns:
                     item[col] = str(row[col])
                 test_records.append(item)
+            columns = record.columns
         # Else, use the text_name
         else:
             train_records = train_ds[record.text_name]
             test_records = test_ds[record.text_name]
+            columns = None
 
         # Time how long it takes to deduplicate the train set
         train_only_start = perf_counter()
-        deduplicated_train = semhash.fit_deduplicate(records=train_records).deduplicated
+        deduplicated_train = (
+            SemHash.from_records(use_ann=True, records=train_records, columns=columns).self_deduplicate().deduplicated
+        )
         train_only_end = perf_counter()
 
         train_only_dedup_time = train_only_end - train_only_start
@@ -84,7 +84,7 @@ def main() -> None:  # noqa: C901
 
         # Time how long it takes to deduplicate the test set
         train_test_start = perf_counter()
-        semhash.fit(records=train_records)
+        semhash = SemHash.from_records(use_ann=True, records=train_records, columns=columns)
 
         deduped_test = semhash.deduplicate(
             records=test_records,
