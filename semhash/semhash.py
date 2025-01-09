@@ -134,7 +134,7 @@ class SemHash(Generic[Record]):
         backend = Backend.USEARCH if use_ann else Backend.BASIC
         index = Index.from_vectors_and_items(
             vectors=embeddings,
-            items=[(x,) for x in deduplicated_records],
+            items=[[x] for x in deduplicated_records],
             backend_type=backend,
         )
 
