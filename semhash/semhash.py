@@ -10,7 +10,7 @@ from vicinity import Backend
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, Record
 from semhash.index import Index
-from semhash.records import map_deduplication_result_to_strings, to_frozendict, unpack_record
+from semhash.records import dict_to_string, map_deduplication_result_to_strings, to_frozendict
 from semhash.utils import Encoder
 
 
@@ -204,13 +204,15 @@ class SemHash(Generic[Record]):
                     DuplicateRecord(record=record, duplicates=list(items), scores=list(scores), exact=False)
                 )
 
+        result = DeduplicationResult(
+            deduplicated=deduplicated_records, duplicates=duplicate_records, threshold=threshold
+        )
+
         if self._was_string:
             # Convert records back to strings if the records were originally strings
-            deduplicated_str = [unpack_record(r, self.columns) for r in deduplicated_records]
-            duplicates_str = map_deduplication_result_to_strings(duplicate_records, self.columns)
-            return DeduplicationResult(deduplicated=deduplicated_str, duplicates=duplicates_str, threshold=threshold)
+            return map_deduplication_result_to_strings(result, columns=self.columns)
 
-        return DeduplicationResult(deduplicated=deduplicated_records, duplicates=duplicate_records, threshold=threshold)
+        return result
 
     def self_deduplicate(
         self,
@@ -257,10 +259,12 @@ class SemHash(Generic[Record]):
             # Mark all items in this cluster as seen
             seen_items.update(frozen_items)
 
+        result = DeduplicationResult(
+            deduplicated=deduplicated_records, duplicates=duplicate_records, threshold=threshold
+        )
+
         if self._was_string:
             # Convert records back to strings if the records were originally strings
-            deduplicated_str = [unpack_record(r, self.columns) for r in deduplicated_records]
-            duplicates_str = map_deduplication_result_to_strings(duplicate_records, self.columns)
-            return DeduplicationResult(deduplicated=deduplicated_str, duplicates=duplicates_str, threshold=threshold)
+            return map_deduplication_result_to_strings(result, columns=self.columns)
 
-        return DeduplicationResult(deduplicated=deduplicated_records, duplicates=duplicate_records, threshold=threshold)
+        return result
