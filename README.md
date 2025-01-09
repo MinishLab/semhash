@@ -24,8 +24,6 @@
 
 SemHash is a technique to efficiently deduplicate datasets based on semantic similarity. It uses a combination of lightning-fast embeddings through [model2vec](https://github.com/MinishLab/model2vec) and ANN-based similarity search through [vicinity](https://github.com/MinishLab/vicinity).
 
-
-
 ## Quickstart
 
 Install the package with:
@@ -46,7 +44,7 @@ texts = load_dataset("ag_news", split="train")["text"]
 semhash = SemHash.from_records(records=texts)
 
 # Deduplicate the texts
-result = semhash.self_deduplicate(records=texts)
+result = semhash.self_deduplicate()
 
 # Check the texts
 result.deduplicated
@@ -59,7 +57,7 @@ result.exact_duplicate_ratio
 
 ```
 
-Or, deduplicate across two datasets with the following code (eliminating train/test leakage):
+Or, deduplicate across two datasets with the following code (e.g., eliminating train/test leakage):
 
 ```python
 from datasets import load_dataset
@@ -140,7 +138,7 @@ texts = load_dataset("ag_news", split="train")["text"]
 semhash = SemHash.from_records(records=texts)
 
 # Deduplicate the texts
-deduplicated_texts = semhash.self_deduplicate(records=texts)
+deduplicated_texts = semhash.self_deduplicate()
 ```
 </details>
 
@@ -193,7 +191,7 @@ records = [
 semhash = SemHash.from_records(records=records, columns=["question", "context", "answers"])
 
 # Deduplicate the records
-deduplicated_records = semhash.self_deduplicate(records=records)
+deduplicated_records = semhash.self_deduplicate()
 ```
 
 </details>
@@ -219,7 +217,7 @@ model = StaticModel.from_pretrained("minishlab/M2V_multilingual_output")
 semhash = SemHash.from_records(records=texts, model=model)
 
 # Deduplicate the texts
-deduplicated_texts = semhash.self_deduplicate(records=texts)
+deduplicated_texts = semhash.self_deduplicate()
 ```
 
 Any encoder can be used that adheres to our [encoder protocol](https://github.com/MinishLab/semhash/blob/main/semhash/utils.py). For example, any [sentence-transformers](https://github.com/UKPLab/sentence-transformers) model can be used as an encoder:
@@ -239,7 +237,7 @@ model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 semhash = SemHash.from_records(records=texts, model=model)
 
 # Deduplicate the texts
-deduplicated_texts = semhash.self_deduplicate(records=texts)
+deduplicated_texts = semhash.self_deduplicate()
 ```
 
 </details>
