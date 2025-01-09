@@ -25,6 +25,7 @@ classifiers = [
 dependencies = [
     "model2vec>=0.3.0",
     "vicinity[usearch]>=0.4.0",
+    "frozendict",
 ]
 
 [build-system]
