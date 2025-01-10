@@ -22,7 +22,7 @@
 </div>
 
 
-SemHash is a simple and practical tool for deduplicating datasets using semantic similarity. It combines fast embedding generation from [Model2Vec](https://github.com/MinishLab/model2vec) with efficient ANN-based similarity search through [Vicinity](https://github.com/MinishLab/vicinity).
+SemHash is a lightweight and flexible tool for deduplicating datasets using semantic similarity. It combines fast embedding generation from [Model2Vec](https://github.com/MinishLab/model2vec) with efficient ANN-based similarity search through [Vicinity](https://github.com/MinishLab/vicinity).
 
 SemHash supports both single-dataset deduplication (e.g., cleaning up a train set) and multi-dataset deduplication (e.g., ensuring no overlap between a test set and a train set). It works with simple datasets, such as text lists, and more complex ones, like multi-column QA datasets. Additionally, it includes functions to inspect deduplication results, making it easier to understand and refine your data cleaning process.
 
