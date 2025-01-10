@@ -229,14 +229,20 @@ class SemHash(Generic[Record]):
         """
         # Query the fitted index
         results = self.index.query_threshold(self.index.vectors, threshold=threshold)
-        dict_records = self.index.items_as_sequence()
-
         column_set = set(self.columns)
 
         duplicate_records = []
+
         deduplicated_records = []
         seen_items: set[frozendict[str, str]] = set()
-        for record, similar_items in zip(dict_records, results):
+        for item, similar_items in zip(self.index.items, results):
+            # Items is a list of items which are exact duplicates of each other
+            # So if the an item has more than one record, it is an exact duplicate
+            # Crucially, we should count each instance separately.
+            record, *duplicates = item
+            for record in duplicates:
+                duplicate_records.append(DuplicateRecord(record=record, duplicates=[], exact=True))
+
             # If we don't see any similar_items, we know the record is not a duplicate.
             # in rare cases, the item itself might not be a duplicate of itself.
             if not similar_items:
@@ -246,10 +252,7 @@ class SemHash(Generic[Record]):
             frozen_items = [to_frozendict(item, column_set) for item in items]
             # similar_items includes 'record' itself
             # If we've seen any of these items before, this is a duplicate cluster.
-            if similar_items and any(item in seen_items for item in frozen_items):
-                frozen_record = to_frozendict(record, column_set)
-                if frozen_record in seen_items:
-                    continue
+            if any(item in seen_items for item in frozen_items):
                 duplicate_records.append(
                     DuplicateRecord(
                         record=record,
