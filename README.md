@@ -88,12 +88,6 @@ deduplicated_records = semhash.self_deduplicate()
 
 The `deduplicate` and `self_deduplicate` functions return a `DeduplicationResult`. This object stores the deduplicated corpus, a set of duplicate objec (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
 
-NOTE: By default, we use the ANN (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ANN. If you want to use the flat/exact-matching backend, you can set `use_ann=False` in the SemHash constructor:
-
-```python
-semhash = SemHash.from_records(records=texts, use_ann=False)
-```
-
 ## Main Features
 
 - **Fast**: SemHash uses model2vec to embed texts and vicinity to perform similarity search, making it extremely fast.
@@ -262,6 +256,12 @@ deduplicated_texts = semhash.self_deduplicate()
 ```
 
 </details>
+
+NOTE: By default, we use the ANN (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ANN. If you want to use the flat/exact-matching backend, you can set `use_ann=False` in the SemHash constructor:
+
+```python
+semhash = SemHash.from_records(records=texts, use_ann=False)
+```
 
 ## Benchmarks
 
