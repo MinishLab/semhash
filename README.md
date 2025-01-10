@@ -197,13 +197,13 @@ semhash = SemHash.from_records(records=texts)
 # Deduplicate the texts
 deduplication_result = semhash.self_deduplicate()
 
-# Check the texts
+# Check the deduplicated texts
 deduplication_result.deduplicated
 # Check the duplicates
 deduplication_result.duplicates
-# See how many texts were duplicates
+# See what percentage of the texts were duplicates
 deduplication_result.duplicate_ratio
-# See how many were exact duplicates
+# See what percentage of the texts were exact duplicates
 deduplication_result.exact_duplicate_ratio
 
 # Get the least similar text from the duplicates. This is useful for finding the right threshold for deduplication.
