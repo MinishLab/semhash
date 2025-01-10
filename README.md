@@ -64,9 +64,29 @@ semhash = SemHash.from_records(records=train_texts)
 deduplicated_test_texts = semhash.deduplicate(records=test_texts).deduplicated
 ```
 
-The `deduplicate` and `self_deduplicate` functions return a `DeduplicationResult`. This object stores the deduplicated corpus, a set of duplicate objec (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
+Or, deduplicate multi-column datasets with the following code (e.g., deduplicating a QA dataset):
 
-For more advanced usage, you can also deduplicate across multiple datasets, or deduplicate multi-column datasets. Examples are provided in the [usage](#usage) section.
+```python
+from datasets import load_dataset
+from semhash import SemHash
+
+# Load the dataset
+dataset = load_dataset("squad_v2", split="train")
+
+# Convert the dataset to a list of dictionaries
+records = [
+    {"context": row["context"], "question": row["question"], "answers": str(row["answers"])}
+    for row in dataset
+]
+
+# Initialize SemHash with the columns to deduplicate
+semhash = SemHash.from_records(records=records, columns=["question", "context", "answers"])
+
+# Deduplicate the records
+deduplicated_records = semhash.self_deduplicate()
+```
+
+The `deduplicate` and `self_deduplicate` functions return a `DeduplicationResult`. This object stores the deduplicated corpus, a set of duplicate objec (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
 
 NOTE: By default, we use the ANN (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ANN. If you want to use the flat/exact-matching backend, you can set `use_ann=False` in the SemHash constructor:
 
