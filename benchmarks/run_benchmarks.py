@@ -34,21 +34,9 @@ def main() -> None:  # noqa: C901
 
         # If the dataset has columns, use them
         if record.columns:
-            # Set the columns for the SemHash instance
-            train_records = []
-            for row in train_ds:
-                item = {}
-                for col in record.columns:
-                    item[col] = str(row[col])
-                train_records.append(item)
-
-            test_records = []
-            for row in test_ds:
-                item = {}
-                for col in record.columns:
-                    item[col] = str(row[col])
-                test_records.append(item)
             columns = record.columns
+            train_records = [dict(row) for row in train_ds]
+            test_records = [dict(row) for row in test_ds]
         # Else, use the text_name
         else:
             train_records = train_ds[record.text_name]
@@ -62,13 +50,15 @@ def main() -> None:  # noqa: C901
         build_time = build_end - build_start
         # Time how long it takes to deduplicate the train set
         train_only_start = perf_counter()
-        deduplicated_train = semhash.self_deduplicate().deduplicated
+        deduplicated_train = semhash.self_deduplicate()
         train_only_end = perf_counter()
 
         train_only_dedup_time = train_only_end - train_only_start
         original_train_size = len(train_records)
-        dedup_train_size = len(deduplicated_train)
-        percent_removed_train = 100.0 * (1.0 - dedup_train_size / original_train_size) if original_train_size else 0.0
+        dedup_train_size = len(deduplicated_train.deduplicated)
+
+        percent_removed_train = deduplicated_train.duplicate_ratio * 100
+        # percent_removed_train = 100.0 * (1.0 - dedup_train_size / original_train_size) if original_train_size else 0.0
 
         train_dedup_results.append(
             {
@@ -94,14 +84,14 @@ def main() -> None:  # noqa: C901
 
         # Time how long it takes to deduplicate the test set
         train_test_start = perf_counter()
-        deduped_test = semhash.deduplicate(
+        deduplicated_test = semhash.deduplicate(
             records=test_records,
-        ).deduplicated
+        )
         train_test_end = perf_counter()
         train_test_dedup_time = train_test_end - train_test_start
         original_test_size = len(test_records)
-        deduped_test_size = len(deduped_test)
-        percent_removed_test = 100.0 * (1.0 - deduped_test_size / original_test_size) if original_test_size else 0.0
+        deduped_test_size = len(deduplicated_test.deduplicated)
+        percent_removed_test = deduplicated_test.duplicate_ratio * 100
 
         train_test_dedup_results.append(
             {
@@ -136,31 +126,35 @@ def main() -> None:  # noqa: C901
 
     # Print the train table
     print("### Train Deduplication Benchmark\n")  # noqa T201
-    print("| Dataset | Original Train Size | Deduplicated Train Size | % Removed | Deduplication Time (s) |")  # noqa T201
-    print("| --- | --- | --- | --- | --- |")  # noqa T201
+    print(  # noqa T201
+        f"| {'Dataset':<20} | {'Original Train Size':>20} | {'Deduplicated Train Size':>24} | {'% Removed':>10} | {'Deduplication Time (s)':>24} |"
+    )  # noqa T201
+    print("|" + "-" * 22 + "|" + "-" * 22 + "|" + "-" * 26 + "|" + "-" * 12 + "|" + "-" * 26 + "|")  # noqa T201
     for r in train_dedup_results:
         print(  # noqa T201
-            f"| {r['dataset']} "
-            f"| {r['original_train_size']} "
-            f"| {r['deduplicated_train_size']} "
-            f"| {r['percent_removed']:.2f} "
-            f"| {r['time_seconds']:.2f} |"
+            f"| {r['dataset']:<20} "
+            f"| {r['original_train_size']:>20} "
+            f"| {r['deduplicated_train_size']:>24} "
+            f"| {r['percent_removed']:>10.2f} "
+            f"| {r['time_seconds']:>24.2f} |"
         )
 
     print("\n")  # noqa T201
 
     # Print the train/test table
     print("### Train/Test Deduplication Benchmark\n")  # noqa T201
-    print("| Dataset | Train Size | Test Size | Deduplicated Test Size | % Removed | Deduplication Time (s) |")  # noqa T201
-    print("| --- | --- | --- | --- | --- | --- |")  # noqa T201
+    print(  # noqa T201
+        f"| {'Dataset':<20} | {'Train Size':>12} | {'Test Size':>12} | {'Deduplicated Test Size':>24} | {'% Removed':>10} | {'Deduplication Time (s)':>24} |"
+    )  # noqa T201
+    print("|" + "-" * 22 + "|" + "-" * 14 + "|" + "-" * 14 + "|" + "-" * 26 + "|" + "-" * 12 + "|" + "-" * 26 + "|")  # noqa T201
     for r in train_test_dedup_results:
         print(  # noqa T201
-            f"| {r['dataset']} "
-            f"| {r['train_size']} "
-            f"| {r['test_size']} "
-            f"| {r['deduplicated_test_size']} "
-            f"| {r['percent_removed']:.2f} "
-            f"| {r['time_seconds']:.2f} |"
+            f"| {r['dataset']:<20} "
+            f"| {r['train_size']:>12} "
+            f"| {r['test_size']:>12} "
+            f"| {r['deduplicated_test_size']:>24} "
+            f"| {r['percent_removed']:>10.2f} "
+            f"| {r['time_seconds']:>24.2f} |"
         )
 
 

@@ -252,7 +252,9 @@ class SemHash(Generic[Record]):
                     continue
                 duplicate_records.append(
                     DuplicateRecord(
-                        record=record, duplicates=[(item, score) for item, score in similar_items], exact=False
+                        record=record,
+                        duplicates=[(item, score) for item, score in similar_items if item != record],
+                        exact=False,
                     )
                 )
                 continue

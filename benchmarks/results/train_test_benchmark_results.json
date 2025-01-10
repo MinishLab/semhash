@@ -3,11 +3,11 @@
     "dataset": "bbc",
     "train_size": 1225,
     "test_size": 1000,
-    "deduplicated_test_size": 872,
-    "percent_removed": 12.8,
-    "build_time_seconds": 0.2600779579952359,
-    "deduplication_time_seconds": 0.1800229580840096,
-    "time_seconds": 0.4401009160792455
+    "deduplicated_test_size": 870,
+    "percent_removed": 13.0,
+    "build_time_seconds": 0.25561833404935896,
+    "deduplication_time_seconds": 0.17576933302916586,
+    "time_seconds": 0.43138766707852483
   },
   {
     "dataset": "senteval_cr",
@@ -15,158 +15,18 @@
     "test_size": 753,
     "deduplicated_test_size": 750,
     "percent_removed": 0.3984063745019917,
-    "build_time_seconds": 0.10237741703167558,
-    "deduplication_time_seconds": 0.019607333932071924,
-    "time_seconds": 0.1219847509637475
+    "build_time_seconds": 0.10548808402381837,
+    "deduplication_time_seconds": 0.01992162491660565,
+    "time_seconds": 0.12540970894042403
   },
   {
     "dataset": "tweet_sentiment_extraction",
     "train_size": 27481,
     "test_size": 3534,
-    "deduplicated_test_size": 3412,
-    "percent_removed": 3.452178834182229,
-    "build_time_seconds": 1.2461021249182522,
-    "deduplication_time_seconds": 0.17156545899342746,
-    "time_seconds": 1.4176675839116797
-  },
-  {
-    "dataset": "emotion",
-    "train_size": 16000,
-    "test_size": 2000,
-    "deduplicated_test_size": 1926,
-    "percent_removed": 3.7000000000000033,
-    "build_time_seconds": 0.5008182079764083,
-    "deduplication_time_seconds": 0.10225087497383356,
-    "time_seconds": 0.6030690829502419
-  },
-  {
-    "dataset": "amazon_counterfactual",
-    "train_size": 5000,
-    "test_size": 5000,
-    "deduplicated_test_size": 4990,
-    "percent_removed": 0.20000000000000018,
-    "build_time_seconds": 0.27862183388788253,
-    "deduplication_time_seconds": 0.237899792031385,
-    "time_seconds": 0.5165216259192675
-  },
-  {
-    "dataset": "ag_news",
-    "train_size": 120000,
-    "test_size": 7600,
-    "deduplicated_test_size": 6198,
-    "percent_removed": 18.447368421052634,
-    "build_time_seconds": 2.9549269170966,
-    "deduplication_time_seconds": 0.669493249966763,
-    "time_seconds": 3.624420167063363
-  },
-  {
-    "dataset": "enron_spam",
-    "train_size": 31716,
-    "test_size": 2000,
-    "deduplicated_test_size": 1060,
-    "percent_removed": 47.0,
-    "build_time_seconds": 1.406184041989036,
-    "deduplication_time_seconds": 0.5489123329753056,
-    "time_seconds": 1.9550963749643415
-  },
-  {
-    "dataset": "subj",
-    "train_size": 8000,
-    "test_size": 2000,
-    "deduplicated_test_size": 1999,
-    "percent_removed": 0.04999999999999449,
-    "build_time_seconds": 0.5057632080279291,
-    "deduplication_time_seconds": 0.11960058298427612,
-    "time_seconds": 0.6253637910122052
-  },
-  {
-    "dataset": "sst5",
-    "train_size": 8544,
-    "test_size": 2210,
-    "deduplicated_test_size": 2205,
-    "percent_removed": 0.2262443438914019,
-    "build_time_seconds": 0.48148604203015566,
-    "deduplication_time_seconds": 0.11525100003927946,
-    "time_seconds": 0.5967370420694351
-  },
-  {
-    "dataset": "20_newgroups",
-    "train_size": 11314,
-    "test_size": 7532,
-    "deduplicated_test_size": 7095,
-    "percent_removed": 5.801911842804031,
-    "build_time_seconds": 0.5917953330790624,
-    "deduplication_time_seconds": 1.691280375001952,
-    "time_seconds": 2.2830757080810145
-  },
-  {
-    "dataset": "hatespeech_offensive",
-    "train_size": 22783,
-    "test_size": 2000,
-    "deduplicated_test_size": 1925,
-    "percent_removed": 3.749999999999998,
-    "build_time_seconds": 0.6386271669762209,
-    "deduplication_time_seconds": 0.11548024998046458,
-    "time_seconds": 0.7541074169566855
-  },
-  {
-    "dataset": "ade",
-    "train_size": 17637,
-    "test_size": 5879,
-    "deduplicated_test_size": 4953,
-    "percent_removed": 15.75097805749277,
-    "build_time_seconds": 0.5284340840298682,
-    "deduplication_time_seconds": 0.2872204170562327,
-    "time_seconds": 0.8156545010861009
-  },
-  {
-    "dataset": "imdb",
-    "train_size": 25000,
-    "test_size": 25000,
-    "deduplicated_test_size": 24796,
-    "percent_removed": 0.8159999999999945,
-    "build_time_seconds": 1.4192566249985248,
-    "deduplication_time_seconds": 1.3395406670169905,
-    "time_seconds": 2.7587972920155153
-  },
-  {
-    "dataset": "massive_scenario",
-    "train_size": 11514,
-    "test_size": 2974,
-    "deduplicated_test_size": 2190,
-    "percent_removed": 26.36180228648285,
-    "build_time_seconds": 0.3684710420202464,
-    "deduplication_time_seconds": 0.11038154200650752,
-    "time_seconds": 0.4788525840267539
-  },
-  {
-    "dataset": "student",
-    "train_size": 117519,
-    "test_size": 5000,
-    "deduplicated_test_size": 2398,
-    "percent_removed": 52.04,
-    "build_time_seconds": 2.8902845000848174,
-    "deduplication_time_seconds": 0.6465630420716479,
-    "time_seconds": 3.5368475421564654
-  },
-  {
-    "dataset": "squad_v2",
-    "train_size": 130319,
-    "test_size": 11873,
-    "deduplicated_test_size": 11869,
-    "percent_removed": 0.03368988461214251,
-    "build_time_seconds": 8.126170458039269,
-    "deduplication_time_seconds": 1.388320832978934,
-    "time_seconds": 9.514491291018203
-  },
-  {
-    "dataset": "wikitext",
-    "train_size": 1801350,
-    "test_size": 4358,
-    "deduplicated_test_size": 2135,
-    "percent_removed": 51.00963744837082,
-    "build_time_seconds": 38.27334458299447,
-    "deduplication_time_seconds": 0.9349797499598935,
-    "time_seconds": 39.20832433295436
+    "deduplicated_test_size": 3411,
+    "percent_removed": 3.4804753820034007,
+    "build_time_seconds": 1.2627675000112504,
+    "deduplication_time_seconds": 0.166622249991633,
+    "time_seconds": 1.4293897500028834
   }
 ]
