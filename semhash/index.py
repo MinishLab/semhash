@@ -31,14 +31,27 @@ class Index:
 
     @classmethod
     def from_vectors_and_items(cls, vectors: np.ndarray, items: list[DictItem], backend_type: Backend) -> Index:
-        """Load the index from vectors and items."""
+        """
+        Load the index from vectors and items.
+
+        :param vectors: The vectors of the items.
+        :param items: The items in the index.
+        :param backend_type: The type of backend to use.
+        :return: The index.
+        """
         backend_class = get_backend_class(backend_type)
         backend = backend_class.from_vectors(vectors)
 
         return cls(vectors, items, backend)
 
     def query_threshold(self, vectors: np.ndarray, threshold: float) -> list[DocScores]:
-        """Query the index with a threshold."""
+        """
+        Query the index with a threshold.
+
+        :param vectors: The vectors to query.
+        :param threshold: The similarity threshold.
+        :return: The query results.
+        """
         out: list[DocScores] = []
         for result in self.backend.threshold(vectors, threshold=1 - threshold, max_k=100):
             intermediate = []
