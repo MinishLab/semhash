@@ -75,17 +75,11 @@ from semhash import SemHash
 # Load the dataset
 dataset = load_dataset("squad_v2", split="train")
 
-# Define the columns on which to deduplicate
-columns=["question", "context", "answers"]
-
-# Convert the dataset to a list of dictionaries and ensure the columns are strings
-records = [
-    {key: str(value) if key in columns else value for key, value in row.items()}
-    for row in dataset
-]
+# Convert the dataset to a list of dictionaries
+records = [dict(row) for row in dataset]
 
 # Initialize SemHash with the columns to deduplicate
-semhash = SemHash.from_records(records=records, columns=columns)
+semhash = SemHash.from_records(records=records, columns=["question", "context"])
 
 # Deduplicate the records
 deduplicated_records = semhash.self_deduplicate().deduplicated
@@ -164,17 +158,11 @@ from semhash import SemHash
 # Load the dataset
 dataset = load_dataset("squad_v2", split="train")
 
-# Define the columns on which to deduplicate
-columns=["question", "context", "answers"]
-
-# Convert the dataset to a list of dictionaries and ensure the columns are strings
-records = [
-    {key: str(value) if key in columns else value for key, value in row.items()}
-    for row in dataset
-]
+# Convert the dataset to a list of dictionaries
+records = [dict(row) for row in dataset]
 
 # Initialize SemHash with the columns to deduplicate
-semhash = SemHash.from_records(records=records, columns=columns)
+semhash = SemHash.from_records(records=records, columns=["question", "context"])
 
 # Deduplicate the records
 deduplicated_records = semhash.self_deduplicate().deduplicated
