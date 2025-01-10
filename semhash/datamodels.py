@@ -6,18 +6,22 @@ Record = TypeVar("Record", str, dict[str, str])
 
 @dataclass
 class DuplicateRecord(Generic[Record]):
-    """Duplicate record."""
+    """
+    A single record with its duplicates.
+
+    Attributes
+    ----------
+        record: The original record being deduplicated.
+        exact: Whether the record was identified as an exact match.
+        duplicates: List of duplicate records identified for the original record.
+        scores: Similarity scores associated with each duplicate.
+
+    """
 
     record: Record
     exact: bool
     duplicates: list[Record] = field(default_factory=list)
     scores: list[float] = field(default_factory=list)
-
-    def least_similar(self, n: int = 1) -> list[tuple[Record, float]]:
-        """Return the least similar duplicate."""
-        ascending_by_score = sorted(zip(self.duplicates, self.scores), key=lambda x: x[1])
-
-        return ascending_by_score[:n]
 
     def _rethreshold(self, threshold: float) -> None:
         """Rethreshold the duplicates."""
@@ -29,7 +33,16 @@ class DuplicateRecord(Generic[Record]):
 
 @dataclass
 class DeduplicationResult(Generic[Record]):
-    """Deduplication result."""
+    """
+    Deduplication result.
+
+    Attributes
+    ----------
+        deduplicated: List of deduplicated records after removing duplicates.
+        duplicates: List of DuplicateRecord objects containing details about duplicates of an original record.
+        threshold: The similarity threshold used for deduplication.
+
+    """
 
     deduplicated: list[Record]
     duplicates: list[DuplicateRecord]
@@ -49,9 +62,16 @@ class DeduplicationResult(Generic[Record]):
             return len([dup for dup in self.duplicates if dup.exact]) / denom
         return 0.0
 
-    def get_least_similar_from_duplicates(self, n: int = 1) -> list[tuple[Record, list[tuple[Record, float]]]]:
-        """Return the least similar duplicates."""
-        return [(dup.record, dup.least_similar(n)) for dup in self.duplicates]
+    def get_least_similar_from_duplicates(self, n: int = 1) -> list[tuple[Record, Record, float]]:
+        """
+        Return the N least similar duplicate pairs.
+
+        :param n: The number of least similar pairs to return.
+        :return: A list of tuples consiting of (original_record, duplicate_record, score).
+        """
+        all_pairs = [(dup.record, d, score) for dup in self.duplicates for d, score in zip(dup.duplicates, dup.scores)]
+        sorted_pairs = sorted(all_pairs, key=lambda x: x[2])  # Sort by score
+        return sorted_pairs[:n]
 
     def rethreshold(self, threshold: float) -> None:
         """Rethreshold the duplicates."""
