@@ -31,7 +31,7 @@ Install the package with:
 pip install semhash
 ```
 
-Deduplicate a single dataset with the following code (note: this example assumes you have `datasets` installed, which you can install with `pip install datasets`):
+Deduplicate a single dataset with the following code (note: the examples assume you have `datasets` installed, which you can install with `pip install datasets`):
 
 ```python
 from datasets import load_dataset
@@ -44,17 +44,7 @@ texts = load_dataset("ag_news", split="train")["text"]
 semhash = SemHash.from_records(records=texts)
 
 # Deduplicate the texts
-result = semhash.self_deduplicate()
-
-# Check the texts
-result.deduplicated
-# Check the duplicates
-result.duplicates
-# See how many texts were duplicates
-result.duplicate_ratio
-# See how many were exact duplicates
-result.exact_duplicate_ratio
-
+deduplicated_texts = semhash.self_deduplicate().deduplicated
 ```
 
 Or, deduplicate across two datasets with the following code (e.g., eliminating train/test leakage):
@@ -74,33 +64,7 @@ semhash = SemHash.from_records(records=train_texts)
 deduplicated_test_texts = semhash.deduplicate(records=test_texts).deduplicated
 ```
 
-As seen above, the `deduplicate` and `self_deduplicate` functions return a `DeduplicationResult`. This object stores the deduplicated corpus, and a set of duplicate objects, along with the objects that caused duplication. For example:
-
-```python
-from datasets import load_dataset
-from semhash import SemHash
-
-# Load a dataset to deduplicate
-texts = load_dataset("ag_news", split="train")["text"]
-
-# Initialize a SemHash instance
-semhash = SemHash.from_records(records=texts)
-
-# Deduplicate the texts
-result = semhash.self_deduplicate(records=texts, threshold=0.99)
-
-for duplicate in result.duplicates:
-  print("RECORD:")
-  print(duplicate.record)
-  if duplicate.exact:
-    print("Exact match!")
-  else:
-    print("DUPLICATES:")
-    for corpus_duplicate in duplicate.duplicates:
-      print(corpus_duplicate)
-  print("-" * 25)
-
-```
+The `deduplicate` and `self_deduplicate` functions return a `DeduplicationResult`. This object stores the deduplicated corpus, a set of duplicate objec (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
 
 For more advanced usage, you can also deduplicate across multiple datasets, or deduplicate multi-column datasets. Examples are provided in the [usage](#usage) section.
 
@@ -192,6 +156,43 @@ semhash = SemHash.from_records(records=records, columns=["question", "context", 
 
 # Deduplicate the records
 deduplicated_records = semhash.self_deduplicate()
+```
+
+</details>
+
+<details>
+<summary>  DeduplicationResult functionality </summary>
+<br>
+
+The `DeduplicationResult` object returned by the `deduplicate` and `self_deduplicate` functions contains several useful functions to inspect the deduplication result. The following code snippet shows how to use these functions:
+
+```python
+from datasets import load_dataset
+from semhash import SemHash
+
+# Load a dataset to deduplicate
+texts = load_dataset("ag_news", split="train")["text"]
+
+# Initialize a SemHash instance
+semhash = SemHash.from_records(records=texts)
+
+# Deduplicate the texts
+deduplication_result = semhash.self_deduplicate()
+
+# Check the texts
+deduplication_result.deduplicated
+# Check the duplicates
+deduplication_result.duplicates
+# See how many texts were duplicates
+deduplication_result.duplicate_ratio
+# See how many were exact duplicates
+deduplication_result.exact_duplicate_ratio
+
+# Get the least similar text from the duplicates. This is useful for finding the right threshold for deduplication.
+least_similar = deduplication_result.get_least_similar_from_duplicates()
+
+# Rethreshold the duplicates. This allows you to instantly rethreshold the duplicates with a new threshold without having to re-deduplicate the texts.
+deduplication_result.rethreshold(0.95)
 ```
 
 </details>
