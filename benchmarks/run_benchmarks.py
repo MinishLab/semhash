@@ -3,6 +3,7 @@ import logging
 from time import perf_counter
 
 from datasets import load_dataset
+from model2vec import StaticModel
 
 from benchmarks.data import DATASET_DICT
 from semhash import SemHash
@@ -17,6 +18,8 @@ def main() -> None:  # noqa: C901
     train_dedup_results = []
     train_test_dedup_results = []
     # Load the model and initialize SemHash
+
+    model = StaticModel.from_pretrained("minishlab/potion-base-8m")
 
     for dataset_name, record in DATASET_DICT.items():
         logger.info(f"Loading dataset: {dataset_name} from {record.name}")
@@ -52,11 +55,14 @@ def main() -> None:  # noqa: C901
             test_records = test_ds[record.text_name]
             columns = None
 
+        # Build the SemHash instance
+        build_start = perf_counter()
+        semhash = SemHash.from_records(model=model, use_ann=True, records=train_records, columns=columns)
+        build_end = perf_counter()
+        build_time = build_end - build_start
         # Time how long it takes to deduplicate the train set
         train_only_start = perf_counter()
-        deduplicated_train = (
-            SemHash.from_records(use_ann=True, records=train_records, columns=columns).self_deduplicate().deduplicated
-        )
+        deduplicated_train = semhash.self_deduplicate().deduplicated
         train_only_end = perf_counter()
 
         train_only_dedup_time = train_only_end - train_only_start
@@ -70,7 +76,9 @@ def main() -> None:  # noqa: C901
                 "original_train_size": original_train_size,
                 "deduplicated_train_size": dedup_train_size,
                 "percent_removed": percent_removed_train,
-                "time_seconds": train_only_dedup_time,
+                "build_time_seconds": build_time,
+                "deduplication_time_seconds": train_only_dedup_time,
+                "time_seconds": train_only_dedup_time + build_time,
             }
         )
 
@@ -79,13 +87,13 @@ def main() -> None:  # noqa: C901
             f" - Original Train Size: {original_train_size}\n"
             f" - Deduplicated Train Size: {dedup_train_size}\n"
             f" - % Removed: {percent_removed_train:.2f}\n"
-            f" - Time (seconds): {train_only_dedup_time:.2f}\n"
+            f" - Deduplication Time (seconds): {train_only_dedup_time:.2f}\n"
+            f" - Build Time (seconds): {build_time:.2f}\n"
+            f" - Total Time (seconds): {train_only_dedup_time + build_time:.2f}\n"
         )
 
         # Time how long it takes to deduplicate the test set
         train_test_start = perf_counter()
-        semhash = SemHash.from_records(use_ann=True, records=train_records, columns=columns)
-
         deduped_test = semhash.deduplicate(
             records=test_records,
         ).deduplicated
@@ -102,7 +110,9 @@ def main() -> None:  # noqa: C901
                 "test_size": original_test_size,
                 "deduplicated_test_size": deduped_test_size,
                 "percent_removed": percent_removed_test,
-                "time_seconds": train_test_dedup_time,
+                "build_time_seconds": build_time,
+                "deduplication_time_seconds": train_test_dedup_time,
+                "time_seconds": train_test_dedup_time + build_time,
             }
         )
 
@@ -112,7 +122,9 @@ def main() -> None:  # noqa: C901
             f" - Test Size: {original_test_size}\n"
             f" - Deduplicated Test Size: {deduped_test_size}\n"
             f" - % Removed: {percent_removed_test:.2f}\n"
-            f" - Time (seconds): {train_test_dedup_time:.2f}\n"
+            f" - Deduplication Time (seconds): {train_test_dedup_time:.2f}\n"
+            f" - Build Time (seconds): {build_time:.2f}\n"
+            f" - Total Time (seconds): {train_test_dedup_time + build_time:.2f}\n"
         )
 
     # Write the results to JSON files
