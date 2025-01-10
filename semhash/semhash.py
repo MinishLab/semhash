@@ -199,9 +199,12 @@ class SemHash(Generic[Record]):
                 # No duplicates found, keep this record
                 deduplicated_records.append(record)
             else:
-                items, scores = zip(*similar_items)
                 duplicate_records.append(
-                    DuplicateRecord(record=record, duplicates=list(items), scores=list(scores), exact=False)
+                    DuplicateRecord(
+                        record=record,
+                        duplicates=[(item, score) for item, score in similar_items],
+                        exact=False,
+                    )
                 )
 
         result = DeduplicationResult(
@@ -247,11 +250,10 @@ class SemHash(Generic[Record]):
                 frozen_record = to_frozendict(record, column_set)
                 if frozen_record in seen_items:
                     continue
-                duplicates: tuple[dict[str, str], ...]
-                scores: tuple[float, ...]
-                duplicates, scores = zip(*[(item, score) for item, score in similar_items if item != record])
                 duplicate_records.append(
-                    DuplicateRecord(record=record, duplicates=list(duplicates), scores=list(scores), exact=False)
+                    DuplicateRecord(
+                        record=record, duplicates=[(item, score) for item, score in similar_items], exact=False
+                    )
                 )
                 continue
             # This is the first time we see this cluster of similar items

@@ -13,22 +13,17 @@ class DuplicateRecord(Generic[Record]):
     ----------
         record: The original record being deduplicated.
         exact: Whether the record was identified as an exact match.
-        duplicates: List of duplicate records identified for the original record.
-        scores: Similarity scores associated with each duplicate.
+        duplicates: List of tuples consisting of duplicate records and their associated scores.
 
     """
 
     record: Record
     exact: bool
-    duplicates: list[Record] = field(default_factory=list)
-    scores: list[float] = field(default_factory=list)
+    duplicates: list[tuple[Record, float]] = field(default_factory=list)
 
     def _rethreshold(self, threshold: float) -> None:
         """Rethreshold the duplicates."""
-        for i, score in enumerate(self.scores):
-            if score < threshold:
-                self.duplicates.pop(i)
-                self.scores.pop(i)
+        self.duplicates = [(d, score) for d, score in self.duplicates if score >= threshold]
 
 
 @dataclass
@@ -67,9 +62,9 @@ class DeduplicationResult(Generic[Record]):
         Return the N least similar duplicate pairs.
 
         :param n: The number of least similar pairs to return.
-        :return: A list of tuples consiting of (original_record, duplicate_record, score).
+        :return: A list of tuples consisting of (original_record, duplicate_record, score).
         """
-        all_pairs = [(dup.record, d, score) for dup in self.duplicates for d, score in zip(dup.duplicates, dup.scores)]
+        all_pairs = [(dup.record, d, score) for dup in self.duplicates for d, score in dup.duplicates]
         sorted_pairs = sorted(all_pairs, key=lambda x: x[2])  # Sort by score
         return sorted_pairs[:n]
 
