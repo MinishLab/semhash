@@ -85,7 +85,7 @@ records = [
 semhash = SemHash.from_records(records=records, columns=["question", "context", "answers"])
 
 # Deduplicate the records
-deduplicated_records = semhash.self_deduplicate()
+deduplicated_records = semhash.self_deduplicate().deduplicated
 ```
 
 The `deduplicate` and `self_deduplicate` functions return a `DeduplicationResult`. This object stores the deduplicated corpus, a set of duplicate objec (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
