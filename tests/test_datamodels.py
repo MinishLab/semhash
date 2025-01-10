@@ -31,18 +31,6 @@ def test_deduplication_scoring_empty() -> None:
     assert d.duplicate_ratio == 0.0
 
 
-def test_least_similar() -> None:
-    """Test the least similar duplicates."""
-    d = DuplicateRecord("a", False, ["b", "c"], [0.9, 0.8])
-    assert d.least_similar(1) == [("c", 0.8)]
-
-
-def test_least_similar_empty() -> None:
-    """Test the least similar duplicates."""
-    d = DuplicateRecord("a", False, [], [])
-    assert d.least_similar(1) == []
-
-
 def test_rethreshold() -> None:
     """Test rethresholding the duplicates."""
     d = DuplicateRecord("a", False, ["b", "c"], [0.9, 0.8])
@@ -63,10 +51,11 @@ def test_get_least_similar_from_duplicates() -> None:
     """Test getting the least similar duplicates."""
     d = DeduplicationResult(
         ["a", "b", "c"],
-        [DuplicateRecord("a", False, ["b", "c"], [0.9, 0.8]), DuplicateRecord("b", False, ["c"], [0.8])],
+        [DuplicateRecord("a", False, ["b", "c"], [0.9, 0.7]), DuplicateRecord("b", False, ["c"], [0.8])],
         0.8,
     )
-    assert d.get_least_similar_from_duplicates(1) == [("a", [("c", 0.8)]), ("b", [("c", 0.8)])]
+    result = d.get_least_similar_from_duplicates(1)
+    assert result == [("a", "c", 0.7)]
 
 
 def test_get_least_similar_from_duplicates_empty() -> None:
