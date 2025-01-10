@@ -163,7 +163,7 @@ name = "click"
 version = "8.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/96/d3/f04c7bfcf5c1862a2a5b845c6b2b360488cf47af55dfa79c98f6a6bf98b5/click-8.1.7.tar.gz", hash = "sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de", size = 336121 }
 wheels = [
@@ -426,6 +426,15 @@ wheels = [
 ]
 
 [[package]]
+name = "joblib"
+version = "1.4.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/64/33/60135848598c076ce4b231e1b1895170f45fbcaeaa2c9d5e38b04db70c35/joblib-1.4.2.tar.gz", hash = "sha256:2382c5816b2636fbd20a09e0f4e9dad4736765fdfb7dca582943b9c1366b3f0e", size = 2116621 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/91/29/df4b9b42f2be0b623cbd5e2140cafcaa2bef0759a00b7b70104dcfe2fb51/joblib-1.4.2-py3-none-any.whl", hash = "sha256:06d478d5674cbc267e7496a410ee875abd68e4340feff4490bcb7afb88060ae6", size = 301817 },
+]
+
+[[package]]
 name = "markdown-it-py"
 version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -528,10 +537,11 @@ wheels = [
 
 [[package]]
 name = "model2vec"
-version = "0.3.3"
+version = "0.3.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
+    { name = "joblib" },
     { name = "numpy" },
     { name = "rich" },
     { name = "safetensors" },
@@ -539,9 +549,9 @@ dependencies = [
     { name = "tokenizers" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cb/c7/3ff1ed5a97ab789b8c1f148e11c086d96c46ec198649588e87922df963bb/model2vec-0.3.3.tar.gz", hash = "sha256:b4d59afe438bfc1d6d667ee30f1d38d543e129b9498f6fbae01765f32a63ae36", size = 2294749 }
+sdist = { url = "https://files.pythonhosted.org/packages/19/64/bacfd7be3a7d9197b701a3d88c6f00a6c64ed6a7bf98327059cb15c24112/model2vec-0.3.4.tar.gz", hash = "sha256:22bf9fc21be8e407c9b26493d51c8789f3d209eea1d17133063cdc6afb4b8f0c", size = 2305666 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/7e/b20830d3231e13905172da0e55cb5a903505c6da513e08c12a9db30ce7bb/model2vec-0.3.3-py3-none-any.whl", hash = "sha256:ac24b8f6fdcfbd46ad4094ca1f598be91008fc6eb409d5a8608de91288ac7715", size = 25956 },
+    { url = "https://files.pythonhosted.org/packages/c3/08/b0c64402fe3d70dc5c35eb8b365d66d910e86e364c36cc3b6ac27c2c9dcd/model2vec-0.3.4-py3-none-any.whl", hash = "sha256:6a7e1c7f7881d7fc905bf7f33c452c8a3eada9ff75c492b807fcac24fbb07dfc", size = 27455 },
 ]
 
 [[package]]
@@ -1082,7 +1092,7 @@ requires-dist = [
     { name = "black", marker = "extra == 'dev'" },
     { name = "frozendict" },
     { name = "ipython", marker = "extra == 'dev'" },
-    { name = "model2vec", specifier = ">=0.3.0" },
+    { name = "model2vec", specifier = ">=0.3.4" },
     { name = "mypy", marker = "extra == 'dev'" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
@@ -1303,7 +1313,7 @@ name = "tqdm"
 version = "4.66.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/58/83/6ba9844a41128c62e810fddddd72473201f3eacde02046066142a2d96cc5/tqdm-4.66.5.tar.gz", hash = "sha256:e1020aef2e5096702d8a025ac7d16b1577279c9d63f8375b63083e9a5f0fcbad", size = 169504 }
 wheels = [

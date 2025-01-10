@@ -10,7 +10,7 @@ from vicinity import Backend
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, Record
 from semhash.index import Index
-from semhash.records import dict_to_string, map_deduplication_result_to_strings, to_frozendict
+from semhash.records import map_deduplication_result_to_strings, to_frozendict
 from semhash.utils import Encoder
 
 
