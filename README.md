@@ -324,7 +324,7 @@ As can be seen, SemHash is extremely fast, and scales to large datasets with mil
 
 ### Reproducing the Benchmarks
 
-To run the benchmarks yourself, you can use the following command:
+To run the benchmarks yourself, you can use the following command (assuming you have the `datasets` library installed):
 
 ```bash
 python -m benchmarks.run_benchmarks
