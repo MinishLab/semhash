@@ -58,8 +58,6 @@ def main() -> None:  # noqa: C901
         dedup_train_size = len(deduplicated_train.deduplicated)
 
         percent_removed_train = deduplicated_train.duplicate_ratio * 100
-        # percent_removed_train = 100.0 * (1.0 - dedup_train_size / original_train_size) if original_train_size else 0.0
-
         train_dedup_results.append(
             {
                 "dataset": dataset_name,
