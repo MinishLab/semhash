@@ -53,8 +53,8 @@ texts = load_dataset("ag_news", split="train")["text"]
 # Initialize a SemHash instance
 semhash = SemHash.from_records(records=texts)
 
-# Deduplicate the texts
-deduplicated_texts = semhash.self_deduplicate().deduplicated
+# Deduplicate the texts with a threshold of 0.9 (the default threshold)
+deduplicated_texts = semhash.self_deduplicate(threshold=0.9).deduplicated
 ```
 
 Or, deduplicate across two datasets with the following code (e.g., eliminating train/test leakage):
@@ -101,6 +101,7 @@ The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult
 - **Scalable**: SemHash can deduplicate large datasets with millions of records thanks to the ANN backends in Vicinity.
 - **Flexible**: SemHash can be used to deduplicate a single dataset or across two datasets, and can also be used to deduplicate multi-column datasets (such as QA datasets).
 - **Lightweight**: SemHash is a lightweight package with minimal dependencies, making it easy to install and use.
+- **Explainable**: Easily inspect the duplicates and what caused them with the `DeduplicationResult` object. You can also view the lowest similarity duplicates to find the right threshold for deduplication for your dataset.
 
 ## Usage
 
