@@ -53,8 +53,8 @@ texts = load_dataset("ag_news", split="train")["text"]
 # Initialize a SemHash instance
 semhash = SemHash.from_records(records=texts)
 
-# Deduplicate the texts (optionally with a specific threshold)
-deduplicated_texts = semhash.self_deduplicate(threshold=0.9).deduplicated
+# Deduplicate the texts
+deduplicated_texts = semhash.self_deduplicate().deduplicated
 ```
 
 Or, deduplicate across two datasets with the following code (e.g., eliminating train/test leakage):
@@ -70,8 +70,8 @@ test_texts = load_dataset("ag_news", split="test")["text"]
 # Initialize a SemHash instance with the training data
 semhash = SemHash.from_records(records=train_texts)
 
-# Deduplicate the test data against the training data
-deduplicated_test_texts = semhash.deduplicate(records=test_texts).deduplicated
+# Deduplicate the test data against the training data, with a specified threshold
+deduplicated_test_texts = semhash.deduplicate(records=test_texts, threshold=0.9).deduplicated
 ```
 
 Or, deduplicate multi-column datasets with the following code (e.g., deduplicating a QA dataset):
