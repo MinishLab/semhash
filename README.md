@@ -70,7 +70,7 @@ test_texts = load_dataset("ag_news", split="test")["text"]
 # Initialize a SemHash instance with the training data
 semhash = SemHash.from_records(records=train_texts)
 
-# Deduplicate the test data against the training data, with a specified threshold
+# Deduplicate the test data against the training data, optionally with a specific threshold
 deduplicated_test_texts = semhash.deduplicate(records=test_texts, threshold=0.9).deduplicated
 ```
 
