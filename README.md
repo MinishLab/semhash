@@ -93,7 +93,7 @@ semhash = SemHash.from_records(records=records, columns=["question", "context"])
 deduplicated_records = semhash.self_deduplicate().deduplicated
 ```
 
-The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult](https://github.com/MinishLab/semhash/blob/prepare-release/semhash/datamodels.py#L35). This object stores the deduplicated corpus, a set of duplicate objec (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
+The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#L30). This object stores the deduplicated corpus, a set of duplicate objec (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
 
 ## Main Features
 
