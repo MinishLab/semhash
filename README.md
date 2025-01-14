@@ -262,11 +262,42 @@ deduplicated_texts = semhash.self_deduplicate()
 
 </details>
 
+<details>
+<summary>  Using Pandas DataFrames </summary>
+<br>
+
+You can easily use Pandas DataFrames with SemHash. The following code snippet shows how to deduplicate a Pandas DataFrame:
+
+```python
+import pandas as pd
+from datasets import load_dataset
+from semhash import SemHash
+
+# Load a dataset as a pandas dataframe
+dataframe = load_dataset("ag_news", split="train").to_pandas()
+
+# Convert the dataframe to a list of dictionaries
+dataframe = dataframe.to_dict(orient="records")
+
+# Initialize a SemHash instance with the columns to deduplicate
+semhash = SemHash.from_records(records=dataframe, columns=["text"])
+
+# Deduplicate the texts
+deduplicated_records = semhash.self_deduplicate().deduplicated
+
+# Convert the deduplicated records back to a pandas dataframe
+deduplicated_dataframe = pd.DataFrame(deduplicated_records)
+```
+
+</details>
+
 NOTE: By default, we use the ANN (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ANN. If you want to use the flat/exact-matching backend, you can set `use_ann=False` in the SemHash constructor:
 
 ```python
 semhash = SemHash.from_records(records=texts, use_ann=False)
 ```
+
+
 
 ## Benchmarks
 
