@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Generic, Sequence
+from typing import Callable, Generic, Optional, Sequence, Union
 
 import numpy as np
 from frozendict import frozendict
@@ -15,19 +15,28 @@ from semhash.utils import Encoder
 
 
 class SemHash(Generic[Record]):
-    def __init__(self, index: Index, model: Encoder, columns: Sequence[str], was_string: bool) -> None:
+    def __init__(
+        self,
+        index: Index,
+        model: Encoder,
+        columns: Sequence[str],
+        was_string: bool,
+        score_columns: Optional[Sequence[str]] = None,
+    ) -> None:
         """
         Initialize SemHash.
 
         :param index: An index.
-        :param model: A model to use for featurization.
+        :param model: A model to use for featurerization.
         :param columns: Columns of the records.
         :param was_string: Whether the records were strings. Used for mapping back to strings.
+        :param score_columns: Columns to score the records.
         """
         self.index = index
         self.model = model
         self.columns = columns
         self._was_string = was_string
+        self.score_columns = score_columns
 
     @staticmethod
     def _featurize(
@@ -51,6 +60,35 @@ class SemHash(Generic[Record]):
             embeddings_per_col.append(np.asarray(col_emb))
 
         return np.concatenate(embeddings_per_col, axis=1)
+
+    @staticmethod
+    def _sort_and_scale_scores(records: list[dict[str, str]], score_columns: Sequence[str]) -> list[dict[str, str]]:
+        """Score the records by scaling each column between 0 and 1 and taking the product."""
+        # First collect all scores for each column
+        scores_by_column = {}
+        for column in score_columns:
+            scores = [record[column] for record in records if isinstance(record[column], (float, int))]
+            if scores:
+                min_score = min(scores)
+                max_score = max(scores)
+                score_range = max_score - min_score
+                # Store min/max for scaling
+                scores_by_column[column] = (min_score, score_range)
+
+        # Scale and multiply scores for each record
+        for record in records:
+            scaled_scores = []
+            for column, (min_score, score_range) in scores_by_column.items():
+                if isinstance(record[column], (float, int)):
+                    if score_range == 0:
+                        scaled_score = 1.0  # All scores identical
+                    else:
+                        scaled_score = (record[column] - min_score) / score_range
+                    scaled_scores.append(scaled_score)
+            record["score"] = np.prod(scaled_scores) if scaled_scores else 0
+
+        records.sort(key=lambda x: x["score"], reverse=True)
+        return records
 
     @classmethod
     def _remove_exact_duplicates(
@@ -96,6 +134,7 @@ class SemHash(Generic[Record]):
         columns: Sequence[str] | None = None,
         use_ann: bool = True,
         model: Encoder | None = None,
+        score_columns: Optional[Sequence[str]] = None,
     ) -> SemHash:
         """
         Initialize a SemHash instance from records.
@@ -106,6 +145,7 @@ class SemHash(Generic[Record]):
         :param columns: Columns to featurize if records are dictionaries.
         :param use_ann: Whether to use approximate nearest neighbors (True) or basic search (False). Default is True.
         :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
+        :param score_columns: (Optional) Columns to score the records.
         :return: A SemHash instance with a fitted vicinity index.
         :raises ValueError: If columns are not provided for dictionary records.
         """
@@ -127,6 +167,10 @@ class SemHash(Generic[Record]):
 
         # Remove exact duplicates
         deduplicated_records, duplicates = cls._remove_exact_duplicates(dict_records, columns)
+
+        # sort records by score if score_columns are provided
+        if score_columns is not None:
+            deduplicated_records = cls._calculate_scores(deduplicated_records, score_columns)
 
         duplicate_map = defaultdict(list)
         for x in duplicates:
@@ -151,12 +195,13 @@ class SemHash(Generic[Record]):
             backend_type=backend,
         )
 
-        return cls(index=index, columns=columns, model=model, was_string=was_string)
+        return cls(index=index, columns=columns, model=model, was_string=was_string, score_columns=score_columns)
 
     def deduplicate(
         self,
         records: Sequence[Record],
         threshold: float = 0.9,
+        budget: Optional[Union[int, float]] = None,
     ) -> DeduplicationResult:
         """
         Perform deduplication against the fitted index.
@@ -167,6 +212,7 @@ class SemHash(Generic[Record]):
 
         :param records: A new set of records (e.g., test set) to deduplicate against the fitted dataset.
         :param threshold: Similarity threshold for deduplication.
+        :param budget: The maximum number of records to include after filtering by score.
         :return: A deduplicated list of records.
         :raises: ValueError if passed records are strings and the original records were not strings.
         """
@@ -188,6 +234,15 @@ class SemHash(Generic[Record]):
         if not dict_records:
             return DeduplicationResult(deduplicated=[], duplicates=duplicate_records, threshold=threshold)
 
+        # Set maximum budget if scoring is enabled
+        if self.score_columns is not None:
+            if budget is None:
+                raise ValueError("Budget must be provided when scoring records.")
+            if isinstance(budget, float):
+                budget = int(budget * len(records))
+        else:
+            budget = float("inf")
+
         # Compute embeddings for the new records
         embeddings = self._featurize(records=dict_records, columns=self.columns, model=self.model)
         # Query the fitted index
@@ -195,7 +250,7 @@ class SemHash(Generic[Record]):
 
         deduplicated_records = []
         for record, similar_items in zip(dict_records, results):
-            if not similar_items:
+            if not similar_items and len(deduplicated_records) < budget:
                 # No duplicates found, keep this record
                 deduplicated_records.append(record)
             else:
@@ -220,13 +275,24 @@ class SemHash(Generic[Record]):
     def self_deduplicate(
         self,
         threshold: float = 0.9,
+        budget: Optional[Union[int, float]] = None,
     ) -> DeduplicationResult:
         """
         Deduplicate within the same dataset. This can be used to remove duplicates from a single dataset.
 
         :param threshold: Similarity threshold for deduplication.
+        :param budget: The maximum number of records to include after filtering by score.
         :return: A deduplicated list of records.
         """
+        # Set maximum budget if scoring is enabled
+        if self.score_columns is not None:
+            if budget is None:
+                raise ValueError("Budget must be provided when scoring records.")
+            if isinstance(budget, float):
+                budget = int(budget * len(self.index.items))
+        else:
+            budget = float("inf")
+
         # Query the fitted index
         results = self.index.query_threshold(self.index.vectors, threshold=threshold)
         column_set = set(self.columns)
@@ -246,10 +312,14 @@ class SemHash(Generic[Record]):
             # If we don't see any similar_items, we know the record is not a duplicate.
             # in rare cases, the item itself might not be a duplicate of itself.
             if not similar_items:
-                deduplicated_records.append(record)
+                if len(deduplicated_records) < budget:
+                    deduplicated_records.append(record)
+                else:
+                    duplicate_records.append(DuplicateRecord(record=record, duplicates=[], exact=False))
                 continue
+
             items, _ = zip(*similar_items)
-            frozen_items = [to_frozendict(item, column_set) for item in items]
+            frozen_items: list[frozendict[str, str]] = [to_frozendict(item, column_set) for item in items]
             # similar_items includes 'record' itself
             # If we've seen any of these items before, this is a duplicate cluster.
             if any(item in seen_items for item in frozen_items):
@@ -262,7 +332,16 @@ class SemHash(Generic[Record]):
                 )
                 continue
             # This is the first time we see this cluster of similar items
-            deduplicated_records.append(record)
+            if len(deduplicated_records) < budget:
+                deduplicated_records.append(record)
+            else:
+                duplicate_records.append(
+                    DuplicateRecord(
+                        record=record,
+                        duplicates=[(item, score) for item, score in similar_items if item != record],
+                        exact=False,
+                    )
+                )
             # Mark all items in this cluster as seen
             seen_items.update(frozen_items)
 
