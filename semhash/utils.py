@@ -18,4 +18,4 @@ class Encoder(Protocol):
         :param **kwargs: Additional keyword arguments.
         :return: The embeddings of the sentences.
         """
-        ...
+        ...  # pragma: no cover
