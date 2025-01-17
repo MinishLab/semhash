@@ -25,10 +25,6 @@ class Index:
         self.backend = backend
         self.vectors = vectors
 
-    def items_as_sequence(self) -> list[dict[str, str]]:
-        """Return all items as a single sequence."""
-        return [item[0] for item in self.items]
-
     @classmethod
     def from_vectors_and_items(cls, vectors: np.ndarray, items: list[DictItem], backend_type: Backend) -> Index:
         """

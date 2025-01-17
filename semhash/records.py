@@ -39,3 +39,8 @@ def map_deduplication_result_to_strings(result: DeduplicationResult, columns: Se
             )
         )
     return DeduplicationResult(deduplicated=deduplicated_str, duplicates=mapped, threshold=result.threshold)
+
+
+def add_scores_to_records(records: list[dict[str, str]]) -> list[tuple[dict[str, str], float]]:
+    """Add scores to records and return a DeduplicationResult."""
+    return [(record, 1.0) for record in records]
