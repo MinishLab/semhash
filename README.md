@@ -362,3 +362,19 @@ To run the benchmarks yourself, you can use the following command (assuming you 
 python -m benchmarks.run_benchmarks
 ```
 Optionally, the datasets can be updated in the [datasets.py](https://github.com/MinishLab/semhash/blob/main/benchmarks/datasets.py) file.
+
+## License
+
+MIT
+
+## Citing
+
+If you use SemHash in your research, please cite the following:
+```bibtex
+@software{minishlab2025semhash,
+  authors = {Thomas van Dongen, Stephan Tulkens},
+  title = {SemHash: Fast Semantic Text Deduplication},
+  year = {2025},
+  url = {https://github.com/MinishLab/semhash},
+}
+```
