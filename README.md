@@ -2,7 +2,7 @@
 
 <div align="center">
     <picture>
-      <img width="30%" alt="SemHash logo" src="assets/images/semhash_logo.png">
+      <img width="60%" alt="SemHash logo" src="assets/images/semhash_logo.png">
     </picture>
   </a>
 </div>
