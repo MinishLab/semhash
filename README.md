@@ -12,14 +12,20 @@
 # Fast Semantic Text Deduplication
 
 
-  <h2>
+<h2>
     <a href="https://pypi.org/project/semhash/"><img src="https://img.shields.io/pypi/v/semhash?color=%23007ec6&label=pypi%20package" alt="Package version"></a>
     <a href="https://pypi.org/project/semhash/"><img src="https://img.shields.io/pypi/pyversions/semhash" alt="Supported Python versions"></a>
     <a href="https://app.codecov.io/gh/MinishLab/semhash">
-    <img src="https://codecov.io/gh/MinishLab/semhash/graph/badge.svg?token=YPOD6HD0MG" alt="Codecov">
+        <img src="https://codecov.io/gh/MinishLab/semhash/graph/badge.svg?token=YPOD6HD0MG" alt="Codecov">
     </a>
-    <a href="https://github.com/MinishLab/semhash/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License - MIT"></a>
-  </h2>
+    <a href="https://discord.gg/4BDPR5nmtK">
+        <img src="https://img.shields.io/badge/Join-Discord-5865F2?logo=discord&logoColor=white" alt="Join Discord">
+    </a>
+    <a href="https://github.com/MinishLab/semhash/blob/main/LICENSE">
+        <img src="https://img.shields.io/badge/license-MIT-green" alt="License - MIT">
+    </a>
+</h2>
+
 
 
 [Quickstart](#quickstart) •
@@ -70,8 +76,8 @@ test_texts = load_dataset("ag_news", split="test")["text"]
 # Initialize a SemHash instance with the training data
 semhash = SemHash.from_records(records=train_texts)
 
-# Deduplicate the test data against the training data
-deduplicated_test_texts = semhash.deduplicate(records=test_texts).deduplicated
+# Deduplicate the test data against the training data, optionally with a specific threshold
+deduplicated_test_texts = semhash.deduplicate(records=test_texts, threshold=0.9).deduplicated
 ```
 
 Or, deduplicate multi-column datasets with the following code (e.g., deduplicating a QA dataset):
@@ -93,7 +99,7 @@ semhash = SemHash.from_records(records=records, columns=["question", "context"])
 deduplicated_records = semhash.self_deduplicate().deduplicated
 ```
 
-The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult](https://github.com/MinishLab/semhash/blob/prepare-release/semhash/datamodels.py#L35). This object stores the deduplicated corpus, a set of duplicate objec (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
+The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#L30). This object stores the deduplicated corpus, a set of duplicate object (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
 
 ## Main Features
 
@@ -101,6 +107,7 @@ The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult
 - **Scalable**: SemHash can deduplicate large datasets with millions of records thanks to the ANN backends in Vicinity.
 - **Flexible**: SemHash can be used to deduplicate a single dataset or across two datasets, and can also be used to deduplicate multi-column datasets (such as QA datasets).
 - **Lightweight**: SemHash is a lightweight package with minimal dependencies, making it easy to install and use.
+- **Explainable**: Easily inspect the duplicates and what caused them with the `DeduplicationResult` object. You can also view the lowest similarity duplicates to find the right threshold for deduplication for your dataset.
 
 ## Usage
 
@@ -261,11 +268,42 @@ deduplicated_texts = semhash.self_deduplicate()
 
 </details>
 
+<details>
+<summary>  Using Pandas DataFrames </summary>
+<br>
+
+You can easily use Pandas DataFrames with SemHash. The following code snippet shows how to deduplicate a Pandas DataFrame:
+
+```python
+import pandas as pd
+from datasets import load_dataset
+from semhash import SemHash
+
+# Load a dataset as a pandas dataframe
+dataframe = load_dataset("ag_news", split="train").to_pandas()
+
+# Convert the dataframe to a list of dictionaries
+dataframe = dataframe.to_dict(orient="records")
+
+# Initialize a SemHash instance with the columns to deduplicate
+semhash = SemHash.from_records(records=dataframe, columns=["text"])
+
+# Deduplicate the texts
+deduplicated_records = semhash.self_deduplicate().deduplicated
+
+# Convert the deduplicated records back to a pandas dataframe
+deduplicated_dataframe = pd.DataFrame(deduplicated_records)
+```
+
+</details>
+
 NOTE: By default, we use the ANN (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ANN. If you want to use the flat/exact-matching backend, you can set `use_ann=False` in the SemHash constructor:
 
 ```python
 semhash = SemHash.from_records(records=texts, use_ann=False)
 ```
+
+
 
 ## Benchmarks
 
@@ -330,3 +368,19 @@ To run the benchmarks yourself, you can use the following command (assuming you 
 python -m benchmarks.run_benchmarks
 ```
 Optionally, the datasets can be updated in the [datasets.py](https://github.com/MinishLab/semhash/blob/main/benchmarks/datasets.py) file.
+
+## License
+
+MIT
+
+## Citing
+
+If you use SemHash in your research, please cite the following:
+```bibtex
+@software{minishlab2025semhash,
+  author = {Thomas van Dongen and Stephan Tulkens},
+  title = {SemHash: Fast Semantic Text Deduplication},
+  year = {2025},
+  url = {https://github.com/MinishLab/semhash}
+}
+```
