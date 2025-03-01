@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar
+from typing import Generic, Optional, TypeVar
 
 Record = TypeVar("Record", str, dict[str, str])
 
@@ -78,3 +78,51 @@ class DeduplicationResult(Generic[Record]):
                 self.duplicates.remove(dup)
                 self.deduplicated.append(dup.record)
         self.threshold = threshold
+
+
+@dataclass
+class FilterResult(Generic[Record]):
+    """
+    Result of filtering operations.
+
+    Attributes
+    ----------
+        selected: List of records that passed the filter criteria.
+        filtered: List of records that were filtered out.
+        scores: Optional dictionary mapping records to their scores.
+
+    """
+
+    selected: list[Record]
+    filtered: list[Record]
+    scores: Optional[dict[Record, float]] = None
+
+    @property
+    def filter_ratio(self) -> float:
+        """Return the percentage of records filtered out."""
+        if denom := len(self.selected) + len(self.filtered):
+            return len(self.filtered) / denom
+        return 0.0
+
+    @property
+    def selected_ratio(self) -> float:
+        """Return the percentage of records selected."""
+        return 1 - self.filter_ratio
+
+    def get_lowest_scoring(self, n: int = 1) -> list[tuple[Record, float]]:
+        """
+        Return the N lowest scoring records.
+
+        :param n: The number of lowest scoring records to return.
+        :return: A list of tuples consisting of (record, score).
+        """
+        return self.filtered[:n] + self.selected[len(self.selected) - n :]
+
+    def get_highest_scoring(self, n: int = 1) -> list[tuple[Record, float]]:
+        """
+        Return the N highest scoring records.
+
+        :param n: The number of highest scoring records to return.
+        :return: A list of tuples consisting of (record, score).
+        """
+        return self.selected[:n] + self.filtered[: len(self.selected) - n]
