@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from typing import List
+
 import numpy as np
 from vicinity import Backend
 from vicinity.backends import AbstractBackend, get_backend_class
+from vicinity.datatypes import SingleQueryResult
 
 DocScore = tuple[dict[str, str], float]
 DocScores = list[DocScore]
@@ -61,3 +64,16 @@ class Index:
             out.append(intermediate)
 
         return out
+
+    def query_top_k(self, vectors: np.ndarray, k: int) -> List[SingleQueryResult]:
+        """
+        Query the index with a top-k threshold.
+
+        :param vectors: The vectors to query.
+        :param k: Maximum number of top-k records to keep.
+        :return: The query results.
+        """
+        results = []
+        for x, y in self.backend.query(vectors=vectors, k=k + 1):  # include the query vector
+            results.append((x[-k:], (y + 1e-10)[-k:]))  # add a small epsilon to avoid division by zero
+        return results

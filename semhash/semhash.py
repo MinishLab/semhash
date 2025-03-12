@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Generic, Sequence
+from re import T
+from typing import Generic, Optional, Sequence, Union
 
 import numpy as np
 from frozendict import frozendict
 from model2vec import StaticModel
 from vicinity import Backend
 
-from semhash.datamodels import DeduplicationResult, DuplicateRecord, Record
+from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult, Record
 from semhash.index import Index
 from semhash.records import add_scores_to_records, map_deduplication_result_to_strings, to_frozendict
-from semhash.utils import Encoder
+from semhash.utils import Encoder, entropy_from_distances
 
 
 class SemHash(Generic[Record]):
@@ -294,3 +295,94 @@ class SemHash(Generic[Record]):
             return map_deduplication_result_to_strings(result, columns=self.columns)
 
         return result
+
+    def _validate_filter_budget(self, budget: Union[int, float], records: Sequence[Record]) -> int:
+        """
+        Validate the filter budget.
+
+        :param budget: The budget to validate.
+        :param records: The records to validate against.
+        :return: The validated budget.
+        """
+        if budget > len(records) or budget < 0:
+            raise ValueError("Budget must be between 0 and the number of records.")
+        if budget > 1:
+            return int(budget)
+        return int(len(records) * budget)
+
+    def filter_by_entropy(
+        self,
+        records: Sequence[Record],
+        budget: Optional[Union[int, float]] = 0.9,
+        k: int = 100,
+        descending: bool = True,
+    ) -> FilterResult:
+        """
+        Filter records based on their entropy. Entropy is computed based on mean cosine similarity of the top-k records.
+
+        :param records: Records to filter.
+        :param budget: Maximum number of records to keep.
+            If a float is passed, it is interpreted as a percentage of the total number of records.
+        :param k: Maximum number of top-k records to keep.
+        :param descending: Whether to sort in descending order, from high entropy to low entropy.
+            Higher entropy means more diverse records, lower entropy means more similar records.
+        :return: FilterResult containing selected and filtered records.
+        """
+        budget = self._validate_filter_budget(budget, records)
+
+        if isinstance(records[0], str):
+            if not self._was_string:
+                raise ValueError("Records were not originally strings, but you passed strings.")
+            # If records are strings, convert to dictionaries with a single column
+            dict_records = [{"text": record} for record in records]
+        else:
+            dict_records = records
+
+        # Compute embeddings for the new records
+        embeddings = self._featurize(records=dict_records, columns=self.columns, model=self.model)
+
+        # Query the fitted index
+        scores = []
+
+        for record, vectors in zip(dict_records, embeddings):
+            results = self.index.query_top_k(vectors.reshape(1, -1), k=k)
+            scores.append((record, entropy_from_distances(results[0][-1])))
+
+        scores.sort(key=lambda x: x[1], reverse=descending)
+
+        selected = [x[0] for x in scores[:budget]]
+        filtered = [x[0] for x in scores[budget:]]
+
+        return FilterResult(selected=selected, filtered=filtered, scores=scores)
+
+    def self_filter_by_entropy(
+        self,
+        budget: Optional[Union[int, float]] = 0.9,
+        k: int = 100,
+        descending: bool = True,
+    ) -> FilterResult:
+        """
+        Filter records based on their entropy. Entropy is computed based on mean cosine similarity of the top-k records.
+
+        This is similar to filter_by_entropy, but it filters within the same dataset.
+
+        :param budget: Maximum number of records to keep.
+            If a float is passed, it is interpreted as a percentage of the total number of records.
+        :param k: Maximum number of top-k records to keep.
+        :param descending: Whether to sort in descending order, from high entropy to low entropy.
+            Higher entropy means more diverse records, lower entropy means more similar records.
+        :return: FilterResult containing selected and filtered records.
+        """
+        budget = self._validate_filter_budget(budget, self.index.items)
+
+        scores = []
+        for record, vectors in zip(self.index.items, self.index.vectors):
+            result = self.index.query_top_k(vectors.reshape(1, -1), k=k)
+            scores.append((record, entropy_from_distances(result[0][-1])))
+
+        scores.sort(key=lambda x: x[1], reverse=descending)
+
+        selected = scores[:budget]
+        filtered = scores[budget:]
+
+        return FilterResult(selected=selected, filtered=filtered, scores=scores)
