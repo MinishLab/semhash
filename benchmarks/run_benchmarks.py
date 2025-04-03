@@ -55,7 +55,7 @@ def main() -> None:  # noqa: C901
 
         train_only_dedup_time = train_only_end - train_only_start
         original_train_size = len(train_records)
-        dedup_train_size = len(deduplicated_train.deduplicated)
+        dedup_train_size = len(deduplicated_train.selected)
 
         percent_removed_train = deduplicated_train.duplicate_ratio * 100
         train_dedup_results.append(
@@ -88,7 +88,7 @@ def main() -> None:  # noqa: C901
         train_test_end = perf_counter()
         train_test_dedup_time = train_test_end - train_test_start
         original_test_size = len(test_records)
-        deduped_test_size = len(deduplicated_test.deduplicated)
+        deduped_test_size = len(deduplicated_test.selected)
         percent_removed_test = deduplicated_test.duplicate_ratio * 100
 
         train_test_dedup_results.append(

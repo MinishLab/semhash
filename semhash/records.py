@@ -26,7 +26,7 @@ def dict_to_string(record: dict[str, str], columns: Sequence[str]) -> str:
 
 def map_deduplication_result_to_strings(result: DeduplicationResult, columns: Sequence[str]) -> DeduplicationResult:
     """Convert the record and duplicates in each DuplicateRecord back to strings if self.was_string is True."""
-    deduplicated_str = [dict_to_string(r, columns) for r in result.deduplicated]
+    deduplicated_str = [dict_to_string(r, columns) for r in result.selected]
     mapped = []
     for dup_rec in result.duplicates:
         record_as_str = dict_to_string(dup_rec.record, columns)
@@ -38,7 +38,7 @@ def map_deduplication_result_to_strings(result: DeduplicationResult, columns: Se
                 exact=dup_rec.exact,
             )
         )
-    return DeduplicationResult(deduplicated=deduplicated_str, duplicates=mapped, threshold=result.threshold)
+    return DeduplicationResult(selected=deduplicated_str, filtered=mapped, threshold=result.threshold)
 
 
 def add_scores_to_records(records: list[dict[str, str]]) -> list[tuple[dict[str, str], float]]:
