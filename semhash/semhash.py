@@ -310,27 +310,25 @@ class SemHash(Generic[Record]):
         return dict_records
 
     def _validate_filter_budget(
-        self, budget: float | int | None, records: Sequence[dict[str, str] | str], k: int
+        self,
+        budget: float | int,
+        n_records: int,
     ) -> int:
         """
         Validate the filter budget.
 
         :param budget: The budget to validate, either as a percentage (0 to 1) or an absolute number.
-        :param records: The records to validate against.
-        :param k: The number of top-k records to keep.
+        :param n_records: The total number of records.
         :return: The validated budget as an integer.
-        :raises ValueError: If the budget is not within the valid range or less than k.
+        :raises ValueError: If the budget is not within the valid range.
         """
-        if budget is None:
-            budget = 0.9
+        # If a float between 0 and 1, interpret as a percentage, otherwise as an absolute value.
+        budget = int(n_records * budget) if isinstance(budget, float) and budget <= 1 else int(budget)
 
-        if not (0 <= budget <= 1 or 0 <= budget <= len(records)):
-            raise ValueError("Budget must be between 0 and 1 (as a percentage) or between 0 and the number of records.")
-
-        budget = int(budget) if budget > 1 else int(len(records) * budget)
-
-        if budget < k:
-            raise ValueError("Budget must be greater than or equal to the number of top-k records to keep.")
+        if not (0 <= budget <= n_records):
+            raise ValueError(
+                "Budget must be between 0 and 1 (as a percentage) or between 0 and the number of records (as an absolute number)."
+            )
 
         return budget
 
@@ -338,7 +336,7 @@ class SemHash(Generic[Record]):
         self,
         records: Sequence[dict[str, str]],
         vectors: np.ndarray,
-        budget: float | int | None,
+        budget: float | int,
         descending: bool = True,
     ) -> FilterResult:
         """
@@ -350,7 +348,7 @@ class SemHash(Generic[Record]):
         :param descending: Whether to sort in descending order of entropy.
         :return: A FilterResult containing selected and filtered records.
         """
-        budget = self._validate_filter_budget(budget=budget, records=records, k=100)
+        budget = self._validate_filter_budget(budget=budget, n_records=len(records))
 
         # compute entropy scores
         scores = [
@@ -388,7 +386,7 @@ class SemHash(Generic[Record]):
     def filter_by_entropy(
         self,
         records: Sequence[Record],
-        budget: float | int | None = 0.9,
+        budget: float | int = 0.9,
         descending: bool = True,
     ) -> FilterResult:
         """
@@ -416,7 +414,7 @@ class SemHash(Generic[Record]):
 
     def self_filter_by_entropy(
         self,
-        budget: float | int | None = 0.9,
+        budget: float | int = 0.9,
         descending: bool = True,
     ) -> FilterResult:
         """
