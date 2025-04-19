@@ -1,6 +1,6 @@
 import warnings
 from dataclasses import dataclass, field
-from typing import Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 
 Record = TypeVar("Record", str, dict[str, str])
 
@@ -34,9 +34,9 @@ class DeduplicationResult(Generic[Record]):
 
     Attributes
     ----------
-        threshold: The similarity threshold used for deduplication.
         selected: List of deduplicated records after removing duplicates.
         filtered: List of DuplicateRecord objects containing details about duplicates of an original record.
+        threshold: The similarity threshold used for deduplication.
         deduplicated: Deprecated, use selected instead.
         duplicates: Deprecated, use filtered instead.
 
@@ -112,7 +112,8 @@ class FilterResult(Generic[Record]):
     ----------
         selected: List of records that passed the filter criteria.
         filtered: List of records that were filtered out.
-        scores: Optional dictionary mapping records to their scores.
+        scores_selected: List of scores for the selected records.
+        scores_filtered: List of scores for the filtered records.
 
     """
 
