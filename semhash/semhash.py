@@ -309,11 +309,7 @@ class SemHash(Generic[Record]):
             raise ValueError("Records must be either strings or dictionaries.")
         return dict_records
 
-    def _validate_filter_budget(
-        self,
-        budget: float | int,
-        n_records: int,
-    ) -> int:
+    def _validate_filter_budget(self, budget: float | int, n_records: int) -> int:
         """
         Validate the filter budget.
 
@@ -322,12 +318,20 @@ class SemHash(Generic[Record]):
         :return: The validated budget as an integer.
         :raises ValueError: If the budget is not within the valid range.
         """
-        # If a float between 0 and 1, interpret as a percentage, otherwise as an absolute value.
-        budget = int(n_records * budget) if isinstance(budget, float) and budget <= 1 else int(budget)
+        # If budget is a float used as a percentage (between 0 and 1).
+        if isinstance(budget, float) and 0 <= budget <= 1:
+            budget = int(n_records * budget)
+        # If it's a float meant to be an absolute value, it must be an integer value.
+        elif isinstance(budget, float) and budget != int(budget):
+            raise ValueError("For an absolute budget, please provide an integer value.")
+        # If it's an integer, we assume it's an absolute value.
+        else:
+            budget = int(budget)
 
-        if not (0 <= budget <= n_records):
+        # Validate the budget range.
+        if budget < 0 or budget > n_records:
             raise ValueError(
-                "Budget must be between 0 and 1 (as a percentage) or between 0 and the number of records (as an absolute number)."
+                "Budget must be between 0 and 1 (as a percentage) or between 0 and the total number of records (as an absolute number)."
             )
 
         return budget

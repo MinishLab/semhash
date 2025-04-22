@@ -43,7 +43,6 @@ SemHash supports both single-dataset deduplication (e.g., cleaning up a train se
 ## Quickstart
 
 Install the package with:
-
 ```bash
 pip install semhash
 ```
@@ -61,7 +60,7 @@ texts = load_dataset("ag_news", split="train")["text"]
 semhash = SemHash.from_records(records=texts)
 
 # Deduplicate the texts
-deduplicated_texts = semhash.self_deduplicate().selected
+deduplicated_texts = semhash.self_deduplicate().deduplicated
 ```
 
 Or, deduplicate across two datasets with the following code (e.g., eliminating train/test leakage):
@@ -78,7 +77,7 @@ test_texts = load_dataset("ag_news", split="test")["text"]
 semhash = SemHash.from_records(records=train_texts)
 
 # Deduplicate the test data against the training data, optionally with a specific threshold
-deduplicated_test_texts = semhash.deduplicate(records=test_texts, threshold=0.9).selected
+deduplicated_test_texts = semhash.deduplicate(records=test_texts, threshold=0.9).deduplicated
 ```
 
 Or, deduplicate multi-column datasets with the following code (e.g., deduplicating a QA dataset):
@@ -97,14 +96,10 @@ records = [dict(row) for row in dataset]
 semhash = SemHash.from_records(records=records, columns=["question", "context"])
 
 # Deduplicate the records
-deduplicated_records = semhash.self_deduplicate().selected
+deduplicated_records = semhash.self_deduplicate().deduplicated
 ```
 
-The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#L30). This object stores the deduplicated corpus, a set of duplicate object (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result.
-
-Besides deduplication, SemHash also supports filtering through the `filter_by_entropy` and `self_filter_by_entropy` functions. These functions filter records based on their average distance to the top-k nearest neighbors. This is useful for finding examplars of the dataset and selecting the best records.
-
-Examples of how these functions can be used can be found in the [usage](#usage) section.
+The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#L30). This object stores the deduplicated corpus, a set of duplicate object (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
 
 ## Main Features
 
@@ -185,7 +180,7 @@ records = [dict(row) for row in dataset]
 semhash = SemHash.from_records(records=records, columns=["question", "context"])
 
 # Deduplicate the records
-deduplicated_records = semhash.self_deduplicate().selected
+deduplicated_records = semhash.self_deduplicate().deduplicated
 ```
 
 </details>
@@ -210,9 +205,9 @@ semhash = SemHash.from_records(records=texts)
 deduplication_result = semhash.self_deduplicate()
 
 # Check the deduplicated texts
-deduplication_result.selected
+deduplication_result.deduplicated
 # Check the duplicates
-deduplication_result.filtered
+deduplication_result.duplicates
 # See what percentage of the texts were duplicates
 deduplication_result.duplicate_ratio
 # See what percentage of the texts were exact duplicates
@@ -294,57 +289,10 @@ dataframe = dataframe.to_dict(orient="records")
 semhash = SemHash.from_records(records=dataframe, columns=["text"])
 
 # Deduplicate the texts
-deduplicated_records = semhash.self_deduplicate().selected
+deduplicated_records = semhash.self_deduplicate().deduplicated
 
 # Convert the deduplicated records back to a pandas dataframe
 deduplicated_dataframe = pd.DataFrame(deduplicated_records)
-```
-
-</details>
-
-<details>
-<summary>  Filter based on entropy score </summary>
-
-
-Entropy is a measure of the diversity of a dataset. A higher entropy score means more diverse records, and a lower entropy score means more similar records. You can use `budget` to filter on a percentage or a number of records. Setting `descending=True` will filter on the most diverse records.
-
-Filter on a single dataset.
-
-```python
-from datasets import load_dataset
-from semhash import SemHash
-
-# Load a dataset to deduplicate
-texts = load_dataset("ag_news", split="train")["text"]
-
-# Initialize a SemHash instance
-semhash = SemHash.from_records(records=texts)
-
-# Filter the texts based on entropy score
-filtered_records = semhash.self_filter_by_entropy(budget=0.8).selected
-```
-
-Filter across two datasets. This can be useful for finding examplars of the dataset before or after deduplication.
-
-```python
-from datasets import load_dataset
-from semhash import SemHash
-
-# Load a dataset
-texts = load_dataset("ag_news", split="train")["text"]
-
-# Initialize a SemHash instance
-semhash = SemHash.from_records(records=texts)
-
-# Deduplicate the records
-deduplicated_records = semhash.self_deduplicate().selected
-
-# Filter the records based on entropy score
-filtered_records = semhash.filter_by_entropy(
-  records=deduplicated_records,
-  budget=0.8,
-  descending=True
-).selected
 ```
 
 </details>
@@ -355,6 +303,8 @@ NOTE: By default, we use the ANN (approximate-nearest neighbors) backend for ded
 semhash = SemHash.from_records(records=texts, use_ann=False)
 ```
 
+
+
 ## Benchmarks
 
 We've benchmarked SemHash on a variety of datasets to measure the deduplication performance and speed. The benchmarks were run with the following setup:
@@ -362,7 +312,6 @@ We've benchmarked SemHash on a variety of datasets to measure the deduplication 
 - The benchmarks were all run with `use_ann=True`
 - The used encoder is the default encoder ([potion-base-8M](https://huggingface.co/minishlab/potion-base-8M)).
 - The timings include the encoding time, index building time, and deduplication time.
-
 ### Train Deduplication Benchmark
 
 | Dataset              |  Original Train Size |  Deduplicated Train Size |  % Removed |   Deduplication Time (s) |
@@ -384,6 +333,7 @@ We've benchmarked SemHash on a variety of datasets to measure the deduplication 
 | student              |               117519 |                    63856 |      45.66 |                     8.80 |
 | squad_v2             |               130319 |                   109698 |      15.82 |                     8.81 |
 | wikitext             |              1801350 |                   884645 |      50.89 |                    83.53 |
+
 
 ### Train/Test Deduplication Benchmark
 
@@ -407,6 +357,7 @@ We've benchmarked SemHash on a variety of datasets to measure the deduplication 
 | squad_v2             |       130319 |        11873 |                    11863 |       0.08 |                     7.13 |
 | wikitext             |      1801350 |         4358 |                     2139 |      50.92 |                    40.32 |
 
+
 As can be seen, SemHash is extremely fast, and scales to large datasets with millions of records. There are some notable examples of train/test leakage, such as `enron_spam` and `student`, where the test dataset contains a significant amount of semantic overlap with the training dataset.
 
 ### Reproducing the Benchmarks
@@ -425,7 +376,6 @@ MIT
 ## Citing
 
 If you use SemHash in your research, please cite the following:
-
 ```bibtex
 @software{minishlab2025semhash,
   author = {Thomas van Dongen and Stephan Tulkens},
