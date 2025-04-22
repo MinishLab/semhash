@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import imp
 from collections import defaultdict
-from re import T
 from typing import Generic, Sequence, Union
 
 import numpy as np
@@ -311,28 +309,30 @@ class SemHash(Generic[Record]):
             raise ValueError("Records must be either strings or dictionaries.")
         return dict_records
 
-    def _validate_filter_budget(
-        self, budget: float | int | None, records: Sequence[dict[str, str] | str], k: int
-    ) -> int:
+    def _validate_filter_budget(self, budget: float | int, n_records: int) -> int:
         """
         Validate the filter budget.
 
         :param budget: The budget to validate, either as a percentage (0 to 1) or an absolute number.
-        :param records: The records to validate against.
-        :param k: The number of top-k records to keep.
+        :param n_records: The total number of records.
         :return: The validated budget as an integer.
-        :raises ValueError: If the budget is not within the valid range or less than k.
+        :raises ValueError: If the budget is not within the valid range.
         """
-        if budget is None:
-            budget = 0.9
+        # If budget is a float used as a percentage (between 0 and 1).
+        if isinstance(budget, float) and 0 <= budget <= 1:
+            budget = int(n_records * budget)
+        # If it's a float meant to be an absolute value, it must be an integer value.
+        elif isinstance(budget, float) and budget != int(budget):
+            raise ValueError("For an absolute budget, please provide an integer value.")
+        # If it's an integer, we assume it's an absolute value.
+        else:
+            budget = int(budget)
 
-        if not (0 <= budget <= 1 or 0 <= budget <= len(records)):
-            raise ValueError("Budget must be between 0 and 1 (as a percentage) or between 0 and the number of records.")
-
-        budget = int(budget) if budget > 1 else int(len(records) * budget)
-
-        if budget < k:
-            raise ValueError("Budget must be greater than or equal to the number of top-k records to keep.")
+        # Validate the budget range.
+        if budget < 0 or budget > n_records:
+            raise ValueError(
+                "Budget must be between 0 and 1 (as a percentage) or between 0 and the total number of records (as an absolute number)."
+            )
 
         return budget
 
@@ -340,7 +340,7 @@ class SemHash(Generic[Record]):
         self,
         records: Sequence[dict[str, str]],
         vectors: np.ndarray,
-        budget: float | int | None,
+        budget: float | int,
         descending: bool = True,
     ) -> FilterResult:
         """
@@ -352,7 +352,7 @@ class SemHash(Generic[Record]):
         :param descending: Whether to sort in descending order of entropy.
         :return: A FilterResult containing selected and filtered records.
         """
-        budget = self._validate_filter_budget(budget=budget, records=records, k=100)
+        budget = self._validate_filter_budget(budget=budget, n_records=len(records))
 
         # compute entropy scores
         scores = [
@@ -390,7 +390,7 @@ class SemHash(Generic[Record]):
     def filter_by_entropy(
         self,
         records: Sequence[Record],
-        budget: float | int | None = 0.9,
+        budget: float | int = 0.9,
         descending: bool = True,
     ) -> FilterResult:
         """
@@ -418,7 +418,7 @@ class SemHash(Generic[Record]):
 
     def self_filter_by_entropy(
         self,
-        budget: float | int | None = 0.9,
+        budget: float | int = 0.9,
         descending: bool = True,
     ) -> FilterResult:
         """
