@@ -67,13 +67,16 @@ class Index:
 
     def query_top_k(self, vectors: np.ndarray, k: int) -> List[SingleQueryResult]:
         """
-        Query the index with a top-k threshold.
+        Query the index with a top-k.
 
         :param vectors: The vectors to query.
         :param k: Maximum number of top-k records to keep.
-        :return: The query results.
+        :return: The query results. Each result is a tuple where the first element is the list of neighbor records,
+                 and the second element is a NumPy array of cosine similarity scores.
         """
         results = []
         for x, y in self.backend.query(vectors=vectors, k=k + 1):  # include the query vector
-            results.append((x[-k:], (y + 1e-10)[-k:]))  # add a small epsilon to avoid division by zero
+            # Convert returned distances to cosine similarities.
+            similarities = 1 - (y[-k:])
+            results.append((x[-k:], similarities))
         return results

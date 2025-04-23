@@ -11,7 +11,7 @@ from vicinity import Backend
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult, Record
 from semhash.index import Index
 from semhash.records import add_scores_to_records, map_deduplication_result_to_strings, to_frozendict
-from semhash.utils import Encoder, entropy_from_distances
+from semhash.utils import Encoder
 
 
 class SemHash(Generic[Record]):
@@ -309,133 +309,141 @@ class SemHash(Generic[Record]):
             raise ValueError("Records must be either strings or dictionaries.")
         return dict_records
 
-    def _validate_filter_budget(self, budget: float | int, n_records: int) -> int:
-        """
-        Validate the filter budget.
-
-        :param budget: The budget to validate, either as a percentage (0 to 1) or an absolute number.
-        :param n_records: The total number of records.
-        :return: The validated budget as an integer.
-        :raises ValueError: If the budget is not within the valid range.
-        """
-        # If budget is a float used as a percentage (between 0 and 1).
-        if isinstance(budget, float) and 0 <= budget <= 1:
-            budget = int(n_records * budget)
-        # If it's a float meant to be an absolute value, it must be an integer value.
-        elif isinstance(budget, float) and budget != int(budget):
-            raise ValueError("For an absolute budget, please provide an integer value.")
-        # If it's an integer, we assume it's an absolute value.
-        else:
-            budget = int(budget)
-
-        # Validate the budget range.
-        if budget < 0 or budget > n_records:
-            raise ValueError(
-                "Budget must be between 0 and 1 (as a percentage) or between 0 and the total number of records (as an absolute number)."
-            )
-
-        return budget
-
-    def _filter_by_entropy(
+    def rank_by_average_distance(
         self,
-        records: Sequence[dict[str, str]],
-        vectors: np.ndarray,
-        budget: float | int,
+        records: Sequence[Record],
         descending: bool = True,
     ) -> FilterResult:
         """
-        Filter records based on their entropy scores.
+        Rank records based on the average cosine similarity of their top-100 neighbors.
 
-        :param records: The records to filter.
-        :param vectors: The vectors corresponding to the records.
-        :param budget: The maximum number of records to keep.
-        :param descending: Whether to sort in descending order of entropy.
-        :return: A FilterResult containing selected and filtered records.
+        :param records: The records to rank.
+        :param descending: Whether to sort in descending order (default True).
+        :return: A FilterResult containing the ranking.
         """
-        budget = self._validate_filter_budget(budget=budget, n_records=len(records))
+        dict_records = self._validate_if_strings(records)
+        embeddings = self._featurize(records=dict_records, columns=self.columns, model=self.model)
 
-        # compute entropy scores
-        scores = [
-            (idx, record, entropy_from_distances(results[0][-1]), results[0][0], results[0][-1])
-            for idx, (record, vectors) in enumerate(zip(records, vectors))
-            for results in [self.index.query_top_k(vectors.reshape(1, -1), k=100)]
-        ]
+        results = self.index.query_top_k(embeddings, k=100)
 
-        # sort scores
-        scores.sort(key=lambda x: x[2], reverse=descending)
+        # Extract the average similarity for each record
+        scores = []
+        for record, (_, sims) in zip(dict_records, results):
+            scores.append((record, np.mean(sims)))
 
-        # select records
-        selected: list[Union[dict[str, str], str]] = []
-        selected_indices: set[int] = set()
-        scores_selected: list[float] = []
-        for idx, record, entropy, _, _ in scores:
-            if len(selected) >= budget:
-                break
-            if idx not in selected_indices:
-                selected.append(record)
-                selected_indices.add(idx)
-                scores_selected.append(entropy)
+        # Sort by average similarity (highest first if descending=True)
+        scores.sort(key=lambda x: x[1], reverse=descending)
+        selected = [record for record, _ in scores]
+        scores_selected = [sim for _, sim in scores]
 
-        # filter records
-        filtered = [record for idx, record, _, _, _ in scores if idx not in selected_indices]
-        scores_filtered: list[float] = [entropy for idx, record, entropy, _, _ in scores if idx not in selected_indices]
+        return FilterResult(
+            selected=selected,
+            filtered=[],
+            scores_selected=scores_selected,
+            scores_filtered=[],
+        )
+
+    def self_rank_by_average_similarity(
+        self,
+        descending: bool = True,
+    ) -> FilterResult:
+        """
+        Rank the records within the dataset based on the average cosine similarity of their top-100 neighbors.
+
+        :param descending: Whether to sort in descending order (default True).
+        :return: A FilterResult containing the ranking.
+        """
+        dict_records = [record[0] for record in self.index.items]
+        results = self.index.query_top_k(self.index.vectors, k=100)
+
+        # Extract the average similarity for each record
+        scores = []
+        for record, (_, sims) in zip(dict_records, results):
+            scores.append((record, np.mean(sims)))
+
+        # Sort by average similarity (highest first if descending=True)
+        scores.sort(key=lambda x: x[1], reverse=descending)
+        selected = [record for record, _ in scores]
+        scores_selected = [sim for _, sim in scores]
+
+        return FilterResult(
+            selected=selected,
+            filtered=[],
+            scores_selected=scores_selected,
+            scores_filtered=[],
+        )
+
+    def mmr(
+        self,
+        filter_result: FilterResult,
+        candidate_limit: int = 100,
+        selection_size: int = 10,
+        lambda_param: float = 0.5,
+    ) -> FilterResult:
+        """
+        Re-rank a candidate set using Maximal Marginal Relevance (MMR) to enforce diversity.
+
+        :param filter_result: A FilterResult containing candidate records and their baseline relevance.
+        :param candidate_limit: Number of top candidates to consider (default 100).
+        :param selection_size: Number of final items to select (default 10).
+        :param lambda_param: Weight parameter balancing relevance and diversity (between 0 and 1, default 0.5).
+        :return: A FilterResult with the re-ranked (diverse) results in 'selected' and their MMR scores in 'scores_selected'.
+                The remaining candidates are in 'filtered' along with their baseline relevance scores in 'scores_filtered'.
+        """
+        # Slice the candidate set from the FilterResult
+        candidate_records = filter_result.selected[:candidate_limit]
+        candidate_relevance = filter_result.scores_selected[:candidate_limit]
+
+        # Compute embeddings for the candidate records.
+        embeddings = self._featurize(records=candidate_records, columns=self.columns, model=self.model)
+
+        # Normalize embeddings for cosine similarity computation.
+        norm_embeddings = []
+        for vec in embeddings:
+            norm = np.linalg.norm(vec)
+            norm_embeddings.append(vec / norm if norm != 0 else vec)
+
+        # Build a candidate list: each candidate is a tuple (record, baseline_relevance, normalized_embedding)
+        candidates = list(zip(candidate_records, candidate_relevance, np.array(norm_embeddings)))
+
+        # Initialize selected set using the candidate with the highest baseline relevance.
+        selected = []
+        scores_selected = []  # Will store the MMR scores.
+        selected_embeddings = []  # Used for computing similarity with new candidates.
+        remaining_candidates = candidates.copy()
+
+        if remaining_candidates:
+            first = max(remaining_candidates, key=lambda x: x[1])
+            selected.append(first[0])
+            scores_selected.append(first[1])
+            selected_embeddings.append(first[2])
+            remaining_candidates.remove(first)
+
+        # Iteratively select candidates using the MMR criterion.
+        while remaining_candidates and len(selected) < selection_size:
+            mmr_scores = []
+            for candidate in remaining_candidates:
+                _, relevance, emb = candidate
+                # Compute maximum cosine similarity between this candidate and the already selected ones.
+                if selected_embeddings:
+                    sim_to_selected = max(np.dot(emb, s_emb) for s_emb in selected_embeddings)
+                else:
+                    sim_to_selected = 0
+                mmr_score = lambda_param * relevance - (1 - lambda_param) * sim_to_selected
+                mmr_scores.append(mmr_score)
+            best_idx = int(np.argmax(mmr_scores))
+            best_candidate = remaining_candidates[best_idx]
+            selected.append(best_candidate[0])
+            scores_selected.append(mmr_scores[best_idx])
+            selected_embeddings.append(best_candidate[2])
+            remaining_candidates.pop(best_idx)
+
+        filtered = [cand[0] for cand in remaining_candidates]
+        scores_filtered = [cand[1] for cand in remaining_candidates]
 
         return FilterResult(
             selected=selected,
             filtered=filtered,
             scores_selected=scores_selected,
             scores_filtered=scores_filtered,
-        )
-
-    def filter_by_entropy(
-        self,
-        records: Sequence[Record],
-        budget: float | int = 0.9,
-        descending: bool = True,
-    ) -> FilterResult:
-        """
-        Filter records based on their entropy. Entropy is computed based on mean cosine similarity of the top-100 records.
-
-        :param records: Records to filter.
-        :param budget: Maximum number of records to keep.
-            If a float is passed, it is interpreted as a percentage of the total number of records.
-        :param descending: Whether to sort in descending order, from high entropy to low entropy.
-            Higher entropy means more diverse records, lower entropy means more similar records.
-        :return: FilterResult containing selected and filtered records.
-        """
-        dict_records = self._validate_if_strings(records)
-
-        # featurize the new records
-        embeddings = self._featurize(records=dict_records, columns=self.columns, model=self.model)
-
-        # execute filtering
-        return self._filter_by_entropy(
-            records=dict_records,
-            vectors=embeddings,
-            budget=budget,
-            descending=descending,
-        )
-
-    def self_filter_by_entropy(
-        self,
-        budget: float | int = 0.9,
-        descending: bool = True,
-    ) -> FilterResult:
-        """
-        Filter records based on their entropy. Entropy is computed based on mean cosine similarity of the top-100 records.
-
-        This is similar to filter_by_entropy, but it filters within the same dataset.
-
-        :param budget: Maximum number of records to keep.
-            If a float is passed, it is interpreted as a percentage of the total number of records.
-        :param descending: Whether to sort in descending order, from high entropy to low entropy.
-            Higher entropy means more diverse records, lower entropy means more similar records.
-        :return: FilterResult containing selected and filtered records.
-        """
-        dict_records = [record[0] for record in self.index.items]
-        return self._filter_by_entropy(
-            records=dict_records,
-            vectors=self.index.vectors,
-            budget=budget,
-            descending=descending,
         )
