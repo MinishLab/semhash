@@ -309,7 +309,7 @@ class SemHash(Generic[Record]):
             raise ValueError("Records must be either strings or dictionaries.")
         return dict_records
 
-    def rank_by_average_distance(
+    def rank_by_average_similarity(
         self,
         records: Sequence[Record],
         descending: bool = True,
