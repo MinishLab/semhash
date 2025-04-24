@@ -77,6 +77,6 @@ class Index:
         results = []
         for x, y in self.backend.query(vectors=vectors, k=k + 1):  # include the query vector
             # Convert returned distances to cosine similarities.
-            similarities = 1 - (y[-k:])
+            similarities = 1 - y[-k:]
             results.append((x[-k:], similarities))
         return results

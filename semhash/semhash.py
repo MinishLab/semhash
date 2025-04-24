@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from math import ceil
 from typing import Generic, Sequence
 
 import numpy as np
@@ -370,7 +371,13 @@ class SemHash(Generic[Record]):
         :return: A FilterResult where 'selected' contains the outliers and 'filtered' contains the inliers.
         """
         ranking = self._rank_by_average_similarity(records, descending=True)
-        outlier_count = int(len(ranking.selected) * outlier_percentage)
+        outlier_count = ceil(len(ranking.selected) * outlier_percentage)
+        if outlier_count == 0:
+            # If the outlier count is 0, return an empty selection
+            return FilterResult(
+                selected=[], filtered=ranking.selected, scores_selected=[], scores_filtered=ranking.scores_selected
+            )
+
         outlier_records = ranking.selected[-outlier_count:]
         outlier_scores = ranking.scores_selected[-outlier_count:]
         inlier_records = ranking.selected[:-outlier_count]
@@ -397,7 +404,13 @@ class SemHash(Generic[Record]):
         :return: A FilterResult where 'selected' contains the outliers and 'filtered' contains the inliers.
         """
         ranking = self._self_rank_by_average_similarity(descending=True)
-        outlier_count = int(len(ranking.selected) * outlier_percentage)
+        outlier_count = ceil(len(ranking.selected) * outlier_percentage)
+        if outlier_count == 0:
+            # If the outlier count is 0, return an empty selection
+            return FilterResult(
+                selected=[], filtered=ranking.selected, scores_selected=[], scores_filtered=ranking.scores_selected
+            )
+
         outlier_records = ranking.selected[-outlier_count:]
         outlier_scores = ranking.scores_selected[-outlier_count:]
         inlier_records = ranking.selected[:-outlier_count]
@@ -427,15 +440,17 @@ class SemHash(Generic[Record]):
         results = self.index.query_top_k(embeddings, k=100)
 
         # Compute the average similarity for each record.
-        scores = [(record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)]
-        scores.sort(key=lambda x: x[1], reverse=descending)
-        selected = [record for record, _ in scores]
-        scores_selected = [sim for _, sim in scores]
+        sorted_scores = sorted(
+            ((record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)),
+            key=lambda x: x[1],
+            reverse=descending,
+        )
+        selected, scores_selected = zip(*sorted_scores)
 
         return FilterResult(
-            selected=selected,
+            selected=list(selected),
             filtered=[],
-            scores_selected=scores_selected,
+            scores_selected=list(scores_selected),
             scores_filtered=[],
         )
 
@@ -456,15 +471,17 @@ class SemHash(Generic[Record]):
         results = self.index.query_top_k(self.index.vectors, k=100)
 
         # Compute the average similarity for each record.
-        scores = [(record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)]
-        scores.sort(key=lambda x: x[1], reverse=descending)
-        selected = [record for record, _ in scores]
-        scores_selected = [sim for _, sim in scores]
+        sorted_scores = sorted(
+            ((record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)),
+            key=lambda x: x[1],
+            reverse=descending,
+        )
+        selected, scores_selected = zip(*sorted_scores)
 
         ranking = FilterResult(
-            selected=selected,
+            selected=list(selected),
             filtered=[],
-            scores_selected=scores_selected,
+            scores_selected=list(scores_selected),
             scores_filtered=[],
         )
         self._ranking_cache = ranking
@@ -489,7 +506,11 @@ class SemHash(Generic[Record]):
         :param lambda_param: Weight balancing relevance and diversity (between 0 and 1).
         :return: A FilterResult containing the selected (diversified) representatives along with
                 their MMR scores in `scores_selected`. The remaining candidates are placed in filtered.
+        :raises ValueError: If lambda_param is not between 0 and 1.
         """
+        if not (0.0 <= lambda_param <= 1.0):
+            raise ValueError("lambda_param must be between 0 and 1")
+
         # Slice the top candidates from the ranking.
         candidate_records = ranked_results.selected[:candidate_limit]
         candidate_relevance = ranked_results.scores_selected[:candidate_limit]
@@ -498,10 +519,7 @@ class SemHash(Generic[Record]):
         embeddings = self._featurize(records=candidate_records, columns=self.columns, model=self.model)
 
         # Normalize embeddings for cosine similarity.
-        norm_embeddings = []
-        for vec in embeddings:
-            norm = np.linalg.norm(vec)
-            norm_embeddings.append(vec / norm if norm != 0 else vec)
+        norm_embeddings = embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-16)
 
         # Package candidates as tuples: (record, baseline_relevance, normalized_embedding)
         candidates = list(zip(candidate_records, candidate_relevance, np.array(norm_embeddings)))
@@ -512,12 +530,15 @@ class SemHash(Generic[Record]):
         selected_embeddings = []  # For computing similarity with new candidates.
         remaining_candidates = candidates.copy()
 
-        if remaining_candidates:
-            first = max(remaining_candidates, key=lambda x: x[1])
-            selected_records.append(first[0])
-            selected_scores.append(first[1])
-            selected_embeddings.append(first[2])
-            remaining_candidates.remove(first)
+        if not candidates:
+            return FilterResult(selected=[], filtered=[], scores_selected=[], scores_filtered=[])
+
+        # Select the first candidate as the initial representative.
+        first = candidates[0]
+        selected_records = [first[0]]
+        selected_scores = [first[1]]
+        selected_embeddings = [first[2]]
+        remaining_candidates = candidates[1:]
 
         # Iteratively select candidates using the MMR criterion.
         while remaining_candidates and len(selected_records) < selection_size:
