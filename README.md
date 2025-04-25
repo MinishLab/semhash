@@ -36,7 +36,7 @@
 </div>
 
 
-SemHash is a lightweight and flexible tool for deduplicating datasets, finding outliers, and finding representative samples using semantic similarity. It combines fast embedding generation from [Model2Vec](https://github.com/MinishLab/model2vec) with efficient ANN-based similarity search through [Vicinity](https://github.com/MinishLab/vicinity).
+SemHash is a lightweight and flexible tool for deduplicating datasets, filtering outliers, and finding representative samples using semantic similarity. It combines fast embedding generation from [Model2Vec](https://github.com/MinishLab/model2vec) with efficient ANN-based similarity search through [Vicinity](https://github.com/MinishLab/vicinity).
 
 SemHash supports both single-dataset deduplication & filtering (e.g., cleaning up a train set by removing duplicates and outliers) and multi-dataset deduplication & filtering (e.g., ensuring no overlap between a test set and a train set). It works with simple datasets, such as text lists, and more complex ones, like multi-column QA datasets. Additionally, it includes functions to inspect deduplication results, making it easier to understand and refine your data cleaning process.
 
@@ -137,7 +137,7 @@ For both the `DeduplicationResult` and `FilterResult` objects, you can easily vi
 
 ## Usage
 
-The following examples show the various ways you can use SemHash to deduplicate datasets, find outliers, and find representative samples. These examples assume you have the `datasets` library installed, which you can install with `pip install datasets`.
+The following examples show the various ways you can use SemHash to deduplicate datasets, filter outliers, and find representative samples. These examples assume you have the `datasets` library installed, which you can install with `pip install datasets`.
 
 <details>
 <summary>  Deduplicate, filter outliers, and find representative samples on a single dataset </summary>
