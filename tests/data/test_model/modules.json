@@ -1,0 +1,14 @@
+[
+    {
+        "idx": 0,
+        "name": "0",
+        "path": ".",
+        "type": "sentence_transformers.models.StaticEmbedding"
+    },
+    {
+        "idx": 1,
+        "name": "1",
+        "path": "1_Normalize",
+        "type": "sentence_transformers.models.Normalize"
+    }
+]
