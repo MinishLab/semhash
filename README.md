@@ -85,11 +85,13 @@ semhash = SemHash.from_records(records=train_texts)
 # Deduplicate the test data against the training data, optionally with a specific threshold
 deduplicated_test_texts = semhash.deduplicate(records=test_texts, threshold=0.9).selected
 
-# Find outliers in the test data
-outliers = semhash.find_outliers(records=test_texts).selected
+# Find outliers in the test data, optionally with a specific percentage
+outliers = semhash.find_outliers(records=test_texts, outlier_percentage=0.1).selected
 
-# Find representative samples in the test data
-representative_samples = semhash.find_representative(records=test_texts).selected
+# Find representative samples in the test data, optionally with a specific candidate limit and selection size
+representative_samples = semhash.find_representative(records=test_texts, candidate_limit=100, selection_size=10).selected
+
+
 ```
 
 Or, deduplicate multi-column dataset and find outliers/representative samples with the following code (e.g., deduplicating a QA dataset):
