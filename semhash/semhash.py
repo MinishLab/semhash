@@ -328,7 +328,7 @@ class SemHash(Generic[Record]):
         :param records: The records to rank and select representatives from.
         :param candidate_limit: Number of top candidates to consider.
         :param selection_size: Number of representatives to select.
-        :param lambda_param: Trade-off parameter between relevance and diversity.
+        :param lambda_param: Trade-off parameter between relevance (1.0) and diversity (0.0). Must be between 0 and 1.
         :return: A FilterResult with the diversified candidates.
         """
         ranking = self._rank_by_average_similarity(records, descending=True)
@@ -349,7 +349,7 @@ class SemHash(Generic[Record]):
 
         :param candidate_limit: Number of top candidates to consider.
         :param selection_size: Number of representatives to select.
-        :param lambda_param: Trade-off parameter between relevance and diversity.
+        :param lambda_param: Trade-off parameter between relevance (1.0) and diversity (0.0). Must be between 0 and 1.
         :return: A FilterResult with the diversified representatives.
         """
         ranking = self._self_rank_by_average_similarity(descending=True)
@@ -369,7 +369,10 @@ class SemHash(Generic[Record]):
         :param records: A sequence of records to find outliers in.
         :param outlier_percentage: The percentage (between 0 and 1) of records to consider outliers.
         :return: A FilterResult where 'selected' contains the outliers and 'filtered' contains the inliers.
+        :raises ValueError: If outlier_percentage is not between 0 and 1.
         """
+        if outlier_percentage < 0.0 or outlier_percentage > 1.0:
+            raise ValueError("outlier_percentage must be between 0 and 1")
         ranking = self._rank_by_average_similarity(records, descending=True)
         outlier_count = ceil(len(ranking.selected) * outlier_percentage)
         if outlier_count == 0:
@@ -402,7 +405,10 @@ class SemHash(Generic[Record]):
 
         :param outlier_percentage: The percentage (between 0 and 1) of records to consider as outliers.
         :return: A FilterResult where 'selected' contains the outliers and 'filtered' contains the inliers.
+        :raises ValueError: If outlier_percentage is not between 0 and 1.
         """
+        if outlier_percentage < 0.0 or outlier_percentage > 1.0:
+            raise ValueError("outlier_percentage must be between 0 and 1")
         ranking = self._self_rank_by_average_similarity(descending=True)
         outlier_count = ceil(len(ranking.selected) * outlier_percentage)
         if outlier_count == 0:
