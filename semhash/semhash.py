@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Generic, Sequence
+from math import ceil
+from typing import Generic, Literal, Sequence
 
 import numpy as np
 from frozendict import frozendict
 from model2vec import StaticModel
 from vicinity import Backend
 
-from semhash.datamodels import DeduplicationResult, DuplicateRecord, Record
+from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult, Record
 from semhash.index import Index
 from semhash.records import add_scores_to_records, map_deduplication_result_to_strings, to_frozendict
-from semhash.utils import Encoder
+from semhash.utils import Encoder, compute_candidate_limit
 
 
 class SemHash(Generic[Record]):
@@ -28,6 +29,7 @@ class SemHash(Generic[Record]):
         self.model = model
         self.columns = columns
         self._was_string = was_string
+        self._ranking_cache: FilterResult | None = None
 
     @staticmethod
     def _featurize(
@@ -173,15 +175,8 @@ class SemHash(Generic[Record]):
         :param records: A new set of records (e.g., test set) to deduplicate against the fitted dataset.
         :param threshold: Similarity threshold for deduplication.
         :return: A deduplicated list of records.
-        :raises: ValueError if passed records are strings and the original records were not strings.
         """
-        if isinstance(records[0], str):
-            if not self._was_string:
-                raise ValueError("Records were not originally strings, but you passed strings.")
-            # If records are strings, convert to dictionaries with a single column
-            dict_records = [{"text": record} for record in records]
-        else:
-            dict_records = records
+        dict_records = self._validate_if_strings(records)
 
         # Remove exact duplicates before embedding
         dict_records, exact_duplicates = self._remove_exact_duplicates(
@@ -294,3 +289,296 @@ class SemHash(Generic[Record]):
             return map_deduplication_result_to_strings(result, columns=self.columns)
 
         return result
+
+    def _validate_if_strings(self, records: Sequence[dict[str, str] | str]) -> Sequence[dict[str, str]]:
+        """
+        Validate if the records are strings.
+
+        If the records are strings, they are converted to dictionaries with a single column.
+
+        :param records: The records to validate.
+        :return: The records as a list of dictionaries.
+        :raises ValueError: If the records are strings but were not originally strings.
+        :raises ValueError: If the records are not all strings or dictionaries.
+        """
+        if isinstance(records[0], str):
+            if not self._was_string:
+                raise ValueError("Records were not originally strings, but you passed strings.")
+            dict_records = [{"text": record} for record in records if isinstance(record, str)]
+        else:
+            dict_records = [record for record in records if isinstance(record, dict)]
+        if len(dict_records) != len(records):
+            raise ValueError("Records must be either strings or dictionaries.")
+        return dict_records
+
+    def find_representative(
+        self,
+        records: Sequence[Record],
+        selection_size: int = 10,
+        candidate_limit: int | Literal["auto"] = "auto",
+        lambda_param: float = 0.5,
+    ) -> FilterResult:
+        """
+        Find representative samples from a given set of records against the fitted index.
+
+        First, the records are ranked using average similarity.
+        Then, the top candidates are re-ranked using Maximal Marginal Relevance (MMR)
+        to select a diverse set of representatives.
+
+        :param records: The records to rank and select representatives from.
+        :param selection_size: Number of representatives to select.
+        :param candidate_limit: Number of top candidates to consider for MMR reranking.
+            Defaults to "auto", which calculates the limit based on the total number of records.
+        :param lambda_param: Trade-off parameter between relevance (1.0) and diversity (0.0). Must be between 0 and 1.
+        :return: A FilterResult with the diversified candidates.
+        """
+        ranking = self._rank_by_average_similarity(records)
+        if candidate_limit == "auto":
+            candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
+        return self._mmr(ranking, candidate_limit, selection_size, lambda_param)
+
+    def self_find_representative(
+        self,
+        selection_size: int = 10,
+        candidate_limit: int | Literal["auto"] = "auto",
+        lambda_param: float = 0.5,
+    ) -> FilterResult:
+        """
+        Find representative samples from the fitted dataset.
+
+        First, the rank the records are ranked using average similarity.
+        Then, the top candidates are re-ranked using Maximal Marginal Relevance (MMR)
+        to select a diverse set of representatives.
+
+        :param selection_size: Number of representatives to select.
+        :param candidate_limit: Number of top candidates to consider for MMR reranking.
+            Defaults to "auto", which calculates the limit based on the total number of records.
+        :param lambda_param: Trade-off parameter between relevance (1.0) and diversity (0.0). Must be between 0 and 1.
+        :return: A FilterResult with the diversified representatives.
+        """
+        ranking = self._self_rank_by_average_similarity()
+        if candidate_limit == "auto":
+            candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
+        return self._mmr(ranking, candidate_limit, selection_size, lambda_param)
+
+    def filter_outliers(
+        self,
+        records: Sequence[Record],
+        outlier_percentage: float = 0.1,
+    ) -> FilterResult:
+        """
+        Filter outliers in a given set of records against the fitted dataset.
+
+        This method ranks the records by their average similarity and filters the bottom
+        outlier_percentage of records as outliers.
+
+        :param records: A sequence of records to find outliers in.
+        :param outlier_percentage: The percentage (between 0 and 1) of records to consider outliers.
+        :return: A FilterResult where 'selected' contains the inliers and 'filtered' contains the outliers.
+        :raises ValueError: If outlier_percentage is not between 0 and 1.
+        """
+        if outlier_percentage < 0.0 or outlier_percentage > 1.0:
+            raise ValueError("outlier_percentage must be between 0 and 1")
+        ranking = self._rank_by_average_similarity(records)
+        outlier_count = ceil(len(ranking.selected) * outlier_percentage)
+        if outlier_count == 0:
+            # If the outlier count is 0, return an empty selection
+            return FilterResult(
+                selected=[], filtered=ranking.selected, scores_selected=[], scores_filtered=ranking.scores_selected
+            )
+
+        outlier_records = ranking.selected[-outlier_count:]
+        outlier_scores = ranking.scores_selected[-outlier_count:]
+        inlier_records = ranking.selected[:-outlier_count]
+        inlier_scores = ranking.scores_selected[:-outlier_count]
+
+        return FilterResult(
+            selected=inlier_records,
+            filtered=outlier_records,
+            scores_selected=inlier_scores,
+            scores_filtered=outlier_scores,
+        )
+
+    def self_filter_outliers(
+        self,
+        outlier_percentage: float = 0.1,
+    ) -> FilterResult:
+        """
+        Filter outliers in the fitted dataset.
+
+        The method ranks the records stored in the index and filters the bottom outlier_percentage
+        of records as outliers.
+
+        :param outlier_percentage: The percentage (between 0 and 1) of records to consider as outliers.
+        :return: A FilterResult where 'selected' contains the inliers and 'filtered' contains the outliers.
+        :raises ValueError: If outlier_percentage is not between 0 and 1.
+        """
+        if outlier_percentage < 0.0 or outlier_percentage > 1.0:
+            raise ValueError("outlier_percentage must be between 0 and 1")
+        ranking = self._self_rank_by_average_similarity()
+        outlier_count = ceil(len(ranking.selected) * outlier_percentage)
+        if outlier_count == 0:
+            # If the outlier count is 0, return an empty selection
+            return FilterResult(
+                selected=[], filtered=ranking.selected, scores_selected=[], scores_filtered=ranking.scores_selected
+            )
+
+        outlier_records = ranking.selected[-outlier_count:]
+        outlier_scores = ranking.scores_selected[-outlier_count:]
+        inlier_records = ranking.selected[:-outlier_count]
+        inlier_scores = ranking.scores_selected[:-outlier_count]
+
+        return FilterResult(
+            selected=inlier_records,
+            filtered=outlier_records,
+            scores_selected=inlier_scores,
+            scores_filtered=outlier_scores,
+        )
+
+    def _rank_by_average_similarity(
+        self,
+        records: Sequence[Record],
+    ) -> FilterResult:
+        """
+        Rank a given set of records based on the average cosine similarity of the neighbors in the fitted index.
+
+        :param records: A sequence of records.
+        :return: A FilterResult containing the ranking (records sorted and their average similarity scores).
+        """
+        dict_records = self._validate_if_strings(records)
+        embeddings = self._featurize(records=dict_records, columns=self.columns, model=self.model)
+        results = self.index.query_top_k(embeddings, k=100, vectors_are_in_index=False)
+
+        # Compute the average similarity for each record.
+        sorted_scores = sorted(
+            ((record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)),
+            key=lambda x: x[1],
+            reverse=True,
+        )
+        selected, scores_selected = zip(*sorted_scores)
+
+        return FilterResult(
+            selected=list(selected),
+            filtered=[],
+            scores_selected=list(scores_selected),
+            scores_filtered=[],
+        )
+
+    def _self_rank_by_average_similarity(
+        self,
+    ) -> FilterResult:
+        """
+        Rank the records stored in the fitted index based on the average cosine similarity of the neighbors.
+
+        :return: A FilterResult containing the ranking.
+        """
+        if self._ranking_cache is not None:
+            return self._ranking_cache
+
+        dict_records = [record[0] for record in self.index.items]
+        results = self.index.query_top_k(self.index.vectors, k=100, vectors_are_in_index=True)
+
+        # Compute the average similarity for each record.
+        sorted_scores = sorted(
+            ((record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)),
+            key=lambda x: x[1],
+            reverse=True,
+        )
+        selected, scores_selected = zip(*sorted_scores)
+
+        ranking = FilterResult(
+            selected=list(selected),
+            filtered=[],
+            scores_selected=list(scores_selected),
+            scores_filtered=[],
+        )
+        self._ranking_cache = ranking
+        return ranking
+
+    def _mmr(
+        self,
+        ranked_results: FilterResult,
+        candidate_limit: int,
+        selection_size: int,
+        lambda_param: float,
+    ) -> FilterResult:
+        """
+        Perform Maximal Marginal Relevance (MMR) re-ranking on the top candidates from a FilterResult.
+
+        This function first slices the ranking, then computes embeddings for the candidates,
+        normalizes them, and finally performs MMR re-ranking to obtain a diverse subset of representatives.
+
+        :param ranked_results: A FilterResult containing the ranking of records.
+        :param candidate_limit: Number of top candidates to consider from the ranking.
+        :param selection_size: Number of final candidates to select using MMR.
+        :param lambda_param: Weight balancing relevance and diversity (between 0 and 1).
+        :return: A FilterResult containing the selected (diversified) representatives along with
+                their MMR scores in `scores_selected`. The remaining candidates are placed in filtered.
+        :raises ValueError: If lambda_param is not between 0 and 1.
+        """
+        if not (0.0 <= lambda_param <= 1.0):
+            raise ValueError("lambda_param must be between 0 and 1")
+
+        # Slice the top candidates from the ranking.
+        candidate_records = ranked_results.selected[:candidate_limit]
+        candidate_relevance = ranked_results.scores_selected[:candidate_limit]
+
+        # Compute embeddings for candidate records.
+        embeddings = self._featurize(records=candidate_records, columns=self.columns, model=self.model)
+
+        # Normalize embeddings for cosine similarity.
+        normalized_embeddings = embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-16)
+
+        # Package candidates as tuples: (record, baseline_relevance, normalized_embedding)
+        candidates = [
+            (record, relevance, normalized_embedding)
+            for record, relevance, normalized_embedding in zip(
+                candidate_records, candidate_relevance, normalized_embeddings
+            )
+        ]
+
+        # If no candidates, return empty result.
+        if not candidates:
+            return FilterResult(selected=[], filtered=[], scores_selected=[], scores_filtered=[])
+
+        # Initialize selected set with the most relevant candidate.
+        first_record, first_relevance, first_embedding = candidates[0]
+        selected_records = [first_record]
+        selected_scores = [first_relevance]
+        selected_embeddings = [first_embedding]
+        remaining_candidates = candidates[1:]
+
+        # Iteratively select candidates using the MMR criterion.
+        while remaining_candidates and len(selected_records) < selection_size:
+            # Build arrays for the remaining candidates.
+            embeddings_remaining = np.vstack([emb for (_, _, emb) in remaining_candidates])
+            relevances_remaining = np.array([rel for (_, rel, _) in remaining_candidates])
+
+            # Build array of embeddings for the already selected set.
+            embeddings_selected = np.vstack(selected_embeddings)
+
+            # Compute cosine similarities between selected and remaining candidates.
+            similarity_matrix = embeddings_remaining.dot(embeddings_selected.T)
+            max_similarity = similarity_matrix.max(axis=1)
+
+            # Compute MMR scores for all remaining candidates.
+            mmr_scores = lambda_param * relevances_remaining - (1.0 - lambda_param) * max_similarity
+
+            # Choose the candidate with the highest MMR score.
+            best_index = int(np.argmax(mmr_scores))
+            record, _, embedding = remaining_candidates.pop(best_index)
+
+            selected_records.append(record)
+            selected_scores.append(mmr_scores[best_index])
+            selected_embeddings.append(embedding)
+
+        # Whatever is left in remaining_candidates is filtered out.
+        filtered_records = [rec for (rec, _, _) in remaining_candidates]
+        filtered_scores = [rel for (_, rel, _) in remaining_candidates]
+
+        return FilterResult(
+            selected=selected_records,
+            filtered=filtered_records,
+            scores_selected=selected_scores,
+            scores_filtered=filtered_scores,
+        )

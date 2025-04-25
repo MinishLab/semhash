@@ -9,7 +9,7 @@
 
 <div align="center">
 
-# Fast Semantic Text Deduplication
+# Fast Semantic Text Deduplication & Filtering
 
 
 <h2>
@@ -36,9 +36,9 @@
 </div>
 
 
-SemHash is a lightweight and flexible tool for deduplicating datasets using semantic similarity. It combines fast embedding generation from [Model2Vec](https://github.com/MinishLab/model2vec) with efficient ANN-based similarity search through [Vicinity](https://github.com/MinishLab/vicinity).
+SemHash is a lightweight and flexible tool for deduplicating datasets, filtering outliers, and finding representative samples using semantic similarity. It combines fast embedding generation from [Model2Vec](https://github.com/MinishLab/model2vec) with efficient ANN-based similarity search through [Vicinity](https://github.com/MinishLab/vicinity).
 
-SemHash supports both single-dataset deduplication (e.g., cleaning up a train set) and multi-dataset deduplication (e.g., ensuring no overlap between a test set and a train set). It works with simple datasets, such as text lists, and more complex ones, like multi-column QA datasets. Additionally, it includes functions to inspect deduplication results, making it easier to understand and refine your data cleaning process.
+SemHash supports both single-dataset deduplication & filtering (e.g., cleaning up a train set by removing duplicates and outliers) and multi-dataset deduplication & filtering (e.g., ensuring no overlap between a test set and a train set). It works with simple datasets, such as text lists, and more complex ones, like multi-column QA datasets. Additionally, it includes functions to inspect deduplication results, making it easier to understand and refine your data cleaning process.
 
 ## Quickstart
 
@@ -47,7 +47,7 @@ Install the package with:
 pip install semhash
 ```
 
-Deduplicate a single dataset with the following code (note: the examples assume you have `datasets` installed, which you can install with `pip install datasets`):
+Deduplicate a single dataset, filter outliers, and find representative samples with the following code (note: the examples assume you have `datasets` installed, which you can install with `pip install datasets`):
 
 ```python
 from datasets import load_dataset
@@ -60,10 +60,16 @@ texts = load_dataset("ag_news", split="train")["text"]
 semhash = SemHash.from_records(records=texts)
 
 # Deduplicate the texts
-deduplicated_texts = semhash.self_deduplicate().deduplicated
+deduplicated_texts = semhash.self_deduplicate().selected
+
+# Filter outliers
+filtered_texts = semhash.self_filter_outliers().selected
+
+# Find representative texts
+representative_texts = semhash.self_find_representative().selected
 ```
 
-Or, deduplicate across two datasets with the following code (e.g., eliminating train/test leakage):
+Or, deduplicate across two datasets, filter outliers, and find representative samples with the following code (e.g., eliminating train/test leakage):
 
 ```python
 from datasets import load_dataset
@@ -77,10 +83,21 @@ test_texts = load_dataset("ag_news", split="test")["text"]
 semhash = SemHash.from_records(records=train_texts)
 
 # Deduplicate the test data against the training data, optionally with a specific threshold
-deduplicated_test_texts = semhash.deduplicate(records=test_texts, threshold=0.9).deduplicated
+deduplicated_test_texts = semhash.deduplicate(records=test_texts, threshold=0.9).selected
+
+# Filter outliers from the test data against the training data,
+# optionally with a specific percentage
+filtered_test_texts = semhash.filter_outliers(records=test_texts, outlier_percentage=0.1).selected
+
+# Find representative texts in the test data against the training data,
+# optionally with a specific selection size
+representative_test_texts = semhash.find_representative(
+    records=test_texts, selection_size=10).selected
+
+
 ```
 
-Or, deduplicate multi-column datasets with the following code (e.g., deduplicating a QA dataset):
+Or, deduplicate multi-column dataset, filter outliers, and find representative samples with the following code (e.g., deduplicating a QA dataset):
 
 ```python
 from datasets import load_dataset
@@ -96,28 +113,37 @@ records = [dict(row) for row in dataset]
 semhash = SemHash.from_records(records=records, columns=["question", "context"])
 
 # Deduplicate the records
-deduplicated_records = semhash.self_deduplicate().deduplicated
+deduplicated_records = semhash.self_deduplicate().selected
+
+# Filter outliers from the records
+filtered_texts = semhash.self_filter_outliers().selected
+
+# Find representative texts in the records
+representative_texts = semhash.self_find_representative().selected
 ```
 
 The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#L30). This object stores the deduplicated corpus, a set of duplicate object (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
 
+The `filter_outliers`, `self_filter_outliers`, `find_representative`, and `self_find_representative` functions return a [FilterResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#106). This object stores the found outliers/representative samples.
+
+For both the `DeduplicationResult` and `FilterResult` objects, you can easily view the filtered records with the `selected` attribute (e.g. to view outliers: `outliers = semhash.self_filter_outliers().filtered`)
 ## Main Features
 
 - **Fast**: SemHash uses [model2vec](https://github.com/MinishLab/model2vec) to embed texts and [vicinity](https://github.com/MinishLab/vicinity) to perform similarity search, making it extremely fast.
-- **Scalable**: SemHash can deduplicate large datasets with millions of records thanks to the ANN backends in Vicinity.
-- **Flexible**: SemHash can be used to deduplicate a single dataset or across two datasets, and can also be used to deduplicate multi-column datasets (such as QA datasets).
+- **Scalable**: SemHash can deduplicate & filter large datasets with millions of records thanks to the ANN backends in Vicinity.
+- **Flexible**: SemHash can be used to deduplicate & filter a single dataset or across two datasets, and can also be used to deduplicate & filter multi-column datasets (such as QA datasets).
 - **Lightweight**: SemHash is a lightweight package with minimal dependencies, making it easy to install and use.
 - **Explainable**: Easily inspect the duplicates and what caused them with the `DeduplicationResult` object. You can also view the lowest similarity duplicates to find the right threshold for deduplication for your dataset.
 
 ## Usage
 
-The following examples show the various ways you can use SemHash to deduplicate datasets. These examples assume you have the `datasets` library installed, which you can install with `pip install datasets`.
+The following examples show the various ways you can use SemHash to deduplicate datasets, filter outliers, and find representative samples. These examples assume you have the `datasets` library installed, which you can install with `pip install datasets`.
 
 <details>
-<summary>  Deduplicate a single dataset </summary>
+<summary>  Deduplicate, filter outliers, and find representative samples on a single dataset </summary>
 <br>
 
-The following code snippet shows how to deduplicate a single dataset using SemHash (in this example, the train split of the [AG News dataset](https://huggingface.co/datasets/fancyzhx/ag_news)):
+The following code snippet shows how to deduplicate a single dataset, filter outliers, and find representative samples using SemHash (in this example, the train split of the [AG News dataset](https://huggingface.co/datasets/fancyzhx/ag_news)):
 
 ```python
 from datasets import load_dataset
@@ -130,15 +156,21 @@ texts = load_dataset("ag_news", split="train")["text"]
 semhash = SemHash.from_records(records=texts)
 
 # Deduplicate the texts
-deduplicated_texts = semhash.self_deduplicate()
+deduplicated_texts = semhash.self_deduplicate().selected
+
+# Filter outliers
+filtered_texts = semhash.self_filter_outliers().selected
+
+# Find representative texts
+representative_texts = semhash.self_find_representative().selected
 ```
 </details>
 
 <details>
-<summary>  Deduplicate across two datasets </summary>
+<summary>  Deduplicate, filter outliers, and find representative samples across two datasets </summary>
 <br>
 
-The following code snippet shows how to deduplicate across two datasets using SemHash (in this example, the train/test split of the [AG News dataset](https://huggingface.co/datasets/fancyzhx/ag_news)):
+The following code snippet shows how to deduplicate across two datasets, filter outliers, and find representative samples using SemHash (in this example, the train/test split of the [AG News dataset](https://huggingface.co/datasets/fancyzhx/ag_news)):
 
 ```python
 from datasets import load_dataset
@@ -155,16 +187,22 @@ test_texts = load_dataset("ag_news", split="test")["text"]
 semhash = SemHash.from_records(records=train_texts)
 
 # Deduplicate the test data against the training data
-deduplicated_test_texts = semhash.deduplicate(records=test_texts)
+deduplicated_test_texts = semhash.deduplicate(records=test_texts).selected
+
+# Filter outliers from the test data
+filtered_test_texts = semhash.filter_outliers(records=test_texts).selected
+
+# Find representative texts in the test data
+representative_test_texts = semhash.find_representative(records=test_texts).selected
 ```
 
 </details>
 
 <details>
-<summary>  Deduplicate multi-column datasets </summary>
+<summary>  Deduplicate, filter outliers, and find representative samples on multi-column datasets </summary>
 <br>
 
-The following code snippet shows how to deduplicate multi-column datasets using SemHash (in this example, the train split of the QA dataset [SQuAD 2.0](https://huggingface.co/datasets/rajpurkar/squad_v2), which consists of questions, contexts, and answers):
+The following code snippet shows how to deduplicate multi-column datasets, filter outliers, and find representative samples using SemHash (in this example, the train split of the QA dataset [SQuAD 2.0](https://huggingface.co/datasets/rajpurkar/squad_v2), which consists of questions, contexts, and answers):
 
 ```python
 from datasets import load_dataset
@@ -180,7 +218,13 @@ records = [dict(row) for row in dataset]
 semhash = SemHash.from_records(records=records, columns=["question", "context"])
 
 # Deduplicate the records
-deduplicated_records = semhash.self_deduplicate().deduplicated
+deduplicated_records = semhash.self_deduplicate().selected
+
+# Filter outliers from the records
+filtered_records = semhash.self_filter_outliers().selected
+
+# Find representative samples in the records
+representative_records = semhash.self_find_representative().selected
 ```
 
 </details>
@@ -205,9 +249,9 @@ semhash = SemHash.from_records(records=texts)
 deduplication_result = semhash.self_deduplicate()
 
 # Check the deduplicated texts
-deduplication_result.deduplicated
+deduplication_result.selected
 # Check the duplicates
-deduplication_result.duplicates
+deduplication_result.filtered
 # See what percentage of the texts were duplicates
 deduplication_result.duplicate_ratio
 # See what percentage of the texts were exact duplicates
@@ -289,7 +333,7 @@ dataframe = dataframe.to_dict(orient="records")
 semhash = SemHash.from_records(records=dataframe, columns=["text"])
 
 # Deduplicate the texts
-deduplicated_records = semhash.self_deduplicate().deduplicated
+deduplicated_records = semhash.self_deduplicate().selected
 
 # Convert the deduplicated records back to a pandas dataframe
 deduplicated_dataframe = pd.DataFrame(deduplicated_records)
@@ -379,7 +423,7 @@ If you use SemHash in your research, please cite the following:
 ```bibtex
 @software{minishlab2025semhash,
   author = {Thomas van Dongen and Stephan Tulkens},
-  title = {SemHash: Fast Semantic Text Deduplication},
+  title = {SemHash: Fast Semantic Text Deduplication & Filtering},
   year = {2025},
   url = {https://github.com/MinishLab/semhash}
 }
