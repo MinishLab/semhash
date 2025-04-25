@@ -393,10 +393,10 @@ class SemHash(Generic[Record]):
         inlier_scores = ranking.scores_selected[:-outlier_count]
 
         return FilterResult(
-            selected=outlier_records,
-            filtered=inlier_records,
-            scores_selected=outlier_scores,
-            scores_filtered=inlier_scores,
+            selected=inlier_records,
+            filtered=outlier_records,
+            scores_selected=inlier_scores,
+            scores_filtered=outlier_scores,
         )
 
     def self_find_outliers(
@@ -429,10 +429,10 @@ class SemHash(Generic[Record]):
         inlier_scores = ranking.scores_selected[:-outlier_count]
 
         return FilterResult(
-            selected=outlier_records,
-            filtered=inlier_records,
-            scores_selected=outlier_scores,
-            scores_filtered=inlier_scores,
+            selected=inlier_records,
+            filtered=outlier_records,
+            scores_selected=inlier_scores,
+            scores_filtered=outlier_scores,
         )
 
     def _rank_by_average_similarity(

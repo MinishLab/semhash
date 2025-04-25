@@ -170,20 +170,20 @@ def test_find_outliers(use_ann: bool, model: Encoder, train_texts: list[str], te
     """Test the find_outliers method."""
     semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
     result = semhash.find_outliers(records=test_texts, outlier_percentage=0.2)
-    assert len(result.selected) == 2, "Expected 2 outliers"
-    assert len(result.filtered) == len(test_texts) - 2
-    selected = {r["text"] for r in result.selected}
-    assert selected == {"motorcycle", "plane"}, "Expected outliers to be motorcycle and plane"
+    assert len(result.filtered) == 2, "Expected 2 outliers"
+    assert len(result.selected) == len(test_texts) - 2
+    filtered = {r["text"] for r in result.filtered}
+    assert filtered == {"motorcycle", "plane"}, "Expected outliers to be motorcycle and plane"
 
 
 def test_self_find_outliers(use_ann: bool, model: Encoder, train_texts: list[str]) -> None:
     """Test the self_find_outliers method."""
     semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
     result = semhash.self_find_outliers(outlier_percentage=0.1)
-    assert len(result.selected) == 2, "Expected 2 outliers"
-    assert len(result.filtered) == len(train_texts) - 2
-    selected = {r["text"] for r in result.selected}
-    assert selected == {"car", "bicycle"}, "Expected outliers to be car and bicycle"
+    assert len(result.filtered) == 2, "Expected 2 outliers"
+    assert len(result.selected) == len(train_texts) - 2
+    filtered = {r["text"] for r in result.filtered}
+    assert filtered == {"car", "bicycle"}, "Expected outliers to be car and bicycle"
 
 
 def test__mmr(monkeypatch: pytest.MonkeyPatch) -> None:
