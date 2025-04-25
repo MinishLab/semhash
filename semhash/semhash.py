@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from math import ceil
-from typing import Generic, Sequence
+from typing import Generic, Literal, Sequence
 
 import numpy as np
 from frozendict import frozendict
@@ -12,7 +12,7 @@ from vicinity import Backend
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult, Record
 from semhash.index import Index
 from semhash.records import add_scores_to_records, map_deduplication_result_to_strings, to_frozendict
-from semhash.utils import Encoder
+from semhash.utils import Encoder, compute_candidate_limit
 
 
 class SemHash(Generic[Record]):
@@ -314,7 +314,7 @@ class SemHash(Generic[Record]):
     def find_representative(
         self,
         records: Sequence[Record],
-        candidate_limit: int = 100,
+        candidate_limit: int | Literal["auto"] = "auto",
         selection_size: int = 10,
         lambda_param: float = 0.5,
     ) -> FilterResult:
@@ -326,17 +326,20 @@ class SemHash(Generic[Record]):
         to select a diverse set of representatives.
 
         :param records: The records to rank and select representatives from.
-        :param candidate_limit: Number of top candidates to consider.
+        :param candidate_limit: Number of top candidates to consider for MMR reranking.
+            Defaults to "auto", which calculates the limit based on the total number of records.
         :param selection_size: Number of representatives to select.
         :param lambda_param: Trade-off parameter between relevance (1.0) and diversity (0.0). Must be between 0 and 1.
         :return: A FilterResult with the diversified candidates.
         """
         ranking = self._rank_by_average_similarity(records)
+        if candidate_limit == "auto":
+            candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
         return self._mmr(ranking, candidate_limit, selection_size, lambda_param)
 
     def self_find_representative(
         self,
-        candidate_limit: int = 100,
+        candidate_limit: int | Literal["auto"] = "auto",
         selection_size: int = 10,
         lambda_param: float = 0.5,
     ) -> FilterResult:
@@ -347,12 +350,15 @@ class SemHash(Generic[Record]):
         Then, the top candidates are re-ranked using Maximal Marginal Relevance (MMR)
         to select a diverse set of representatives.
 
-        :param candidate_limit: Number of top candidates to consider.
+        :param candidate_limit: Number of top candidates to consider for MMR reranking.
+            Defaults to "auto", which calculates the limit based on the total number of records.
         :param selection_size: Number of representatives to select.
         :param lambda_param: Trade-off parameter between relevance (1.0) and diversity (0.0). Must be between 0 and 1.
         :return: A FilterResult with the diversified representatives.
         """
         ranking = self._self_rank_by_average_similarity()
+        if candidate_limit == "auto":
+            candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
         return self._mmr(ranking, candidate_limit, selection_size, lambda_param)
 
     def find_outliers(
