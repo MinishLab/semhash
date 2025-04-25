@@ -422,7 +422,7 @@ If you use SemHash in your research, please cite the following:
 ```bibtex
 @software{minishlab2025semhash,
   author = {Thomas van Dongen and Stephan Tulkens},
-  title = {SemHash: Fast Semantic Text Deduplication},
+  title = {SemHash: Fast Semantic Text Deduplication & Filtering},
   year = {2025},
   url = {https://github.com/MinishLab/semhash}
 }
