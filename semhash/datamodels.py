@@ -52,7 +52,7 @@ class DeduplicationResult(Generic[Record]):
         """Initialize deprecated fields and warn about deprecation."""
         if self.deduplicated or self.duplicates:
             warnings.warn(
-                "'deduplicated' and 'duplicates' fields are deprecated and will be removed in a `semhash==0.3.0` release. Use 'selected' and 'filtered' instead.",
+                "'deduplicated' and 'duplicates' fields are deprecated and will be removed in a future release. Use 'selected' and 'filtered' instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
