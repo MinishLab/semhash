@@ -99,7 +99,7 @@ def test_rethreshold_exception() -> None:
 
 def test_deprecation_deduplicated_duplicates() -> None:
     """Test deprecation warnings for deduplicated and duplicates fields."""
-    if semhash.version.__version__ < "0.3.0":
+    if semhash.version.__version__ < "0.4.0":
         with pytest.warns(DeprecationWarning):
             d = DeduplicationResult(
                 deduplicated=["a", "b", "c"],
