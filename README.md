@@ -9,7 +9,7 @@
 
 <div align="center">
 
-# Fast Semantic Text Deduplication
+# Fast Semantic Text Deduplication & Filtering
 
 
 <h2>
