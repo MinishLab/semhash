@@ -314,8 +314,8 @@ class SemHash(Generic[Record]):
     def find_representative(
         self,
         records: Sequence[Record],
-        candidate_limit: int | Literal["auto"] = "auto",
         selection_size: int = 10,
+        candidate_limit: int | Literal["auto"] = "auto",
         lambda_param: float = 0.5,
     ) -> FilterResult:
         """
@@ -326,9 +326,9 @@ class SemHash(Generic[Record]):
         to select a diverse set of representatives.
 
         :param records: The records to rank and select representatives from.
+        :param selection_size: Number of representatives to select.
         :param candidate_limit: Number of top candidates to consider for MMR reranking.
             Defaults to "auto", which calculates the limit based on the total number of records.
-        :param selection_size: Number of representatives to select.
         :param lambda_param: Trade-off parameter between relevance (1.0) and diversity (0.0). Must be between 0 and 1.
         :return: A FilterResult with the diversified candidates.
         """
@@ -339,8 +339,8 @@ class SemHash(Generic[Record]):
 
     def self_find_representative(
         self,
-        candidate_limit: int | Literal["auto"] = "auto",
         selection_size: int = 10,
+        candidate_limit: int | Literal["auto"] = "auto",
         lambda_param: float = 0.5,
     ) -> FilterResult:
         """
@@ -350,9 +350,9 @@ class SemHash(Generic[Record]):
         Then, the top candidates are re-ranked using Maximal Marginal Relevance (MMR)
         to select a diverse set of representatives.
 
+        :param selection_size: Number of representatives to select.
         :param candidate_limit: Number of top candidates to consider for MMR reranking.
             Defaults to "auto", which calculates the limit based on the total number of records.
-        :param selection_size: Number of representatives to select.
         :param lambda_param: Trade-off parameter between relevance (1.0) and diversity (0.0). Must be between 0 and 1.
         :return: A FilterResult with the diversified representatives.
         """
