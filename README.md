@@ -90,9 +90,9 @@ deduplicated_test_texts = semhash.deduplicate(records=test_texts, threshold=0.9)
 outliers = semhash.find_outliers(records=test_texts, outlier_percentage=0.1).selected
 
 # Find representative samples in the test data against the training data,
-# optionally with a specific candidate limit and selection size
+# optionally with a specific selection size
 representative_samples = semhash.find_representative(
-    records=test_texts,candidate_limit=100, selection_size=10).selected
+    records=test_texts, selection_size=10).selected
 
 
 ```
