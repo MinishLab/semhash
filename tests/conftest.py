@@ -6,7 +6,6 @@ from model2vec import StaticModel
 def model() -> StaticModel:
     """Load a model for testing."""
     return StaticModel.from_pretrained("tests/data/test_model")
-    # return StaticModel.from_pretrained("minishlab/potion-base-8M")
 
 
 @pytest.fixture(params=[True, False], ids=["use_ann=True", "use_ann=False"])
