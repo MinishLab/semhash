@@ -85,7 +85,8 @@ semhash = SemHash.from_records(records=train_texts)
 # Deduplicate the test data against the training data, optionally with a specific threshold
 deduplicated_test_texts = semhash.deduplicate(records=test_texts, threshold=0.9).selected
 
-# Find outliers in the test data against the training data, optionally with a specific percentage
+# Find outliers in the test data against the training data,
+# optionally with a specific percentage
 outliers = semhash.find_outliers(records=test_texts, outlier_percentage=0.1).selected
 
 # Find representative samples in the test data against the training data,
@@ -128,14 +129,14 @@ The `find_outliers`, `self_find_outliers`, `find_representative`, and `self_find
 ## Main Features
 
 - **Fast**: SemHash uses [model2vec](https://github.com/MinishLab/model2vec) to embed texts and [vicinity](https://github.com/MinishLab/vicinity) to perform similarity search, making it extremely fast.
-- **Scalable**: SemHash can deduplicate large datasets with millions of records thanks to the ANN backends in Vicinity.
-- **Flexible**: SemHash can be used to deduplicate a single dataset or across two datasets, and can also be used to deduplicate multi-column datasets (such as QA datasets).
+- **Scalable**: SemHash can deduplicate & filter large datasets with millions of records thanks to the ANN backends in Vicinity.
+- **Flexible**: SemHash can be used to deduplicate & filter a single dataset or across two datasets, and can also be used to deduplicate & filter multi-column datasets (such as QA datasets).
 - **Lightweight**: SemHash is a lightweight package with minimal dependencies, making it easy to install and use.
 - **Explainable**: Easily inspect the duplicates and what caused them with the `DeduplicationResult` object. You can also view the lowest similarity duplicates to find the right threshold for deduplication for your dataset.
 
 ## Usage
 
-The following examples show the various ways you can use SemHash to deduplicate datasets. These examples assume you have the `datasets` library installed, which you can install with `pip install datasets`.
+The following examples show the various ways you can use SemHash to deduplicate datasets, find outliers, and find representative samples. These examples assume you have the `datasets` library installed, which you can install with `pip install datasets`.
 
 <details>
 <summary>  Deduplicate and find outliers/representative samples on a single dataset </summary>
