@@ -63,7 +63,7 @@ semhash = SemHash.from_records(records=texts)
 deduplicated_texts = semhash.self_deduplicate().selected
 
 # Filter outliers
-filtered_texts = semhash.self_find_outliers().selected
+filtered_texts = semhash.self_filter_outliers().selected
 
 # Find representative texts
 representative_texts = semhash.self_find_representative().selected
@@ -87,7 +87,7 @@ deduplicated_test_texts = semhash.deduplicate(records=test_texts, threshold=0.9)
 
 # Filter outliers from the test data against the training data,
 # optionally with a specific percentage
-filtered_test_texts = semhash.find_outliers(records=test_texts, outlier_percentage=0.1).selected
+filtered_test_texts = semhash.filter_outliers(records=test_texts, outlier_percentage=0.1).selected
 
 # Find representative texts in the test data against the training data,
 # optionally with a specific selection size
@@ -116,7 +116,7 @@ semhash = SemHash.from_records(records=records, columns=["question", "context"])
 deduplicated_records = semhash.self_deduplicate().selected
 
 # Filter outliers from the records
-filtered_texts = semhash.self_find_outliers().selected
+filtered_texts = semhash.self_filter_outliers().selected
 
 # Find representative texts in the records
 representative_texts = semhash.self_find_representative().selected
@@ -124,9 +124,9 @@ representative_texts = semhash.self_find_representative().selected
 
 The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#L30). This object stores the deduplicated corpus, a set of duplicate object (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
 
-The `find_outliers`, `self_find_outliers`, `find_representative`, and `self_find_representative` functions return a [FilterResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#106). This object stores the found outliers/representative samples.
+The `filter_outliers`, `self_filter_outliers`, `find_representative`, and `self_find_representative` functions return a [FilterResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#106). This object stores the found outliers/representative samples.
 
-For both the `DeduplicationResult` and `FilterResult` objects, you can easily view the filtered records with the `selected` attribute (e.g. to view outliers: `outliers = semhash.self_find_outliers().filtered`)
+For both the `DeduplicationResult` and `FilterResult` objects, you can easily view the filtered records with the `selected` attribute (e.g. to view outliers: `outliers = semhash.self_filter_outliers().filtered`)
 ## Main Features
 
 - **Fast**: SemHash uses [model2vec](https://github.com/MinishLab/model2vec) to embed texts and [vicinity](https://github.com/MinishLab/vicinity) to perform similarity search, making it extremely fast.
@@ -159,7 +159,7 @@ semhash = SemHash.from_records(records=texts)
 deduplicated_texts = semhash.self_deduplicate().selected
 
 # Filter outliers
-filtered_texts = semhash.self_find_outliers().selected
+filtered_texts = semhash.self_filter_outliers().selected
 
 # Find representative texts
 representative_texts = semhash.self_find_representative().selected
@@ -190,7 +190,7 @@ semhash = SemHash.from_records(records=train_texts)
 deduplicated_test_texts = semhash.deduplicate(records=test_texts).selected
 
 # Filter outliers from the test data
-filtered_test_texts = semhash.find_outliers(records=test_texts).selected
+filtered_test_texts = semhash.filter_outliers(records=test_texts).selected
 
 # Find representative texts in the test data
 representative_test_texts = semhash.find_representative(records=test_texts).selected
@@ -221,7 +221,7 @@ semhash = SemHash.from_records(records=records, columns=["question", "context"])
 deduplicated_records = semhash.self_deduplicate().selected
 
 # Filter outliers from the records
-filtered_records = semhash.self_find_outliers().selected
+filtered_records = semhash.self_filter_outliers().selected
 
 # Find representative samples in the records
 representative_records = semhash.self_find_representative().selected

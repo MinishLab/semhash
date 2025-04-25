@@ -166,20 +166,20 @@ def test_find_representative(use_ann: bool, model: Encoder, train_texts: list[st
     assert selected == {"grapefruit", "banana", "apple"}, "Expected representatives to be grapefruit, banana, and apple"
 
 
-def test_find_outliers(use_ann: bool, model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
-    """Test the find_outliers method."""
+def test_filter_outliers(use_ann: bool, model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
+    """Test the filter_outliers method."""
     semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
-    result = semhash.find_outliers(records=test_texts, outlier_percentage=0.2)
+    result = semhash.filter_outliers(records=test_texts, outlier_percentage=0.2)
     assert len(result.filtered) == 2, "Expected 2 outliers"
     assert len(result.selected) == len(test_texts) - 2
     filtered = {r["text"] for r in result.filtered}
     assert filtered == {"motorcycle", "plane"}, "Expected outliers to be motorcycle and plane"
 
 
-def test_self_find_outliers(use_ann: bool, model: Encoder, train_texts: list[str]) -> None:
-    """Test the self_find_outliers method."""
+def test_self_filter_outliers(use_ann: bool, model: Encoder, train_texts: list[str]) -> None:
+    """Test the self_filter_outliers method."""
     semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
-    result = semhash.self_find_outliers(outlier_percentage=0.1)
+    result = semhash.self_filter_outliers(outlier_percentage=0.1)
     assert len(result.filtered) == 2, "Expected 2 outliers"
     assert len(result.selected) == len(train_texts) - 2
     filtered = {r["text"] for r in result.filtered}

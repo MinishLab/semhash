@@ -361,20 +361,20 @@ class SemHash(Generic[Record]):
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
         return self._mmr(ranking, candidate_limit, selection_size, lambda_param)
 
-    def find_outliers(
+    def filter_outliers(
         self,
         records: Sequence[Record],
         outlier_percentage: float = 0.1,
     ) -> FilterResult:
         """
-        Find outliers in a given set of records against the fitted dataset.
+        Filter outliers in a given set of records against the fitted dataset.
 
-        This method ranks the records by their average similarity and selects the bottom
+        This method ranks the records by their average similarity and filters the bottom
         outlier_percentage of records as outliers.
 
         :param records: A sequence of records to find outliers in.
         :param outlier_percentage: The percentage (between 0 and 1) of records to consider outliers.
-        :return: A FilterResult where 'selected' contains the outliers and 'filtered' contains the inliers.
+        :return: A FilterResult where 'selected' contains the inliers and 'filtered' contains the outliers.
         :raises ValueError: If outlier_percentage is not between 0 and 1.
         """
         if outlier_percentage < 0.0 or outlier_percentage > 1.0:
@@ -399,18 +399,18 @@ class SemHash(Generic[Record]):
             scores_filtered=outlier_scores,
         )
 
-    def self_find_outliers(
+    def self_filter_outliers(
         self,
         outlier_percentage: float = 0.1,
     ) -> FilterResult:
         """
-        Find outliers in the fitted dataset.
+        Filter outliers in the fitted dataset.
 
-        The method ranks the records stored in the index and selects the bottom outlier_percentage
+        The method ranks the records stored in the index and filters the bottom outlier_percentage
         of records as outliers.
 
         :param outlier_percentage: The percentage (between 0 and 1) of records to consider as outliers.
-        :return: A FilterResult where 'selected' contains the outliers and 'filtered' contains the inliers.
+        :return: A FilterResult where 'selected' contains the inliers and 'filtered' contains the outliers.
         :raises ValueError: If outlier_percentage is not between 0 and 1.
         """
         if outlier_percentage < 0.0 or outlier_percentage > 1.0:
