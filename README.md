@@ -47,7 +47,7 @@ Install the package with:
 pip install semhash
 ```
 
-Deduplicate a single dataset and find outliers/representative samples with the following code (note: the examples assume you have `datasets` installed, which you can install with `pip install datasets`):
+Deduplicate a single dataset, filter outliers, and find representative samples with the following code (note: the examples assume you have `datasets` installed, which you can install with `pip install datasets`):
 
 ```python
 from datasets import load_dataset
@@ -69,7 +69,7 @@ filtered_texts = semhash.self_filter_outliers().selected
 representative_texts = semhash.self_find_representative().selected
 ```
 
-Or, deduplicate across two datasets and find outliers/representative samples with the following code (e.g., eliminating train/test leakage):
+Or, deduplicate across two datasets, filter outliers, and find representative samples with the following code (e.g., eliminating train/test leakage):
 
 ```python
 from datasets import load_dataset
@@ -97,7 +97,7 @@ representative_test_texts = semhash.find_representative(
 
 ```
 
-Or, deduplicate multi-column dataset and find outliers/representative samples with the following code (e.g., deduplicating a QA dataset):
+Or, deduplicate multi-column dataset, filter outliers, and find representative samples with the following code (e.g., deduplicating a QA dataset):
 
 ```python
 from datasets import load_dataset
@@ -140,10 +140,10 @@ For both the `DeduplicationResult` and `FilterResult` objects, you can easily vi
 The following examples show the various ways you can use SemHash to deduplicate datasets, find outliers, and find representative samples. These examples assume you have the `datasets` library installed, which you can install with `pip install datasets`.
 
 <details>
-<summary>  Deduplicate and find outliers/representative samples on a single dataset </summary>
+<summary>  Deduplicate, filter outliers, and find representative samples on a single dataset </summary>
 <br>
 
-The following code snippet shows how to deduplicate a single dataset and find outliers/representative samples using SemHash (in this example, the train split of the [AG News dataset](https://huggingface.co/datasets/fancyzhx/ag_news)):
+The following code snippet shows how to deduplicate a single dataset, filter outliers, and find representative samples using SemHash (in this example, the train split of the [AG News dataset](https://huggingface.co/datasets/fancyzhx/ag_news)):
 
 ```python
 from datasets import load_dataset
@@ -167,10 +167,10 @@ representative_texts = semhash.self_find_representative().selected
 </details>
 
 <details>
-<summary>  Deduplicate and find outliers/representative samples across two datasets </summary>
+<summary>  Deduplicate, filter outliers, and find representative samples across two datasets </summary>
 <br>
 
-The following code snippet shows how to deduplicate across two datasets and find outliers/representative samples using SemHash (in this example, the train/test split of the [AG News dataset](https://huggingface.co/datasets/fancyzhx/ag_news)):
+The following code snippet shows how to deduplicate across two datasets, filter outliers, and find representative samples using SemHash (in this example, the train/test split of the [AG News dataset](https://huggingface.co/datasets/fancyzhx/ag_news)):
 
 ```python
 from datasets import load_dataset
@@ -199,10 +199,10 @@ representative_test_texts = semhash.find_representative(records=test_texts).sele
 </details>
 
 <details>
-<summary>  Deduplicate and find outliers/representative samples on multi-column datasets </summary>
+<summary>  Deduplicate, filter outliers, and find representative samples on multi-column datasets </summary>
 <br>
 
-The following code snippet shows how to deduplicate multi-column datasets and find outliers/representative samples using SemHash (in this example, the train split of the QA dataset [SQuAD 2.0](https://huggingface.co/datasets/rajpurkar/squad_v2), which consists of questions, contexts, and answers):
+The following code snippet shows how to deduplicate multi-column datasets, filter outliers, and find representative samples using SemHash (in this example, the train split of the QA dataset [SQuAD 2.0](https://huggingface.co/datasets/rajpurkar/squad_v2), which consists of questions, contexts, and answers):
 
 ```python
 from datasets import load_dataset
