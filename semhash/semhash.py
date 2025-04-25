@@ -519,45 +519,54 @@ class SemHash(Generic[Record]):
         embeddings = self._featurize(records=candidate_records, columns=self.columns, model=self.model)
 
         # Normalize embeddings for cosine similarity.
-        norm_embeddings = embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-16)
+        normalized_embeddings = embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-16)
 
         # Package candidates as tuples: (record, baseline_relevance, normalized_embedding)
-        candidates = list(zip(candidate_records, candidate_relevance, np.array(norm_embeddings)))
+        candidates = [
+            (record, relevance, normalized_embedding)
+            for record, relevance, normalized_embedding in zip(
+                candidate_records, candidate_relevance, normalized_embeddings
+            )
+        ]
 
-        # MMR re-ranking: Initialize selected set with the candidate having highest baseline relevance.
-        selected_records = []
-        selected_scores = []  # MMR scores for selected candidates.
-        selected_embeddings = []  # For computing similarity with new candidates.
-        remaining_candidates = candidates.copy()
-
+        # If no candidates, return empty result.
         if not candidates:
             return FilterResult(selected=[], filtered=[], scores_selected=[], scores_filtered=[])
 
-        # Select the first candidate as the initial representative.
-        first = candidates[0]
-        selected_records = [first[0]]
-        selected_scores = [first[1]]
-        selected_embeddings = [first[2]]
+        # Initialize selected set with the most relevant candidate.
+        first_record, first_relevance, first_embedding = candidates[0]
+        selected_records = [first_record]
+        selected_scores = [first_relevance]
+        selected_embeddings = [first_embedding]
         remaining_candidates = candidates[1:]
 
         # Iteratively select candidates using the MMR criterion.
         while remaining_candidates and len(selected_records) < selection_size:
-            mmr_scores = []
-            for candidate in remaining_candidates:
-                _, relevance, emb = candidate
-                # Compute maximum cosine similarity between candidate and already selected ones.
-                sim_to_selected = max(np.dot(emb, s_emb) for s_emb in selected_embeddings) if selected_embeddings else 0
-                mmr_score = lambda_param * relevance - (1 - lambda_param) * sim_to_selected
-                mmr_scores.append(mmr_score)
-            best_idx = int(np.argmax(mmr_scores))
-            best_candidate = remaining_candidates[best_idx]
-            selected_records.append(best_candidate[0])
-            selected_scores.append(mmr_scores[best_idx])
-            selected_embeddings.append(best_candidate[2])
-            remaining_candidates.pop(best_idx)
+            # Build arrays for the remaining candidates.
+            embeddings_remaining = np.vstack([emb for (_, _, emb) in remaining_candidates])
+            relevances_remaining = np.array([rel for (_, rel, _) in remaining_candidates])
 
-        filtered_records = [cand[0] for cand in remaining_candidates]
-        filtered_scores = [cand[1] for cand in remaining_candidates]
+            # Build array of embeddings for the already selected set.
+            embeddings_selected = np.vstack(selected_embeddings)
+
+            # Compute cosine similarities between selected and remaining candidates.
+            similarity_matrix = embeddings_remaining.dot(embeddings_selected.T)
+            max_similarity = similarity_matrix.max(axis=1)
+
+            # Compute MMR scores for all remaining candidates.
+            mmr_scores = lambda_param * relevances_remaining - (1.0 - lambda_param) * max_similarity
+
+            # Choose the candidate with the highest MMR score.
+            best_index = int(np.argmax(mmr_scores))
+            record, _, embedding = remaining_candidates.pop(best_index)
+
+            selected_records.append(record)
+            selected_scores.append(mmr_scores[best_index])
+            selected_embeddings.append(embedding)
+
+        # Whatever is left in remaining_candidates is filtered out.
+        filtered_records = [rec for (rec, _, _) in remaining_candidates]
+        filtered_scores = [rel for (_, rel, _) in remaining_candidates]
 
         return FilterResult(
             selected=selected_records,
