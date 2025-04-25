@@ -1,6 +1,8 @@
+import numpy as np
 import pytest
 
 from semhash import SemHash
+from semhash.datamodels import FilterResult
 from semhash.utils import Encoder
 
 
@@ -24,7 +26,7 @@ def test_single_dataset_deduplication(use_ann: bool, model: Encoder) -> None:
         "It's not safe to go alone!",  # Semantically similar
     ]
     semhash = SemHash.from_records(records=texts, use_ann=use_ann, model=model)
-    deduplicated_texts = semhash.self_deduplicate().selected
+    deduplicated_texts = semhash.self_deduplicate(0.7).selected
     assert deduplicated_texts == ["It's dangerous to go alone!"]
 
 
@@ -51,7 +53,7 @@ def test_multi_dataset_deduplication(use_ann: bool, model: Encoder) -> None:
         "It's risky to go alone!",  # Semantically similar
         "Ganondorf has attacked Hyrule!",  # Semantically similar
     ]
-    deduplicated_texts = semhash.deduplicate(texts2).selected
+    deduplicated_texts = semhash.deduplicate(texts2, threshold=0.7).selected
     assert deduplicated_texts == []
 
 
@@ -73,7 +75,7 @@ def test_single_dataset_deduplication_multicolumn(use_ann: bool, model: Encoder)
         use_ann=use_ann,
         model=model,
     )
-    deduplicated = semhash.self_deduplicate()
+    deduplicated = semhash.self_deduplicate(threshold=0.7)
 
     assert deduplicated.selected == [
         {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
@@ -138,53 +140,79 @@ def test_deduplicate_with_only_exact_duplicates(use_ann: bool, model: Encoder) -
     assert deduplicated.selected == []
 
 
-def test_filter_by_entropy(use_ann: bool, model: Encoder) -> None:
-    """Test filtering by entropy."""
-    texts = [f"Text {i}" for i in range(1000)]
-    semhash = SemHash.from_records(texts, use_ann=use_ann, model=model)
+def test_self_find_representative(use_ann: bool, model: Encoder, train_texts: list[str]) -> None:
+    """Test the self_find_representative method."""
+    semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
+    result = semhash.self_find_representative(
+        candidate_limit=5,
+        selection_size=3,
+        lambda_param=0.5,
+    )
+    assert len(result.selected) == 3, "Expected 3 representatives"
+    selected = {r["text"] for r in result.selected}
+    assert selected == {
+        "blueberry",
+        "pineapple",
+        "grape",
+    }, "Expected representatives to be blueberry, pineapple, and grape"
 
-    # Test with absolute budget
-    filtered = semhash.self_filter_by_entropy(budget=200)
-    assert len(filtered.selected) == 200
-    assert len(filtered.filtered) == 800
-    assert len(filtered.scores_selected) == 200
-    assert len(filtered.scores_filtered) == 800
 
-    # Test with percentage budget
-    filtered = semhash.self_filter_by_entropy(budget=0.5)
-    assert len(filtered.selected) == 500
-    assert len(filtered.filtered) == 500
+def test_find_representative(use_ann: bool, model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
+    """Test the find_representative method."""
+    semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
+    result = semhash.find_representative(records=test_texts, candidate_limit=5, selection_size=3, lambda_param=0.5)
+    assert len(result.selected) == 3, "Expected 3 representatives"
+    selected = {r["text"] for r in result.selected}
+    assert selected == {"grapefruit", "banana", "apple"}, "Expected representatives to be grapefruit, banana, and apple"
 
 
-def test_filter_by_entropy_invalid_budget(use_ann: bool, model: Encoder) -> None:
-    """Test filtering by entropy with invalid budget."""
-    texts = ["Text 1", "Text 2", "Text 3"]
-    semhash = SemHash.from_records(texts, use_ann=use_ann, model=model)
+def test_filter_outliers(use_ann: bool, model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
+    """Test the filter_outliers method."""
+    semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
+    result = semhash.filter_outliers(records=test_texts, outlier_percentage=0.2)
+    assert len(result.filtered) == 2, "Expected 2 outliers"
+    assert len(result.selected) == len(test_texts) - 2
+    filtered = {r["text"] for r in result.filtered}
+    assert filtered == {"motorcycle", "plane"}, "Expected outliers to be motorcycle and plane"
 
+
+def test_self_filter_outliers(use_ann: bool, model: Encoder, train_texts: list[str]) -> None:
+    """Test the self_filter_outliers method."""
+    semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
+    result = semhash.self_filter_outliers(outlier_percentage=0.1)
+    assert len(result.filtered) == 2, "Expected 2 outliers"
+    assert len(result.selected) == len(train_texts) - 2
+    filtered = {r["text"] for r in result.filtered}
+    assert filtered == {"car", "bicycle"}, "Expected outliers to be car and bicycle"
+
+
+def test__mmr(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the _mmr method."""
+    # Create a dummy SemHash instance
+    semhash = SemHash(index=None, model=None, columns=["text"], was_string=True)  # type: ignore
+    # Prepare a fake ranking with three records
+    records = ["a", "b", "c"]
+    scores = [3.0, 2.0, 1.0]
+    ranking = FilterResult(selected=records, filtered=[], scores_selected=scores, scores_filtered=[])
+    # Create dummy embeddings for the records
+    embeddings = np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]])
+    # Monkeypatch featurize to return the dummy embeddings
+    monkeypatch.setattr(semhash, "_featurize", lambda records, columns, model: embeddings)
+
+    # Test lambda=1.0: pure relevance, should pick top 2 by score
+    result_rel = semhash._mmr(ranking, candidate_limit=3, selection_size=2, lambda_param=1.0)
+    assert result_rel.selected == ["a", "b"]
+
+    # Test lambda=0.0: pure diversity, should first pick 'a', then pick most dissimilar: 'c'
+    result_div = semhash._mmr(ranking, candidate_limit=3, selection_size=2, lambda_param=0.0)
+    assert result_div.selected == ["a", "c"]
+
+
+def test_mmr_invalid_lambda_raises() -> None:
+    """Test that invalid lambda values raise ValueError."""
+    semhash = SemHash(index=None, model=None, columns=["text"], was_string=True)  # type: ignore
+    dummy = FilterResult(selected=["x"], filtered=[], scores_selected=[0.5], scores_filtered=[])
     with pytest.raises(ValueError):
-        semhash.self_filter_by_entropy(budget=4)  # Budget larger than dataset
-
+        semhash._mmr(dummy, candidate_limit=1, selection_size=1, lambda_param=-0.1)
     with pytest.raises(ValueError):
-        semhash.self_filter_by_entropy(budget=-1)  # Negative budget
-
-
-def test_filter_by_entropy_string_validation(use_ann: bool, model: Encoder) -> None:
-    """Test filtering by entropy with string validation."""
-    texts = [f"Text {i}" for i in range(1000)]
-    records = [{"text": t} for t in texts]
-
-    # Initialize with strings
-    semhash_str = SemHash.from_records(texts, use_ann=use_ann, model=model)
-
-    # Initialize with dicts
-    semhash_dict = SemHash.from_records(records, columns=["text"], use_ann=use_ann, model=model)
-
-    # Should work - filtering strings with string-initialized SemHash
-    semhash_str.filter_by_entropy(texts, budget=0.5)
-
-    # Should work - filtering dicts with dict-initialized SemHash
-    semhash_dict.filter_by_entropy(records, budget=0.5)
-
-    # Should fail - filtering strings with dict-initialized SemHash
-    with pytest.raises(ValueError):
-        semhash_dict.filter_by_entropy(texts, budget=0.5)
+        semhash._mmr(dummy, candidate_limit=1, selection_size=1, lambda_param=1.1)

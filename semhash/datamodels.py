@@ -52,7 +52,7 @@ class DeduplicationResult(Generic[Record]):
         """Initialize deprecated fields and warn about deprecation."""
         if self.deduplicated or self.duplicates:
             warnings.warn(
-                "'deduplicated' and 'duplicates' fields are deprecated and will be removed in a `semhash==0.3.0` release. Use 'selected' and 'filtered' instead.",
+                "'deduplicated' and 'duplicates' fields are deprecated and will be removed in a future release. Use 'selected' and 'filtered' instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -133,25 +133,3 @@ class FilterResult(Generic[Record]):
     def selected_ratio(self) -> float:
         """Return the percentage of records selected."""
         return 1 - self.filter_ratio
-
-    def get_lowest_scoring(self, n: int = 1) -> list[tuple[Record, float]]:
-        """
-        Return the N lowest scoring records.
-
-        :param n: The number of lowest scoring records to return.
-        :return: A list of tuples consisting of (record, score).
-        """
-        lowest_filtered = [(record, score) for record, score in zip(self.filtered, self.scores_filtered)]
-        lowest_selected = [(record, score) for record, score in zip(self.selected, self.scores_selected)]
-        return lowest_filtered[:n] + lowest_selected[:n]
-
-    def get_highest_scoring(self, n: int = 1) -> list[tuple[Record, float]]:
-        """
-        Return the N highest scoring records.
-
-        :param n: The number of highest scoring records to return.
-        :return: A list of tuples consisting of (record, score).
-        """
-        highest_selected = [(record, score) for record, score in zip(self.selected, self.scores_selected)]
-        highest_filtered = [(record, score) for record, score in zip(self.filtered, self.scores_filtered)]
-        return highest_selected[:n] + highest_filtered[:n]

@@ -1,6 +1,6 @@
 [project]
 name = "semhash"
-description = "Fast Semantic Text Deduplication"
+description = "Fast Semantic Text Deduplication & Filtering"
 authors = [{name = "Thomas van Dongen", email = "thomas123@live.nl"}, { name = "Stéphan Tulkens", email = "stephantul@gmail.com"}]
 readme = { file = "README.md", content-type = "text/markdown" }
 dynamic = ["version"]

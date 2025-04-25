@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List
-
 import numpy as np
 from vicinity import Backend
 from vicinity.backends import AbstractBackend, get_backend_class
@@ -65,15 +63,21 @@ class Index:
 
         return out
 
-    def query_top_k(self, vectors: np.ndarray, k: int) -> List[SingleQueryResult]:
+    def query_top_k(self, vectors: np.ndarray, k: int, vectors_are_in_index: bool) -> list[SingleQueryResult]:
         """
-        Query the index with a top-k threshold.
+        Query the index with a top-k.
 
         :param vectors: The vectors to query.
         :param k: Maximum number of top-k records to keep.
-        :return: The query results.
+        :param vectors_are_in_index: Whether the vectors are in the index. If this is set to True, we retrieve k + 1
+            records, and do not consider the first one, as it is the query vector itself.
+        :return: The query results. Each result is a tuple where the first element is the list of neighbor records,
+                 and the second element is a NumPy array of cosine similarity scores.
         """
         results = []
-        for x, y in self.backend.query(vectors=vectors, k=k + 1):  # include the query vector
-            results.append((x[-k:], (y + 1e-10)[-k:]))  # add a small epsilon to avoid division by zero
+        offset = int(vectors_are_in_index)
+        for x, y in self.backend.query(vectors=vectors, k=k + offset):
+            # Convert returned distances to cosine similarities.
+            similarities = 1 - y[offset:]
+            results.append((x[offset:], similarities))
         return results
