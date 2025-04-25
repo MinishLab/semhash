@@ -243,9 +243,9 @@ semhash = SemHash.from_records(records=texts)
 deduplication_result = semhash.self_deduplicate()
 
 # Check the deduplicated texts
-deduplication_result.deduplicated
+deduplication_result.selected
 # Check the duplicates
-deduplication_result.duplicates
+deduplication_result.filtered
 # See what percentage of the texts were duplicates
 deduplication_result.duplicate_ratio
 # See what percentage of the texts were exact duplicates
@@ -327,7 +327,7 @@ dataframe = dataframe.to_dict(orient="records")
 semhash = SemHash.from_records(records=dataframe, columns=["text"])
 
 # Deduplicate the texts
-deduplicated_records = semhash.self_deduplicate().deduplicated
+deduplicated_records = semhash.self_deduplicate().selected
 
 # Convert the deduplicated records back to a pandas dataframe
 deduplicated_dataframe = pd.DataFrame(deduplicated_records)
