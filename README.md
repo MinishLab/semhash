@@ -126,6 +126,7 @@ The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult
 
 The `find_outliers`, `self_find_outliers`, `find_representative`, and `self_find_representative` functions return a [FilterResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#106). This object stores the found outliers/representative samples.
 
+For both the `DeduplicationResult` and `FilterResult` objects, you can easily view the filtered records with the `selected` attribute (e.g. to view outliers: `outliers = semhash.self_find_outliers().filtered`)
 ## Main Features
 
 - **Fast**: SemHash uses [model2vec](https://github.com/MinishLab/model2vec) to embed texts and [vicinity](https://github.com/MinishLab/vicinity) to perform similarity search, making it extremely fast.
