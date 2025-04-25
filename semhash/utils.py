@@ -1,4 +1,3 @@
-import math
 from typing import Any, Protocol, Sequence, Union
 
 import numpy as np

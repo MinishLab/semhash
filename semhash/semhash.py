@@ -332,7 +332,7 @@ class SemHash(Generic[Record]):
         :param lambda_param: Trade-off parameter between relevance (1.0) and diversity (0.0). Must be between 0 and 1.
         :return: A FilterResult with the diversified candidates.
         """
-        ranking = self._rank_by_average_similarity(records, descending=True)
+        ranking = self._rank_by_average_similarity(records)
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
         return self._mmr(ranking, candidate_limit, selection_size, lambda_param)
@@ -356,7 +356,7 @@ class SemHash(Generic[Record]):
         :param lambda_param: Trade-off parameter between relevance (1.0) and diversity (0.0). Must be between 0 and 1.
         :return: A FilterResult with the diversified representatives.
         """
-        ranking = self._self_rank_by_average_similarity(descending=True)
+        ranking = self._self_rank_by_average_similarity()
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
         return self._mmr(ranking, candidate_limit, selection_size, lambda_param)
@@ -379,7 +379,7 @@ class SemHash(Generic[Record]):
         """
         if outlier_percentage < 0.0 or outlier_percentage > 1.0:
             raise ValueError("outlier_percentage must be between 0 and 1")
-        ranking = self._rank_by_average_similarity(records, descending=True)
+        ranking = self._rank_by_average_similarity(records)
         outlier_count = ceil(len(ranking.selected) * outlier_percentage)
         if outlier_count == 0:
             # If the outlier count is 0, return an empty selection
@@ -415,7 +415,7 @@ class SemHash(Generic[Record]):
         """
         if outlier_percentage < 0.0 or outlier_percentage > 1.0:
             raise ValueError("outlier_percentage must be between 0 and 1")
-        ranking = self._self_rank_by_average_similarity(descending=True)
+        ranking = self._self_rank_by_average_similarity()
         outlier_count = ceil(len(ranking.selected) * outlier_percentage)
         if outlier_count == 0:
             # If the outlier count is 0, return an empty selection
@@ -438,24 +438,22 @@ class SemHash(Generic[Record]):
     def _rank_by_average_similarity(
         self,
         records: Sequence[Record],
-        descending: bool = True,
     ) -> FilterResult:
         """
         Rank a given set of records based on the average cosine similarity of the neighbors in the fitted index.
 
         :param records: A sequence of records.
-        :param descending: Whether to sort in descending order (default True).
         :return: A FilterResult containing the ranking (records sorted and their average similarity scores).
         """
         dict_records = self._validate_if_strings(records)
         embeddings = self._featurize(records=dict_records, columns=self.columns, model=self.model)
-        results = self.index.query_top_k(embeddings, k=100)
+        results = self.index.query_top_k(embeddings, k=100, vectors_are_in_index=False)
 
         # Compute the average similarity for each record.
         sorted_scores = sorted(
             ((record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)),
             key=lambda x: x[1],
-            reverse=descending,
+            reverse=True,
         )
         selected, scores_selected = zip(*sorted_scores)
 
@@ -468,25 +466,23 @@ class SemHash(Generic[Record]):
 
     def _self_rank_by_average_similarity(
         self,
-        descending: bool = True,
     ) -> FilterResult:
         """
         Rank the records stored in the fitted index based on the average cosine similarity of the neighbors.
 
-        :param descending: Whether to sort in descending order (default True).
         :return: A FilterResult containing the ranking.
         """
         if self._ranking_cache is not None:
             return self._ranking_cache
 
         dict_records = [record[0] for record in self.index.items]
-        results = self.index.query_top_k(self.index.vectors, k=100)
+        results = self.index.query_top_k(self.index.vectors, k=100, vectors_are_in_index=True)
 
         # Compute the average similarity for each record.
         sorted_scores = sorted(
             ((record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)),
             key=lambda x: x[1],
-            reverse=descending,
+            reverse=True,
         )
         selected, scores_selected = zip(*sorted_scores)
 
