@@ -1,15 +1,14 @@
 
 
-<div align="center">
-    <picture>
-      <img width="30%" alt="SemHash logo" src="assets/images/semhash_logo.png">
-    </picture>
-  </a>
-</div>
+<h2 align="center">
+  <img width="40%" alt="SemHash logo" src="assets/images/semhash_logo_v2.png"><br/>
+  Fast Semantic Text Deduplication & Filtering
+</h2>
+
 
 <div align="center">
 
-# Fast Semantic Text Deduplication & Filtering
+
 
 
 <h2>
