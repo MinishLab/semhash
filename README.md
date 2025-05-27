@@ -1,20 +1,22 @@
 
 
-<div align="center">
-    <picture>
-      <img width="30%" alt="SemHash logo" src="assets/images/semhash_logo.png">
-    </picture>
-  </a>
-</div>
+<h2 align="center">
+  <img width="30%" alt="SemHash logo" src="assets/images/semhash_logo_v2.png"><br/>
+  Fast Semantic Text Deduplication & Filtering
+</h2>
+
 
 <div align="center">
 
-# Fast Semantic Text Deduplication & Filtering
+
 
 
 <h2>
     <a href="https://pypi.org/project/semhash/"><img src="https://img.shields.io/pypi/v/semhash?color=%23007ec6&label=pypi%20package" alt="Package version"></a>
     <a href="https://pypi.org/project/semhash/"><img src="https://img.shields.io/pypi/pyversions/semhash" alt="Supported Python versions"></a>
+    <a href="https://pepy.tech/project/semhash">
+      <img src="https://static.pepy.tech/badge/semhash" alt="Downloads">
+    </a>
     <a href="https://app.codecov.io/gh/MinishLab/semhash">
         <img src="https://codecov.io/gh/MinishLab/semhash/graph/badge.svg?token=YPOD6HD0MG" alt="Codecov">
     </a>
