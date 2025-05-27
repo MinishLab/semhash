@@ -1,7 +1,7 @@
 
 
 <h2 align="center">
-  <img width="40%" alt="SemHash logo" src="assets/images/semhash_logo_v2.png"><br/>
+  <img width="35%" alt="SemHash logo" src="assets/images/semhash_logo_v2.png"><br/>
   Fast Semantic Text Deduplication & Filtering
 </h2>
 
