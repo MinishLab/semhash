@@ -11,6 +11,7 @@ def test_deduplication_scoring() -> None:
         ["a", "b", "c"],
         [DuplicateRecord("a", False, [("b", 0.9)]), DuplicateRecord("b", False, [("c", 0.8)])],
         0.8,
+        columns=["text"],
     )
     assert d.duplicate_ratio == 0.4
 
@@ -21,19 +22,20 @@ def test_deduplication_scoring_exact() -> None:
         ["a", "b", "c"],
         [DuplicateRecord("a", True, [("b", 0.9)]), DuplicateRecord("b", False, [("c", 0.8)])],
         0.8,
+        columns=["text"],
     )
     assert d.exact_duplicate_ratio == 0.2
 
 
 def test_deduplication_scoring_exact_empty() -> None:
     """Test the deduplication scoring."""
-    d = DeduplicationResult([], [], 0.8)
+    d = DeduplicationResult([], [], 0.8, columns=["text"])
     assert d.exact_duplicate_ratio == 0.0
 
 
 def test_deduplication_scoring_empty() -> None:
     """Test the deduplication scoring."""
-    d = DeduplicationResult([], [], 0.8)
+    d = DeduplicationResult([], [], 0.8, columns=["text"])
     assert d.duplicate_ratio == 0.0
 
 
@@ -57,6 +59,7 @@ def test_get_least_similar_from_duplicates() -> None:
         ["a", "b", "c"],
         [DuplicateRecord("a", False, [("b", 0.9), ("c", 0.7)]), DuplicateRecord("b", False, [("c", 0.8)])],
         0.8,
+        columns=["text"],
     )
     result = d.get_least_similar_from_duplicates(1)
     assert result == [("a", "c", 0.7)]
@@ -64,7 +67,7 @@ def test_get_least_similar_from_duplicates() -> None:
 
 def test_get_least_similar_from_duplicates_empty() -> None:
     """Test getting the least similar duplicates."""
-    d = DeduplicationResult([], [], 0.8)
+    d = DeduplicationResult([], [], 0.8, columns=["text"])
     assert d.get_least_similar_from_duplicates(1) == []
 
 
@@ -77,6 +80,7 @@ def test_rethreshold_deduplication_result() -> None:
             DuplicateRecord("e", False, [("z", 0.8)]),
         ],
         0.8,
+        columns=["text"],
     )
     d.rethreshold(0.85)
     assert d.filtered == [DuplicateRecord("d", False, [("x", 0.9)])]
@@ -92,6 +96,7 @@ def test_rethreshold_exception() -> None:
             DuplicateRecord("e", False, [("z", 0.8)]),
         ],
         0.7,
+        columns=["text"],
     )
     with pytest.raises(ValueError):
         d.rethreshold(0.6)
@@ -108,6 +113,7 @@ def test_deprecation_deduplicated_duplicates() -> None:
                     DuplicateRecord("e", False, [("z", 0.8)]),
                 ],
                 threshold=0.8,
+                columns=["text"],
             )
     else:
         raise ValueError("deprecate `deduplicated` and `duplicates` fields in `DeduplicationResult`")
@@ -127,6 +133,7 @@ def test_selected_with_duplicates_strings() -> None:
             DuplicateRecord("duplicate_2", False, [("original", 0.8)]),
         ],
         threshold=0.8,
+        columns=["text"],
     )
 
     expected = [("original", [("duplicate_1", 0.9), ("duplicate_2", 0.8)])]
@@ -143,6 +150,7 @@ def test_selected_with_duplicates_dicts() -> None:
             DuplicateRecord({"id": 2, "text": "helllo"}, False, [(selected, 0.1)]),
         ],
         threshold=0.8,
+        columns=["text"],
     )
 
     pairs = d.selected_with_duplicates
@@ -150,6 +158,25 @@ def test_selected_with_duplicates_dicts() -> None:
     kept, dups = pairs[0]
     assert kept == selected
     assert {r["id"] for r, _ in dups} == {1, 2}
+
+
+def test_selected_with_duplicates_multi_column() -> None:
+    """Test selected_with_duplicates for multi-columns."""
+    selected = {"text": "hello", "text2": "world"}
+    d = DeduplicationResult(
+        selected=[selected],
+        filtered=[
+            DuplicateRecord({"text": "hello", "text2": "world"}, True, [(selected, 1.0)]),
+            DuplicateRecord({"text": "helllo", "text2": "world"}, False, [(selected, 0.1)]),
+        ],
+        threshold=0.8,
+        columns=["text", "text2"],
+    )
+
+    pairs = d.selected_with_duplicates
+    assert len(pairs) == 1
+    kept, _ = pairs[0]
+    assert kept == selected
 
 
 def test_selected_with_duplicates_unhashable_values() -> None:
@@ -161,6 +188,7 @@ def test_selected_with_duplicates_unhashable_values() -> None:
         selected=[selected],
         filtered=[DuplicateRecord(filtered, exact=False, duplicates=[(selected, 1.0)])],
         threshold=0.8,
+        columns=["text"],
     )
 
     pairs = d.selected_with_duplicates

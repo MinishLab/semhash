@@ -1,7 +1,7 @@
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Generic, Hashable, TypeVar
+from typing import Any, Generic, Hashable, Sequence, TypeVar
 
 from semhash.utils import to_frozendict
 
@@ -48,6 +48,7 @@ class DeduplicationResult(Generic[Record]):
     selected: list[Record] = field(default_factory=list)
     filtered: list[DuplicateRecord] = field(default_factory=list)
     threshold: float = field(default=0.9)
+    columns: Sequence[str] = field(default_factory=list)
     deduplicated: list[Record] = field(default_factory=list)  # Deprecated
     duplicates: list[DuplicateRecord] = field(default_factory=list)  # Deprecated
 
@@ -115,14 +116,9 @@ class DeduplicationResult(Generic[Record]):
         """
 
         def _to_hashable(record: Record) -> Hashable:
-            """Convert a record to a hashable representation."""
             if isinstance(record, dict):
-                # Convert non-hashable values to str so the frozendict is hashable
-                converted = {k: (v if isinstance(v, str) else str(v)) for k, v in record.items()}
-                # Return a frozendict for immutability and hashability
-                return to_frozendict(converted, set(record.keys()))
-
-            # Strings are already hashable
+                # Convert dict to frozendict for immutability and hashability
+                return to_frozendict(record, set(self.columns))
             return record
 
         # Build a mapping from original-record  to  [(duplicate, score), …]
