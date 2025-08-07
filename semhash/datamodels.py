@@ -40,6 +40,7 @@ class DeduplicationResult(Generic[Record]):
         selected: List of deduplicated records after removing duplicates.
         filtered: List of DuplicateRecord objects containing details about duplicates of an original record.
         threshold: The similarity threshold used for deduplication.
+        columns: Columns used for deduplication.
         deduplicated: Deprecated, use selected instead.
         duplicates: Deprecated, use filtered instead.
 
