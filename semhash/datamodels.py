@@ -117,10 +117,10 @@ class DeduplicationResult(Generic[Record]):
         def _to_hashable(record: Record) -> Hashable:
             """Convert a record to a hashable representation."""
             if isinstance(record, dict):
-                # Coerce non-hashable values to str so the frozendict is hashable
-                strified = {k: (v if isinstance(v, str) else str(v)) for k, v in record.items()}
+                # Convert non-hashable values to str so the frozendict is hashable
+                converted = {k: (v if isinstance(v, str) else str(v)) for k, v in record.items()}
                 # Return a frozendict for immutability and hashability
-                return to_frozendict(strified, set(record.keys()))
+                return to_frozendict(converted, set(record.keys()))
 
             # Strings are already hashable
             return record
