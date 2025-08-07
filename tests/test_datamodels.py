@@ -193,3 +193,30 @@ def test_selected_with_duplicates_unhashable_values() -> None:
 
     pairs = d.selected_with_duplicates
     assert pairs == [(selected, [(filtered, 1.0)])]
+
+
+def test_selected_with_duplicates_removes_internal_duplicates() -> None:
+    """Test that selected_with_duplicates removes internal duplicates that have the same hash."""
+    selected = {"id": 0, "text": "hello"}
+    filtered = {"id": 1, "text": "hello"}
+
+    d = DeduplicationResult(
+        selected=[selected],
+        filtered=[
+            DuplicateRecord(filtered, exact=False, duplicates=[(selected, 0.95)]),
+            DuplicateRecord(filtered, exact=False, duplicates=[(selected, 0.90)]),
+        ],
+        threshold=0.8,
+        columns=["text"],
+    )
+
+    selected_with_duplicates = d.selected_with_duplicates
+
+    assert len(selected_with_duplicates) == 1
+
+    selected_record, duplicate_list = selected_with_duplicates[0]
+    # Should keep the kept record unchanged
+    assert selected_record == selected
+    # The duplicate row must appear only once
+    assert len(duplicate_list) == 1
+    assert duplicate_list[0][0] == filtered
