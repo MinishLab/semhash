@@ -1,8 +1,9 @@
 import warnings
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar
+from typing import Any, Generic, Hashable, TypeVar
 
-Record = TypeVar("Record", str, dict[str, str])
+Record = TypeVar("Record", str, dict[str, Any])
 
 
 @dataclass
@@ -101,6 +102,30 @@ class DeduplicationResult(Generic[Record]):
                 self.filtered.remove(dup)
                 self.selected.append(dup.record)
         self.threshold = threshold
+
+    @property
+    def selected_with_duplicates(self) -> list[tuple[Record, list[tuple[Record, float]]]]:
+        """
+        For every kept record, return the duplicates that were removed along with their similarity scores.
+
+        :return: A list of tuples where each tuple contains a kept record
+                and a list of its duplicates with their similarity scores.
+        """
+
+        def _to_hashable(record: Record) -> Hashable:
+            """Convert a record to a hashable representation."""
+            if isinstance(record, dict):
+                return tuple(sorted(record.items()))
+            return record
+
+        # Build a mapping from original-record  to  [(duplicate, score), …]
+        buckets: defaultdict[Hashable, list[tuple[Record, float]]] = defaultdict(list)
+        for duplicate_record in self.filtered:
+            for original_record, score in duplicate_record.duplicates:
+                buckets[_to_hashable(original_record)].append((duplicate_record.record, float(score)))
+
+        # Assemble the final list in the same order as self.selected
+        return [(rec, buckets.get(_to_hashable(rec), [])) for rec in self.selected]
 
 
 @dataclass

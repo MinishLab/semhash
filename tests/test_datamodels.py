@@ -116,3 +116,37 @@ def test_deprecation_deduplicated_duplicates() -> None:
         DuplicateRecord("d", False, [("x", 0.9), ("y", 0.8)]),
         DuplicateRecord("e", False, [("z", 0.8)]),
     ]
+
+
+def test_selected_with_duplicates_strings() -> None:
+    """Test selected_with_duplicates for strings."""
+    d = DeduplicationResult(
+        selected=["original"],
+        filtered=[
+            DuplicateRecord("duplicate_1", False, [("original", 0.9)]),
+            DuplicateRecord("duplicate_2", False, [("original", 0.8)]),
+        ],
+        threshold=0.8,
+    )
+
+    expected = [("original", [("duplicate_1", 0.9), ("duplicate_2", 0.8)])]
+    assert d.selected_with_duplicates == expected
+
+
+def test_selected_with_duplicates_dicts() -> None:
+    """Test selected_with_duplicates for dicts."""
+    selected = {"id": 0, "text": "hello"}
+    d = DeduplicationResult(
+        selected=[selected],
+        filtered=[
+            DuplicateRecord({"id": 1, "text": "hello"}, True, [(selected, 1.0)]),
+            DuplicateRecord({"id": 2, "text": "helllo"}, False, [(selected, 0.1)]),
+        ],
+        threshold=0.8,
+    )
+
+    pairs = d.selected_with_duplicates
+    assert len(pairs) == 1
+    kept, dups = pairs[0]
+    assert kept == selected
+    assert {r["id"] for r, _ in dups} == {1, 2}
