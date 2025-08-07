@@ -1,13 +1,6 @@
 from typing import Sequence
 
-from frozendict import frozendict
-
 from semhash.datamodels import DeduplicationResult, DuplicateRecord
-
-
-def to_frozendict(record: dict[str, str], columns: set[str]) -> frozendict[str, str]:
-    """Convert a record to a frozendict."""
-    return frozendict({k: record.get(k, "") for k in columns})
 
 
 def dict_to_string(record: dict[str, str], columns: Sequence[str]) -> str:

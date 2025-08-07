@@ -1,8 +1,11 @@
 import warnings
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar
+from typing import Any, Generic, Hashable, Sequence, TypeVar
 
-Record = TypeVar("Record", str, dict[str, str])
+from semhash.utils import to_frozendict
+
+Record = TypeVar("Record", str, dict[str, Any])
 
 
 @dataclass
@@ -37,6 +40,7 @@ class DeduplicationResult(Generic[Record]):
         selected: List of deduplicated records after removing duplicates.
         filtered: List of DuplicateRecord objects containing details about duplicates of an original record.
         threshold: The similarity threshold used for deduplication.
+        columns: Columns used for deduplication.
         deduplicated: Deprecated, use selected instead.
         duplicates: Deprecated, use filtered instead.
 
@@ -45,6 +49,7 @@ class DeduplicationResult(Generic[Record]):
     selected: list[Record] = field(default_factory=list)
     filtered: list[DuplicateRecord] = field(default_factory=list)
     threshold: float = field(default=0.9)
+    columns: Sequence[str] = field(default_factory=list)
     deduplicated: list[Record] = field(default_factory=list)  # Deprecated
     duplicates: list[DuplicateRecord] = field(default_factory=list)  # Deprecated
 
@@ -101,6 +106,37 @@ class DeduplicationResult(Generic[Record]):
                 self.filtered.remove(dup)
                 self.selected.append(dup.record)
         self.threshold = threshold
+
+    @property
+    def selected_with_duplicates(self) -> list[tuple[Record, list[tuple[Record, float]]]]:
+        """
+        For every kept record, return the duplicates that were removed along with their similarity scores.
+
+        :return: A list of tuples where each tuple contains a kept record
+                and a list of its duplicates with their similarity scores.
+        """
+
+        def _to_hashable(record: Record) -> Hashable:
+            if isinstance(record, dict):
+                # Convert dict to frozendict for immutability and hashability
+                return to_frozendict(record, set(self.columns))
+            return record
+
+        # Build a mapping from original-record  to  [(duplicate, score), …]
+        buckets: defaultdict[Hashable, list[tuple[Record, float]]] = defaultdict(list)
+        for duplicate_record in self.filtered:
+            for original_record, score in duplicate_record.duplicates:
+                buckets[_to_hashable(original_record)].append((duplicate_record.record, float(score)))
+
+        result: list[tuple[Record, list[tuple[Record, float]]]] = []
+        for selected in self.selected:
+            # Get the list of duplicates for the selected record
+            raw_list = buckets.get(_to_hashable(selected), [])
+            # Ensure we don't have duplicates in the list
+            deduped = {_to_hashable(rec): (rec, score) for rec, score in raw_list}
+            result.append((selected, list(deduped.values())))
+
+        return result
 
 
 @dataclass
