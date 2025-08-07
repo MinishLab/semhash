@@ -128,8 +128,15 @@ class DeduplicationResult(Generic[Record]):
             for original_record, score in duplicate_record.duplicates:
                 buckets[_to_hashable(original_record)].append((duplicate_record.record, float(score)))
 
-        # Assemble the final list in the same order as self.selected
-        return [(rec, buckets.get(_to_hashable(rec), [])) for rec in self.selected]
+        result: list[tuple[Record, list[tuple[Record, float]]]] = []
+        for selected in self.selected:
+            # Get the list of duplicates for the selected record
+            raw_list = buckets.get(_to_hashable(selected), [])
+            # Ensure we don't have duplicates in the list
+            deduped = {_to_hashable(rec): (rec, score) for rec, score in raw_list}
+            result.append((selected, list(deduped.values())))
+
+        return result
 
 
 @dataclass
