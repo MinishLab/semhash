@@ -150,3 +150,18 @@ def test_selected_with_duplicates_dicts() -> None:
     kept, dups = pairs[0]
     assert kept == selected
     assert {r["id"] for r, _ in dups} == {1, 2}
+
+
+def test_selected_with_duplicates_unhashable_values() -> None:
+    """Test selected_with_duplicates with unhashable values in records."""
+    selected = {"a": [1, 2, 3]}  # list -> unhashable value
+    filtered = {"a": [1, 2, 3], "flag": True}
+
+    d = DeduplicationResult(
+        selected=[selected],
+        filtered=[DuplicateRecord(filtered, exact=False, duplicates=[(selected, 1.0)])],
+        threshold=0.8,
+    )
+
+    pairs = d.selected_with_duplicates
+    assert pairs == [(selected, [(filtered, 1.0)])]

@@ -11,8 +11,8 @@ from vicinity import Backend
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult, Record
 from semhash.index import Index
-from semhash.records import add_scores_to_records, map_deduplication_result_to_strings, to_frozendict
-from semhash.utils import Encoder, compute_candidate_limit
+from semhash.records import add_scores_to_records, map_deduplication_result_to_strings
+from semhash.utils import Encoder, compute_candidate_limit, to_frozendict
 
 
 class SemHash(Generic[Record]):
