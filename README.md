@@ -264,6 +264,10 @@ least_similar = deduplication_result.get_least_similar_from_duplicates()
 
 # Rethreshold the duplicates. This allows you to instantly rethreshold the duplicates with a new threshold without having to re-deduplicate the texts.
 deduplication_result.rethreshold(0.95)
+
+# View selected records along with their duplicates.
+# This is the opposite of the `filtered` attribute, which shows for every duplicate the record that caused it.
+deduplication_result.selected_with_duplicates
 ```
 
 </details>
