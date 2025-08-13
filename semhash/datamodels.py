@@ -1,9 +1,10 @@
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Generic, Hashable, Sequence, TypeAlias, TypeVar
+from typing import Any, Generic, Hashable, Sequence, TypeVar
 
 from frozendict import frozendict
+from typing_extensions import TypeAlias
 
 from semhash.utils import to_frozendict
 
