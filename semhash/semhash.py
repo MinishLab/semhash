@@ -11,8 +11,8 @@ from vicinity import Backend
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult, Record
 from semhash.index import Index
-from semhash.records import add_scores_to_records, map_deduplication_result_to_strings, to_frozendict
-from semhash.utils import Encoder, compute_candidate_limit
+from semhash.records import add_scores_to_records, map_deduplication_result_to_strings
+from semhash.utils import Encoder, compute_candidate_limit, to_frozendict
 
 
 class SemHash(Generic[Record]):
@@ -190,7 +190,9 @@ class SemHash(Generic[Record]):
 
         # If no records are left after removing exact duplicates, return early
         if not dict_records:
-            return DeduplicationResult(deduplicated=[], duplicates=duplicate_records, threshold=threshold)
+            return DeduplicationResult(
+                deduplicated=[], duplicates=duplicate_records, threshold=threshold, columns=self.columns
+            )
 
         # Compute embeddings for the new records
         embeddings = self._featurize(records=dict_records, columns=self.columns, model=self.model)
@@ -212,7 +214,7 @@ class SemHash(Generic[Record]):
                 )
 
         result = DeduplicationResult(
-            deduplicated=deduplicated_records, duplicates=duplicate_records, threshold=threshold
+            deduplicated=deduplicated_records, duplicates=duplicate_records, threshold=threshold, columns=self.columns
         )
 
         if self._was_string:
@@ -281,7 +283,7 @@ class SemHash(Generic[Record]):
             seen_items.update(frozen_items)
 
         result = DeduplicationResult(
-            deduplicated=deduplicated_records, duplicates=duplicate_records, threshold=threshold
+            deduplicated=deduplicated_records, duplicates=duplicate_records, threshold=threshold, columns=self.columns
         )
 
         if self._was_string:

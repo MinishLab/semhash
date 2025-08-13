@@ -1,6 +1,7 @@
 from typing import Any, Protocol, Sequence, Union
 
 import numpy as np
+from frozendict import frozendict
 
 
 class Encoder(Protocol):
@@ -19,6 +20,11 @@ class Encoder(Protocol):
         :return: The embeddings of the sentences.
         """
         ...  # pragma: no cover
+
+
+def to_frozendict(record: dict[str, str], columns: set[str]) -> frozendict[str, str]:
+    """Convert a record to a frozendict."""
+    return frozendict({k: record.get(k, "") for k in columns})
 
 
 def compute_candidate_limit(
