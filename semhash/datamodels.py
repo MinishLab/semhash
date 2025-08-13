@@ -1,7 +1,7 @@
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Generic, Hashable, Sequence, TypeVar
+from typing import Any, Generic, Hashable, Optional, Sequence, TypeVar
 
 from frozendict import frozendict
 from typing_extensions import TypeAlias
@@ -69,7 +69,7 @@ class DeduplicationResult(Generic[Record]):
     selected: list[Record] = field(default_factory=list)
     filtered: list[DuplicateRecord] = field(default_factory=list)
     threshold: float = field(default=0.9)
-    columns: Sequence[str] | None = field(default=None)
+    columns: Optional[Sequence[str]] = field(default=None)
     deduplicated: list[Record] = field(default_factory=list)  # Deprecated
     duplicates: list[DuplicateRecord] = field(default_factory=list)  # Deprecated
 
