@@ -417,7 +417,7 @@ To run the benchmarks yourself, you can use the following command (assuming you 
 ```bash
 python -m benchmarks.run_benchmarks
 ```
-Optionally, the datasets can be updated in the [datasets.py](https://github.com/MinishLab/semhash/blob/main/benchmarks/datasets.py) file.
+Optionally, the datasets can be updated in the [data.py](https://github.com/MinishLab/semhash/blob/main/benchmarks/data.py) file.
 
 ## License
 
