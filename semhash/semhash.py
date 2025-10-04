@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from math import ceil
-from typing import Generic, Literal, Sequence
+from typing import Any, Generic, Literal, Sequence
 
 import numpy as np
 from frozendict import frozendict
@@ -102,7 +102,8 @@ class SemHash(Generic[Record]):
         columns: Sequence[str] | None = None,
         use_ann: bool = True,
         model: Encoder | None = None,
-        ann_backend: Backend = Backend.USEARCH,
+        ann_backend: Backend | str = Backend.USEARCH,
+        **kwargs: Any,
     ) -> SemHash:
         """
         Initialize a SemHash instance from records.
@@ -114,6 +115,7 @@ class SemHash(Generic[Record]):
         :param use_ann: Whether to use approximate nearest neighbors (True) or basic search (False). Default is True.
         :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
         :param ann_backend: (Optional) The ANN backend to use if use_ann is True. Defaults to Backend.USEARCH.
+        :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
         :return: A SemHash instance with a fitted vicinity index.
         :raises ValueError: If columns are not provided for dictionary records.
         """
@@ -158,6 +160,7 @@ class SemHash(Generic[Record]):
             vectors=embeddings,
             items=items,
             backend_type=backend,
+            **kwargs,
         )
 
         return cls(index=index, columns=columns, model=model, was_string=was_string)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 from vicinity import Backend
 from vicinity.backends import AbstractBackend, get_backend_class
@@ -27,17 +29,21 @@ class Index:
         self.vectors = vectors
 
     @classmethod
-    def from_vectors_and_items(cls, vectors: np.ndarray, items: list[DictItem], backend_type: Backend) -> Index:
+    def from_vectors_and_items(
+        cls, vectors: np.ndarray, items: list[DictItem], backend_type: Backend | str, **kwargs: Any
+    ) -> Index:
         """
         Load the index from vectors and items.
 
         :param vectors: The vectors of the items.
         :param items: The items in the index.
         :param backend_type: The type of backend to use.
+        :param **kwargs: Additional arguments to pass to the backend.
         :return: The index.
         """
         backend_class = get_backend_class(backend_type)
-        backend = backend_class.from_vectors(vectors)
+        arguments = backend_class.argument_class(**kwargs)
+        backend = backend_class.from_vectors(vectors, **arguments.dict())
 
         return cls(vectors, items, backend)
 
