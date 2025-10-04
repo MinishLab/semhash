@@ -102,6 +102,7 @@ class SemHash(Generic[Record]):
         columns: Sequence[str] | None = None,
         use_ann: bool = True,
         model: Encoder | None = None,
+        ann_backend: Backend = Backend.USEARCH,
     ) -> SemHash:
         """
         Initialize a SemHash instance from records.
@@ -112,6 +113,7 @@ class SemHash(Generic[Record]):
         :param columns: Columns to featurize if records are dictionaries.
         :param use_ann: Whether to use approximate nearest neighbors (True) or basic search (False). Default is True.
         :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
+        :param ann_backend: (Optional) The ANN backend to use if use_ann is True. Defaults to Backend.USEARCH.
         :return: A SemHash instance with a fitted vicinity index.
         :raises ValueError: If columns are not provided for dictionary records.
         """
@@ -151,7 +153,7 @@ class SemHash(Generic[Record]):
         embeddings = cls._featurize(deduplicated_records, columns, model)
 
         # Build the Vicinity index
-        backend = Backend.USEARCH if use_ann else Backend.BASIC
+        backend = ann_backend if use_ann else Backend.BASIC
         index = Index.from_vectors_and_items(
             vectors=embeddings,
             items=items,
