@@ -325,7 +325,7 @@ deduplicated_texts = semhash.self_deduplicate()
 <summary>  Using custom ANN backends </summary>
 <br>
 
-The following code snippet shows how to use a custom ANN backend with SemHash:
+The following code snippet shows how to use a custom ANN backend and custom args with SemHash:
 
 ```python
 from datasets import load_dataset
@@ -335,14 +335,14 @@ from vicinity import Backend
 # Load a dataset to deduplicate
 texts = load_dataset("ag_news", split="train")["text"]
 
-# Initialize a SemHash with the model and custom ann backend
-semhash = SemHash.from_records(records=texts, ann_backend=Backend.FAISS)
+# Initialize a SemHash with the model and custom ann backend and custom args
+semhash = SemHash.from_records(records=texts, ann_backend=Backend.FAISS, nlist=50)
 
 # Deduplicate the texts
 deduplicated_texts = semhash.self_deduplicate()
 ```
 
-For the full list of supported ANN backends, see the [Vicinity docs](https://github.com/MinishLab/vicinity/tree/main?tab=readme-ov-file#supported-backends).
+For the full list of supported ANN backends and args, see the [Vicinity docs](https://github.com/MinishLab/vicinity/tree/main?tab=readme-ov-file#supported-backends).
 
 </details>
 
