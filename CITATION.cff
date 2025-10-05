@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use SemHash in your research, please cite it as below."
+title: "SemHash: Fast Semantic Text Deduplication & Filtering"
+authors:
+  - family-names: "van Dongen"
+    given-names: "Thomas"
+  - family-names: "Tulkens"
+    given-names: "Stephan"
+doi: 10.5281/zenodo.17265942
+license: MIT
+url: "https://github.com/MinishLab/semhash"
+repository-code: "https://github.com/MinishLab/semhash"
+date-released: "2025-01-05"
+
+preferred-citation:
+  type: software
+  title: "SemHash: Fast Semantic Text Deduplication & Filtering"
+  authors:
+    - family-names: "van Dongen"
+      given-names: "Thomas"
+    - family-names: "Tulkens"
+      given-names: "Stephan"
+  year: 2025
+  publisher: Zenodo
+  doi: 10.5281/zenodo.17265942
+  url: "https://github.com/MinishLab/semhash"
+  license: MIT
