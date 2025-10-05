@@ -457,9 +457,12 @@ MIT
 If you use SemHash in your research, please cite the following:
 ```bibtex
 @software{minishlab2025semhash,
-  author = {Thomas van Dongen and Stephan Tulkens},
-  title = {SemHash: Fast Semantic Text Deduplication & Filtering},
-  year = {2025},
-  url = {https://github.com/MinishLab/semhash}
+  author       = {{van Dongen}, Thomas and Stephan Tulkens},
+  title        = {SemHash: Fast Semantic Text Deduplication \& Filtering},
+  year         = {2025},
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.17265942},
+  url          = {https://github.com/MinishLab/semhash},
+  license      = {MIT}
 }
 ```
