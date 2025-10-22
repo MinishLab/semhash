@@ -134,29 +134,34 @@ class DeduplicationResult(Generic[Record]):
         """
         For every kept record, return the duplicates that were removed along with their similarity scores.
 
-        :return: A list of tuples where each tuple contains a kept record
-                and a list of its duplicates with their similarity scores.
+        :return: A list of SelectedWithDuplicates where each entry contains a kept record
+                 and a list of its duplicates with their similarity scores.
         """
 
         def _to_hashable(record: Record) -> frozendict[str, str] | str:
-            """Convert a record to a hashable representation."""
+            """Convert a record to a hashable representation for matching by dedupe-columns."""
             if isinstance(record, dict) and self.columns is not None:
                 # Convert dict to frozendict for immutability and hashability
                 return to_frozendict(record, set(self.columns))
             return str(record)
 
-        # Build a mapping from original-record  to  [(duplicate, score), …]
+        # Build a mapping from kept/original-record -> [(duplicate, score), …]
+        # Key MUST be the kept/original record (duplicate_record.record) so lookups
+        # by self.selected match correctly.
         buckets: defaultdict[Hashable, DuplicateList] = defaultdict(list)
         for duplicate_record in self.filtered:
-            for original_record, score in duplicate_record.duplicates:
-                buckets[_to_hashable(original_record)].append((duplicate_record.record, float(score)))
+            key = _to_hashable(duplicate_record.record)
+            for dup_rec, score in duplicate_record.duplicates:
+                buckets[key].append((dup_rec, float(score)))
 
         result: list[SelectedWithDuplicates[Record]] = []
         for selected in self.selected:
             # Get the list of duplicates for the selected record
             raw_list = buckets.get(_to_hashable(selected), [])
-            # Ensure we don't have duplicates in the list
-            deduped = {_to_hashable(rec): (rec, score) for rec, score in raw_list}
+            # Deduplicate the duplicates list but preserve physically distinct records.
+            # Use repr(rec) so different dicts (e.g., same 'name' but different 'idx')
+            # are not collapsed when deduping.
+            deduped = {repr(rec): (rec, score) for rec, score in raw_list}
             result.append(SelectedWithDuplicates(record=selected, duplicates=list(deduped.values())))
 
         return result
