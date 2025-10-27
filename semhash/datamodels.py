@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -156,7 +157,15 @@ class DeduplicationResult(Generic[Record]):
             # Get the list of duplicates for the selected record
             raw_list = buckets.get(_to_hashable(selected), [])
             # Ensure we don't have duplicates in the list
-            deduped = {_to_hashable(rec): (rec, score) for rec, score in raw_list}
+            # Use full-record canonical JSON for dicts so that unhashable values are handled correctly
+            deduped = {
+                (
+                    json.dumps(rec, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+                    if isinstance(rec, dict)
+                    else rec
+                ): (rec, score)
+                for rec, score in raw_list
+            }
             result.append(SelectedWithDuplicates(record=selected, duplicates=list(deduped.values())))
 
         return result
