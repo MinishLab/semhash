@@ -219,3 +219,48 @@ def test_selected_with_duplicates_removes_internal_duplicates() -> None:
     # The duplicate row must appear only once
     assert len(duplicate_list) == 1
     assert duplicate_list[0][0] == filtered
+
+
+def test_selected_with_duplicates_caching() -> None:
+    """Test that selected_with_duplicates is properly cached."""
+    d = DeduplicationResult(
+        selected=["original"],
+        filtered=[
+            DuplicateRecord("duplicate_1", False, [("original", 0.9)]),
+            DuplicateRecord("duplicate_2", False, [("original", 0.8)]),
+        ],
+        threshold=0.8,
+    )
+
+    # First access should compute and cache
+    result1 = d.selected_with_duplicates
+    # Second access should return the cached result (same object)
+    result2 = d.selected_with_duplicates
+    assert result1 is result2
+
+
+def test_selected_with_duplicates_cache_invalidation_on_rethreshold() -> None:
+    """Test that rethreshold invalidates the selected_with_duplicates cache."""
+    d = DeduplicationResult(
+        selected=["original"],
+        filtered=[
+            DuplicateRecord("duplicate_1", False, [("original", 0.9)]),
+            DuplicateRecord("duplicate_2", False, [("original", 0.8)]),
+            DuplicateRecord("duplicate_3", False, [("original", 0.7)]),
+        ],
+        threshold=0.7,
+    )
+
+    # Access before rethreshold
+    result1 = d.selected_with_duplicates
+    assert len(result1[0].duplicates) == 3
+
+    # Rethreshold should invalidate cache
+    d.rethreshold(0.85)
+
+    # Access after rethreshold should give new result
+    result2 = d.selected_with_duplicates
+    assert len(result2[0].duplicates) == 1
+    assert result2[0].duplicates[0][0] == "duplicate_1"
+    # Results should be different objects
+    assert result1 is not result2
