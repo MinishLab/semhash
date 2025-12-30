@@ -126,7 +126,7 @@ class DeduplicationResult(Generic[Record]):
             raise ValueError("Threshold is smaller than the given value.")
         # Invalidate cached property before modifying data
         self.__dict__.pop("selected_with_duplicates", None)
-        # Iterate over a copy to safely modify the list during iteration
+        # Rethreshold duplicates and move records without duplicates to selected
         for dup in list(self.filtered):
             dup._rethreshold(threshold)
             if not dup.duplicates:
