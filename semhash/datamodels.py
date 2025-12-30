@@ -125,7 +125,7 @@ class DeduplicationResult(Generic[Record]):
         if self.threshold > threshold:
             raise ValueError("Threshold is smaller than the given value.")
         # Invalidate cached property before modifying data
-        self.__dict__.pop("_selected_with_duplicates_cache", None)
+        self.__dict__.pop("selected_with_duplicates", None)
         # Iterate over a copy to safely modify the list during iteration
         for dup in list(self.filtered):
             dup._rethreshold(threshold)
@@ -135,8 +135,13 @@ class DeduplicationResult(Generic[Record]):
         self.threshold = threshold
 
     @functools.cached_property
-    def _selected_with_duplicates_cache(self) -> list[SelectedWithDuplicates[Record]]:
-        """Cached computation of selected_with_duplicates."""
+    def selected_with_duplicates(self) -> list[SelectedWithDuplicates[Record]]:
+        """
+        For every kept record, return the duplicates that were removed along with their similarity scores.
+
+        :return: A list of tuples where each tuple contains a kept record
+                and a list of its duplicates with their similarity scores.
+        """
 
         def _to_hashable(record: Record) -> frozendict[str, str] | str:
             """Convert a record to a hashable representation."""
@@ -168,16 +173,6 @@ class DeduplicationResult(Generic[Record]):
             result.append(SelectedWithDuplicates(record=selected, duplicates=list(deduped.values())))
 
         return result
-
-    @property
-    def selected_with_duplicates(self) -> list[SelectedWithDuplicates[Record]]:
-        """
-        For every kept record, return the duplicates that were removed along with their similarity scores.
-
-        :return: A list of tuples where each tuple contains a kept record
-                and a list of its duplicates with their similarity scores.
-        """
-        return self._selected_with_duplicates_cache
 
 
 @dataclass
