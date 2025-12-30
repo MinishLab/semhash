@@ -125,8 +125,7 @@ class DeduplicationResult(Generic[Record]):
         if self.threshold > threshold:
             raise ValueError("Threshold is smaller than the given value.")
         # Invalidate cached property before modifying data
-        if hasattr(self, "_selected_with_duplicates_cache"):
-            delattr(self, "_selected_with_duplicates_cache")
+        self.__dict__.pop("_selected_with_duplicates_cache", None)
         # Iterate over a copy to safely modify the list during iteration
         for dup in list(self.filtered):
             dup._rethreshold(threshold)
