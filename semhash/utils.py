@@ -1,4 +1,5 @@
-from typing import Any, Protocol, Sequence, Union
+from collections.abc import Sequence
+from typing import Any, Protocol
 
 import numpy as np
 from frozendict import frozendict
@@ -9,7 +10,7 @@ class Encoder(Protocol):
 
     def encode(
         self,
-        sentences: Union[list[str], str, Sequence[str]],
+        sentences: list[str] | str | Sequence[str],
         **kwargs: Any,
     ) -> np.ndarray:
         """

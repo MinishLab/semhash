@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
 from math import ceil
-from typing import Any, Generic, Literal, Sequence
+from typing import Any, Generic, Literal
 
 import numpy as np
 from frozendict import frozendict
