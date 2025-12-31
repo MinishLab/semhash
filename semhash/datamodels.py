@@ -5,6 +5,7 @@ import warnings
 from collections import defaultdict
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Any, Generic, TypeAlias, TypeVar
 
 from frozendict import frozendict
@@ -123,14 +124,17 @@ class DeduplicationResult(Generic[Record]):
         """Rethreshold the duplicates."""
         if self.threshold > threshold:
             raise ValueError("Threshold is smaller than the given value.")
-        for dup in self.filtered:
+        # Invalidate cached property before modifying data
+        self.__dict__.pop("selected_with_duplicates", None)
+        # Rethreshold duplicates and move records without duplicates to selected
+        for dup in list(self.filtered):
             dup._rethreshold(threshold)
             if not dup.duplicates:
                 self.filtered.remove(dup)
                 self.selected.append(dup.record)
         self.threshold = threshold
 
-    @property
+    @cached_property
     def selected_with_duplicates(self) -> list[SelectedWithDuplicates[Record]]:
         """
         For every kept record, return the duplicates that were removed along with their similarity scores.

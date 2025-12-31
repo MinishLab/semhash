@@ -124,11 +124,45 @@ filtered_texts = semhash.self_filter_outliers().selected
 representative_texts = semhash.self_find_representative().selected
 ```
 
-The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#L30). This object stores the deduplicated corpus, a set of duplicate object (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result. Examples of how these functions can be used can be found in the [usage](#usage) section.
+The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#L58). This object stores the deduplicated corpus, a set of duplicate object (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result.
 
-The `filter_outliers`, `self_filter_outliers`, `find_representative`, and `self_find_representative` functions return a [FilterResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#106). This object stores the found outliers/representative samples.
+The `filter_outliers`, `self_filter_outliers`, `find_representative`, and `self_find_representative` functions return a [FilterResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#179). This object stores the found outliers/representative samples.
 
 For both the `DeduplicationResult` and `FilterResult` objects, you can easily view the filtered records with the `selected` attribute (e.g. to view outliers: `outliers = semhash.self_filter_outliers().filtered`)
+
+### Inspecting Deduplication Results
+
+The `DeduplicationResult` object provides powerful tools for understanding and refining your deduplication:
+
+```python
+from datasets import load_dataset
+from semhash import SemHash
+
+# Load and deduplicate a dataset
+texts = load_dataset("ag_news", split="train")["text"]
+semhash = SemHash.from_records(records=texts)
+result = semhash.self_deduplicate()
+
+# Access deduplicated and duplicate records
+deduplicated_texts = result.selected
+duplicate_texts = result.filtered
+
+# View deduplication statistics
+print(f"Duplicate ratio: {result.duplicate_ratio}")
+print(f"Exact duplicate ratio: {result.exact_duplicate_ratio}")
+
+# Find edge cases to tune your threshold
+least_similar = result.get_least_similar_from_duplicates(n=5)
+
+# Adjust threshold without re-deduplicating
+result.rethreshold(0.95)
+
+# View each kept record with its duplicate cluster
+for item in result.selected_with_duplicates:
+    print(f"Kept: {item.record}")
+    print(f"Duplicates: {item.duplicates}")  # List of (duplicate_text, similarity_score)
+```
+
 ## Main Features
 
 - **Fast**: SemHash uses [model2vec](https://github.com/MinishLab/model2vec) to embed texts and [vicinity](https://github.com/MinishLab/vicinity) to perform similarity search, making it extremely fast.
@@ -227,47 +261,6 @@ filtered_records = semhash.self_filter_outliers().selected
 
 # Find representative samples in the records
 representative_records = semhash.self_find_representative().selected
-```
-
-</details>
-
-<details>
-<summary>  DeduplicationResult functionality </summary>
-<br>
-
-The `DeduplicationResult` object returned by the `deduplicate` and `self_deduplicate` functions contains several useful functions to inspect the deduplication result. The following code snippet shows how to use these functions:
-
-```python
-from datasets import load_dataset
-from semhash import SemHash
-
-# Load a dataset to deduplicate
-texts = load_dataset("ag_news", split="train")["text"]
-
-# Initialize a SemHash instance
-semhash = SemHash.from_records(records=texts)
-
-# Deduplicate the texts
-deduplication_result = semhash.self_deduplicate()
-
-# Check the deduplicated texts
-deduplication_result.selected
-# Check the duplicates
-deduplication_result.filtered
-# See what percentage of the texts were duplicates
-deduplication_result.duplicate_ratio
-# See what percentage of the texts were exact duplicates
-deduplication_result.exact_duplicate_ratio
-
-# Get the least similar text from the duplicates. This is useful for finding the right threshold for deduplication.
-least_similar = deduplication_result.get_least_similar_from_duplicates()
-
-# Rethreshold the duplicates. This allows you to instantly rethreshold the duplicates with a new threshold without having to re-deduplicate the texts.
-deduplication_result.rethreshold(0.95)
-
-# View selected records along with their duplicates.
-# This is the opposite of the `filtered` attribute, which shows for every duplicate the record that caused it.
-deduplication_result.selected_with_duplicates
 ```
 
 </details>
