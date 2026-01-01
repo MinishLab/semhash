@@ -321,23 +321,6 @@ class SemHash(Generic[Record]):
             raise ValueError("Records must be either strings or dictionaries.")
         return dict_records
 
-    @staticmethod
-    def _handle_diversity_param(lambda_param: float | None, diversity: float | None) -> float:
-        """Handle deprecated lambda_param and new diversity parameter."""
-        if lambda_param is not None and diversity is not None:
-            raise ValueError("Cannot specify both 'lambda_param' (deprecated) and 'diversity'. Use 'diversity' only.")
-
-        if lambda_param is not None:
-            warnings.warn(
-                "'lambda_param' is deprecated and will be removed in a future release. "
-                "Use 'diversity' instead. Note: diversity = 1.0 - lambda_param",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            return 1.0 - lambda_param
-
-        return diversity if diversity is not None else 0.5
-
     def find_representative(
         self,
         records: Sequence[Record],
@@ -348,29 +331,32 @@ class SemHash(Generic[Record]):
         strategy: Strategy | str = Strategy.MMR,
     ) -> FilterResult:
         """
-        Find representative samples from a given set of records against the fitted index.
-
-        First, the records are ranked using average similarity.
-        Then, the top candidates are re-ranked using a diversification strategy
-        to select a diverse set of representatives.
+        Find representative samples from records using diversification.
 
         :param records: The records to rank and select representatives from.
         :param selection_size: Number of representatives to select.
-        :param candidate_limit: Number of top candidates to consider for diversification reranking.
-            Defaults to "auto", which calculates the limit based on the total number of records.
-        :param lambda_param: (Deprecated) Trade-off parameter between relevance (1.0) and diversity (0.0).
-            Use 'diversity' parameter instead. Must be between 0 and 1.
-        :param diversity: Trade-off parameter between diversity (1.0) and relevance (0.0).
-            Must be between 0 and 1. Default is 0.5.
-        :param strategy: Diversification strategy to use. Default is Strategy.MMR.
-            Supported strategies: MMR, MSD, DPP, COVER, SSD.
+        :param candidate_limit: Number of top candidates to consider. Defaults to "auto".
+        :param lambda_param: (Deprecated) Use 'diversity' instead. Note: diversity = 1.0 - lambda_param
+        :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
+        :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
         :return: A FilterResult with the diversified candidates.
+        :raises ValueError: If both lambda_param and diversity are provided.
         """
-        diversity_value = self._handle_diversity_param(lambda_param, diversity)
+        if lambda_param is not None and diversity is not None:
+            raise ValueError("Cannot specify both 'lambda_param' (deprecated) and 'diversity'. Use 'diversity' only.")
+        if lambda_param is not None:
+            warnings.warn(
+                "'lambda_param' is deprecated. Use 'diversity' instead (diversity = 1.0 - lambda_param)",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            diversity = 1.0 - lambda_param
+        diversity = diversity if diversity is not None else 0.5
+
         ranking = self._rank_by_average_similarity(records)
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
-        return self._diversify(ranking, candidate_limit, selection_size, diversity_value, strategy)
+        return self._diversify(ranking, candidate_limit, selection_size, diversity, strategy)
 
     def self_find_representative(
         self,
@@ -381,28 +367,31 @@ class SemHash(Generic[Record]):
         strategy: Strategy | str = Strategy.MMR,
     ) -> FilterResult:
         """
-        Find representative samples from the fitted dataset.
-
-        First, the rank the records are ranked using average similarity.
-        Then, the top candidates are re-ranked using a diversification strategy
-        to select a diverse set of representatives.
+        Find representative samples from the fitted dataset using diversification.
 
         :param selection_size: Number of representatives to select.
-        :param candidate_limit: Number of top candidates to consider for diversification reranking.
-            Defaults to "auto", which calculates the limit based on the total number of records.
-        :param lambda_param: (Deprecated) Trade-off parameter between relevance (1.0) and diversity (0.0).
-            Use 'diversity' parameter instead. Must be between 0 and 1.
-        :param diversity: Trade-off parameter between diversity (1.0) and relevance (0.0).
-            Must be between 0 and 1. Default is 0.5.
-        :param strategy: Diversification strategy to use. Default is Strategy.MMR.
-            Supported strategies: MMR, MSD, DPP, COVER, SSD.
+        :param candidate_limit: Number of top candidates to consider. Defaults to "auto".
+        :param lambda_param: (Deprecated) Use 'diversity' instead. Note: diversity = 1.0 - lambda_param
+        :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
+        :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
         :return: A FilterResult with the diversified representatives.
+        :raises ValueError: If both lambda_param and diversity are provided.
         """
-        diversity_value = self._handle_diversity_param(lambda_param, diversity)
+        if lambda_param is not None and diversity is not None:
+            raise ValueError("Cannot specify both 'lambda_param' (deprecated) and 'diversity'. Use 'diversity' only.")
+        if lambda_param is not None:
+            warnings.warn(
+                "'lambda_param' is deprecated. Use 'diversity' instead (diversity = 1.0 - lambda_param)",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            diversity = 1.0 - lambda_param
+        diversity = diversity if diversity is not None else 0.5
+
         ranking = self._self_rank_by_average_similarity()
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
-        return self._diversify(ranking, candidate_limit, selection_size, diversity_value, strategy)
+        return self._diversify(ranking, candidate_limit, selection_size, diversity, strategy)
 
     def filter_outliers(
         self,
@@ -546,47 +535,26 @@ class SemHash(Generic[Record]):
         diversity: float,
         strategy: Strategy | str = Strategy.MMR,
     ) -> FilterResult:
-        """
-        Perform diversification re-ranking on the top candidates from a FilterResult.
+        """Diversify top candidates using the specified strategy."""
+        candidates = ranked_results.selected[:candidate_limit]
+        relevance = ranked_results.scores_selected[:candidate_limit]
 
-        :param ranked_results: A FilterResult containing the ranking of records.
-        :param candidate_limit: Number of top candidates to consider from the ranking.
-        :param selection_size: Number of final candidates to select.
-        :param diversity: Trade-off parameter between diversity (1.0) and relevance (0.0).
-        :param strategy: Diversification strategy to use (MMR, MSD, DPP, COVER, SSD).
-        :return: A FilterResult containing the selected (diversified) representatives.
-        """
-        # Slice the top candidates from the ranking
-        candidate_records = ranked_results.selected[:candidate_limit]
-        candidate_relevance = ranked_results.scores_selected[:candidate_limit]
-
-        if not candidate_records:
+        if not candidates:
             return FilterResult(selected=[], filtered=[], scores_selected=[], scores_filtered=[])
 
-        # Compute embeddings for candidate records
-        embeddings = self._featurize(records=candidate_records, columns=self.columns, model=self.model)
-
-        # Diversify the candidates using the specified strategy
+        embeddings = self._featurize(records=candidates, columns=self.columns, model=self.model)
         result = diversify(
             embeddings=embeddings,
-            scores=np.array(candidate_relevance),
+            scores=np.array(relevance),
             k=selection_size,
             strategy=strategy,
             diversity=diversity,
         )
 
-        # Extract selected records and their scores
-        selected_records = [candidate_records[i] for i in result.indices]
-        selected_scores = result.selection_scores.tolist()
-
-        # Extract filtered records and their scores
-        selected_indices_set = set(result.indices)
-        filtered_records = [rec for i, rec in enumerate(candidate_records) if i not in selected_indices_set]
-        filtered_scores = [score for i, score in enumerate(candidate_relevance) if i not in selected_indices_set]
-
+        selected_set = set(result.indices)
         return FilterResult(
-            selected=selected_records,
-            filtered=filtered_records,
-            scores_selected=selected_scores,
-            scores_filtered=filtered_scores,
+            selected=[candidates[i] for i in result.indices],
+            filtered=[rec for i, rec in enumerate(candidates) if i not in selected_set],
+            scores_selected=result.selection_scores.tolist(),
+            scores_filtered=[score for i, score in enumerate(relevance) if i not in selected_set],
         )
