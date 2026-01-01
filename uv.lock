@@ -799,6 +799,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pyversity"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fd/ff/618cc92a724fbd6e297aaebe3f9f11cc1b9195e86f887603090bb0ff581d/pyversity-0.1.1.tar.gz", hash = "sha256:a7c2526b0f29fa460dd7ac98c56e4ccdd2f8101344e34a8c9ba3c736f7e3c761", size = 24638, upload-time = "2025-11-17T07:46:16.668Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/34/5db1e268914005e43f8003280c66716ae6d02ab40775494ac1ed42bb9b49/pyversity-0.1.1-py3-none-any.whl", hash = "sha256:f408b4f279695083838878869b8cd96e9206fb5bd70c8921db21c14a9bca5a36", size = 20530, upload-time = "2025-11-17T07:46:15.733Z" },
+]
+
+[[package]]
 name = "pyyaml"
 version = "6.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -963,6 +975,7 @@ source = { editable = "." }
 dependencies = [
     { name = "frozendict" },
     { name = "model2vec" },
+    { name = "pyversity" },
     { name = "vicinity", extra = ["usearch"] },
 ]
 
@@ -987,6 +1000,7 @@ requires-dist = [
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-coverage", marker = "extra == 'dev'" },
+    { name = "pyversity" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "vicinity", extras = ["usearch"], specifier = ">=0.4.3" },
 ]

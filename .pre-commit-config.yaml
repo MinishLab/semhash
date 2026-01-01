@@ -29,6 +29,9 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: mypy
-        language: python
+        entry: .venv/bin/mypy
+        language: system
         types: [python]
+        require_serial: true
+        pass_filenames: false
+        args: ['semhash/']

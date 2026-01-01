@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from collections import defaultdict
 from collections.abc import Sequence
 from math import ceil
@@ -8,6 +9,7 @@ from typing import Any, Generic, Literal
 import numpy as np
 from frozendict import frozendict
 from model2vec import StaticModel
+from pyversity import Strategy, diversify
 from vicinity import Backend
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult, Record
@@ -319,55 +321,88 @@ class SemHash(Generic[Record]):
             raise ValueError("Records must be either strings or dictionaries.")
         return dict_records
 
+    @staticmethod
+    def _handle_diversity_param(lambda_param: float | None, diversity: float | None) -> float:
+        """Handle deprecated lambda_param and new diversity parameter."""
+        if lambda_param is not None and diversity is not None:
+            raise ValueError("Cannot specify both 'lambda_param' (deprecated) and 'diversity'. Use 'diversity' only.")
+
+        if lambda_param is not None:
+            warnings.warn(
+                "'lambda_param' is deprecated and will be removed in a future release. "
+                "Use 'diversity' instead. Note: diversity = 1.0 - lambda_param",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            return 1.0 - lambda_param
+
+        return diversity if diversity is not None else 0.5
+
     def find_representative(
         self,
         records: Sequence[Record],
         selection_size: int = 10,
         candidate_limit: int | Literal["auto"] = "auto",
-        lambda_param: float = 0.5,
+        lambda_param: float | None = None,
+        diversity: float | None = None,
+        strategy: Strategy | str = Strategy.MMR,
     ) -> FilterResult:
         """
         Find representative samples from a given set of records against the fitted index.
 
         First, the records are ranked using average similarity.
-        Then, the top candidates are re-ranked using Maximal Marginal Relevance (MMR)
+        Then, the top candidates are re-ranked using a diversification strategy
         to select a diverse set of representatives.
 
         :param records: The records to rank and select representatives from.
         :param selection_size: Number of representatives to select.
-        :param candidate_limit: Number of top candidates to consider for MMR reranking.
+        :param candidate_limit: Number of top candidates to consider for diversification reranking.
             Defaults to "auto", which calculates the limit based on the total number of records.
-        :param lambda_param: Trade-off parameter between relevance (1.0) and diversity (0.0). Must be between 0 and 1.
+        :param lambda_param: (Deprecated) Trade-off parameter between relevance (1.0) and diversity (0.0).
+            Use 'diversity' parameter instead. Must be between 0 and 1.
+        :param diversity: Trade-off parameter between diversity (1.0) and relevance (0.0).
+            Must be between 0 and 1. Default is 0.5.
+        :param strategy: Diversification strategy to use. Default is Strategy.MMR.
+            Supported strategies: MMR, MSD, DPP, COVER, SSD.
         :return: A FilterResult with the diversified candidates.
         """
+        diversity_value = self._handle_diversity_param(lambda_param, diversity)
         ranking = self._rank_by_average_similarity(records)
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
-        return self._mmr(ranking, candidate_limit, selection_size, lambda_param)
+        return self._diversify(ranking, candidate_limit, selection_size, diversity_value, strategy)
 
     def self_find_representative(
         self,
         selection_size: int = 10,
         candidate_limit: int | Literal["auto"] = "auto",
-        lambda_param: float = 0.5,
+        lambda_param: float | None = None,
+        diversity: float | None = None,
+        strategy: Strategy | str = Strategy.MMR,
     ) -> FilterResult:
         """
         Find representative samples from the fitted dataset.
 
         First, the rank the records are ranked using average similarity.
-        Then, the top candidates are re-ranked using Maximal Marginal Relevance (MMR)
+        Then, the top candidates are re-ranked using a diversification strategy
         to select a diverse set of representatives.
 
         :param selection_size: Number of representatives to select.
-        :param candidate_limit: Number of top candidates to consider for MMR reranking.
+        :param candidate_limit: Number of top candidates to consider for diversification reranking.
             Defaults to "auto", which calculates the limit based on the total number of records.
-        :param lambda_param: Trade-off parameter between relevance (1.0) and diversity (0.0). Must be between 0 and 1.
+        :param lambda_param: (Deprecated) Trade-off parameter between relevance (1.0) and diversity (0.0).
+            Use 'diversity' parameter instead. Must be between 0 and 1.
+        :param diversity: Trade-off parameter between diversity (1.0) and relevance (0.0).
+            Must be between 0 and 1. Default is 0.5.
+        :param strategy: Diversification strategy to use. Default is Strategy.MMR.
+            Supported strategies: MMR, MSD, DPP, COVER, SSD.
         :return: A FilterResult with the diversified representatives.
         """
+        diversity_value = self._handle_diversity_param(lambda_param, diversity)
         ranking = self._self_rank_by_average_similarity()
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
-        return self._mmr(ranking, candidate_limit, selection_size, lambda_param)
+        return self._diversify(ranking, candidate_limit, selection_size, diversity_value, strategy)
 
     def filter_outliers(
         self,
@@ -503,86 +538,51 @@ class SemHash(Generic[Record]):
         self._ranking_cache = ranking
         return ranking
 
-    def _mmr(
+    def _diversify(
         self,
         ranked_results: FilterResult,
         candidate_limit: int,
         selection_size: int,
-        lambda_param: float,
+        diversity: float,
+        strategy: Strategy | str = Strategy.MMR,
     ) -> FilterResult:
         """
-        Perform Maximal Marginal Relevance (MMR) re-ranking on the top candidates from a FilterResult.
-
-        This function first slices the ranking, then computes embeddings for the candidates,
-        normalizes them, and finally performs MMR re-ranking to obtain a diverse subset of representatives.
+        Perform diversification re-ranking on the top candidates from a FilterResult.
 
         :param ranked_results: A FilterResult containing the ranking of records.
         :param candidate_limit: Number of top candidates to consider from the ranking.
-        :param selection_size: Number of final candidates to select using MMR.
-        :param lambda_param: Weight balancing relevance and diversity (between 0 and 1).
-        :return: A FilterResult containing the selected (diversified) representatives along with
-                their MMR scores in `scores_selected`. The remaining candidates are placed in filtered.
-        :raises ValueError: If lambda_param is not between 0 and 1.
+        :param selection_size: Number of final candidates to select.
+        :param diversity: Trade-off parameter between diversity (1.0) and relevance (0.0).
+        :param strategy: Diversification strategy to use (MMR, MSD, DPP, COVER, SSD).
+        :return: A FilterResult containing the selected (diversified) representatives.
         """
-        if not (0.0 <= lambda_param <= 1.0):
-            raise ValueError("lambda_param must be between 0 and 1")
-
-        # Slice the top candidates from the ranking.
+        # Slice the top candidates from the ranking
         candidate_records = ranked_results.selected[:candidate_limit]
         candidate_relevance = ranked_results.scores_selected[:candidate_limit]
 
-        # Compute embeddings for candidate records.
-        embeddings = self._featurize(records=candidate_records, columns=self.columns, model=self.model)
-
-        # Normalize embeddings for cosine similarity.
-        normalized_embeddings = embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-16)
-
-        # Package candidates as tuples: (record, baseline_relevance, normalized_embedding)
-        candidates = [
-            (record, relevance, normalized_embedding)
-            for record, relevance, normalized_embedding in zip(
-                candidate_records, candidate_relevance, normalized_embeddings
-            )
-        ]
-
-        # If no candidates, return empty result.
-        if not candidates:
+        if not candidate_records:
             return FilterResult(selected=[], filtered=[], scores_selected=[], scores_filtered=[])
 
-        # Initialize selected set with the most relevant candidate.
-        first_record, first_relevance, first_embedding = candidates[0]
-        selected_records = [first_record]
-        selected_scores = [first_relevance]
-        selected_embeddings = [first_embedding]
-        remaining_candidates = candidates[1:]
+        # Compute embeddings for candidate records
+        embeddings = self._featurize(records=candidate_records, columns=self.columns, model=self.model)
 
-        # Iteratively select candidates using the MMR criterion.
-        while remaining_candidates and len(selected_records) < selection_size:
-            # Build arrays for the remaining candidates.
-            embeddings_remaining = np.vstack([emb for (_, _, emb) in remaining_candidates])
-            relevances_remaining = np.array([rel for (_, rel, _) in remaining_candidates])
+        # Diversify the candidates using the specified strategy
+        result = diversify(
+            embeddings=embeddings,
+            scores=np.array(candidate_relevance),
+            k=selection_size,
+            strategy=strategy,
+            diversity=diversity,
+        )
 
-            # Build array of embeddings for the already selected set.
-            embeddings_selected = np.vstack(selected_embeddings)
+        # Extract selected records and their scores
+        selected_records = [candidate_records[i] for i in result.indices]
+        selected_scores = result.selection_scores.tolist()
 
-            # Compute cosine similarities between selected and remaining candidates.
-            similarity_matrix = embeddings_remaining.dot(embeddings_selected.T)
-            max_similarity = similarity_matrix.max(axis=1)
-
-            # Compute MMR scores for all remaining candidates.
-            mmr_scores = lambda_param * relevances_remaining - (1.0 - lambda_param) * max_similarity
-
-            # Choose the candidate with the highest MMR score.
-            best_index = int(np.argmax(mmr_scores))
-            record, _, embedding = remaining_candidates.pop(best_index)
-
-            selected_records.append(record)
-            selected_scores.append(mmr_scores[best_index])
-            selected_embeddings.append(embedding)
-
-        # Whatever is left in remaining_candidates is filtered out.
-        filtered_records = [rec for (rec, _, _) in remaining_candidates]
-        filtered_scores = [rel for (_, rel, _) in remaining_candidates]
+        # Extract filtered records and their scores
+        selected_indices_set = set(result.indices)
+        filtered_records = [rec for i, rec in enumerate(candidate_records) if i not in selected_indices_set]
+        filtered_scores = [score for i, score in enumerate(candidate_relevance) if i not in selected_indices_set]
 
         return FilterResult(
             selected=selected_records,
