@@ -321,6 +321,20 @@ class SemHash(Generic[Record]):
             raise ValueError("Records must be either strings or dictionaries.")
         return dict_records
 
+    @staticmethod
+    def _handle_diversity_param(lambda_param: float | None, diversity: float | None) -> float:
+        """Handle deprecated lambda_param parameter and convert to diversity."""
+        if lambda_param is not None and diversity is not None:
+            raise ValueError("Cannot specify both 'lambda_param' (deprecated) and 'diversity'. Use 'diversity' only.")
+        if lambda_param is not None:
+            warnings.warn(
+                "'lambda_param' is deprecated. Use 'diversity' instead (diversity = 1.0 - lambda_param)",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            return 1.0 - lambda_param
+        return diversity if diversity is not None else 0.5
+
     def find_representative(
         self,
         records: Sequence[Record],
@@ -340,19 +354,8 @@ class SemHash(Generic[Record]):
         :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
         :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
         :return: A FilterResult with the diversified candidates.
-        :raises ValueError: If both lambda_param and diversity are provided.
         """
-        if lambda_param is not None and diversity is not None:
-            raise ValueError("Cannot specify both 'lambda_param' (deprecated) and 'diversity'. Use 'diversity' only.")
-        if lambda_param is not None:
-            warnings.warn(
-                "'lambda_param' is deprecated. Use 'diversity' instead (diversity = 1.0 - lambda_param)",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            diversity = 1.0 - lambda_param
-        diversity = diversity if diversity is not None else 0.5
-
+        diversity = self._handle_diversity_param(lambda_param, diversity)
         ranking = self._rank_by_average_similarity(records)
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
@@ -375,19 +378,8 @@ class SemHash(Generic[Record]):
         :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
         :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
         :return: A FilterResult with the diversified representatives.
-        :raises ValueError: If both lambda_param and diversity are provided.
         """
-        if lambda_param is not None and diversity is not None:
-            raise ValueError("Cannot specify both 'lambda_param' (deprecated) and 'diversity'. Use 'diversity' only.")
-        if lambda_param is not None:
-            warnings.warn(
-                "'lambda_param' is deprecated. Use 'diversity' instead (diversity = 1.0 - lambda_param)",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            diversity = 1.0 - lambda_param
-        diversity = diversity if diversity is not None else 0.5
-
+        diversity = self._handle_diversity_param(lambda_param, diversity)
         ranking = self._self_rank_by_average_similarity()
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
