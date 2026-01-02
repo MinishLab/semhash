@@ -206,3 +206,26 @@ def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
     # Test diversity=1.0: pure diversity, should first pick 'a', then pick most dissimilar: 'c'
     result_div = semhash._diversify(ranking, candidate_limit=3, selection_size=2, diversity=1.0)
     assert result_div.selected == ["a", "c"]
+
+
+def test_from_embeddings(use_ann: bool, model: Encoder, train_texts: list[str]) -> None:
+    """Test from_embeddings constructor with validation and comparison to from_records."""
+    # Test validation: mismatched shapes
+    with pytest.raises(ValueError, match="Number of embeddings"):
+        wrong_embeddings = model.encode(["apple", "banana"])
+        SemHash.from_embeddings(embeddings=wrong_embeddings, records=train_texts, model=model)
+
+    # Test that from_embeddings behaves same as from_records
+    semhash_from_records = SemHash.from_records(records=train_texts, model=model, use_ann=use_ann)
+
+    embeddings = model.encode(train_texts)
+    semhash_from_embeddings = SemHash.from_embeddings(
+        embeddings=embeddings, records=train_texts, model=model, use_ann=use_ann
+    )
+
+    # Both should give same deduplication results
+    result1 = semhash_from_records.self_deduplicate(threshold=0.95)
+    result2 = semhash_from_embeddings.self_deduplicate(threshold=0.95)
+
+    assert len(result1.selected) == len(result2.selected)
+    assert len(result1.filtered) == len(result2.filtered)

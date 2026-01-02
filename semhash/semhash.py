@@ -98,6 +98,108 @@ class SemHash(Generic[Record]):
         return deduplicated, duplicates
 
     @classmethod
+    def _build_index_from_embeddings(
+        cls,
+        dict_records: list[dict[str, str]],
+        embeddings: np.ndarray,
+        columns: Sequence[str],
+        use_ann: bool,
+        ann_backend: Backend | str,
+        **kwargs: Any,
+    ) -> Index:
+        """
+        Build an index from records and their embeddings.
+
+        :param dict_records: Records as dictionaries.
+        :param embeddings: Embeddings for all the records.
+        :param columns: Columns to check for exact duplicates.
+        :param use_ann: Whether to use ANN backend.
+        :param ann_backend: The ANN backend type.
+        :param **kwargs: Additional kwargs for the index.
+        :return: A fitted Index.
+        """
+        # Remove exact duplicates
+        deduplicated_records, exact_duplicates = cls._remove_exact_duplicates(dict_records, columns)
+
+        # Build items list. Each item is a list of exact duplicates
+        items: list[list[dict[str, str]]] = [[record] for record in deduplicated_records]
+
+        # Add exact duplicates to their corresponding items
+        for duplicate_record, original_records in exact_duplicates:
+            for item in items:
+                if item[0] == original_records[0]:
+                    item.append(duplicate_record)
+                    break
+
+        # Build index mapping for embeddings
+        embedding_indices = []
+        for i, record in enumerate(dict_records):
+            if record in deduplicated_records:
+                embedding_indices.append(i)
+
+        # Select embeddings for non-exact-duplicate records
+        deduplicated_embeddings = embeddings[embedding_indices]
+
+        # Create the index
+        backend_type = ann_backend if use_ann else Backend.BASIC
+        return Index.from_vectors_and_items(
+            vectors=deduplicated_embeddings, items=items, backend_type=backend_type, **kwargs
+        )
+
+    @classmethod
+    def from_embeddings(
+        cls,
+        embeddings: np.ndarray,
+        records: Sequence[Record],
+        model: Encoder,
+        columns: Sequence[str] | None = None,
+        use_ann: bool = True,
+        ann_backend: Backend | str = Backend.USEARCH,
+        **kwargs: Any,
+    ) -> SemHash:
+        """
+        Initialize a SemHash instance from pre-computed embeddings.
+
+        :param embeddings: Pre-computed embeddings as a numpy array of shape (n_records, embedding_dim).
+        :param records: A list of records (strings or dictionaries) corresponding to the embeddings.
+        :param model: The Encoder model used for creating the embeddings.
+        :param columns: Columns to use if records are dictionaries. If None and records are strings,
+            defaults to ["text"].
+        :param use_ann: Whether to use approximate nearest neighbors (True) or basic search (False). Default is True.
+        :param ann_backend: (Optional) The ANN backend to use if use_ann is True. Defaults to Backend.USEARCH.
+        :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
+        :return: A SemHash instance with a fitted vicinity index.
+        :raises ValueError: If the number of embeddings doesn't match the number of records.
+        :raises ValueError: If columns are not provided for dictionary records.
+        """
+        if len(embeddings) != len(records):
+            raise ValueError(f"Number of embeddings ({len(embeddings)}) must match number of records ({len(records)})")
+
+        if columns is None and isinstance(records[0], dict):
+            raise ValueError("Columns must be specified when passing dictionaries.")
+
+        # Determine if records were originally strings
+        was_string = isinstance(records[0], str)
+
+        if was_string:
+            columns = ["text"]
+            dict_records: list[dict[str, str]] = [{"text": str(record)} for record in records]
+        else:
+            dict_records = list(records)  # type: ignore
+
+        # Use shared logic to build index from records and embeddings
+        index = cls._build_index_from_embeddings(
+            dict_records=dict_records,
+            embeddings=embeddings,
+            columns=columns,  # type: ignore
+            use_ann=use_ann,
+            ann_backend=ann_backend,
+            **kwargs,
+        )
+
+        return cls(index=index, model=model, columns=columns, was_string=was_string)  # type: ignore
+
+    @classmethod
     def from_records(
         cls,
         records: Sequence[Record],
@@ -125,7 +227,6 @@ class SemHash(Generic[Record]):
             raise ValueError("Columns must be specified when passing dictionaries.")
 
         if isinstance(records[0], str):
-            # If records are strings, convert to dictionaries with a single column
             columns = ["text"]
             dict_records: list[dict[str, str]] = [{"text": record} for record in records]
             was_string = True
@@ -149,11 +250,11 @@ class SemHash(Generic[Record]):
         items: list[list[dict[str, str]]] = []
         for record in deduplicated_records:
             i = [record]
-            frozen_record = to_frozendict(record, set(columns))
+            frozen_record = to_frozendict(record, col_set)
             i.extend(duplicate_map[frozen_record])
             items.append(i)
 
-        # Create embeddings and unpack records
+        # Create embeddings for deduplicated records only
         embeddings = cls._featurize(deduplicated_records, columns, model)
 
         # Build the Vicinity index
