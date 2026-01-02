@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from collections import defaultdict
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass, field
@@ -65,8 +64,6 @@ class DeduplicationResult(Generic[Record]):
         filtered: List of DuplicateRecord objects containing details about duplicates of an original record.
         threshold: The similarity threshold used for deduplication.
         columns: Columns used for deduplication.
-        deduplicated: Deprecated, use selected instead.
-        duplicates: Deprecated, use filtered instead.
 
     """
 
@@ -74,26 +71,6 @@ class DeduplicationResult(Generic[Record]):
     filtered: list[DuplicateRecord] = field(default_factory=list)
     threshold: float = field(default=0.9)
     columns: Sequence[str] | None = field(default=None)
-    deduplicated: list[Record] = field(default_factory=list)  # Deprecated
-    duplicates: list[DuplicateRecord] = field(default_factory=list)  # Deprecated
-
-    def __post_init__(self) -> None:
-        """Initialize deprecated fields and warn about deprecation."""
-        if self.deduplicated or self.duplicates:
-            warnings.warn(
-                "'deduplicated' and 'duplicates' fields are deprecated and will be removed in a future release. Use 'selected' and 'filtered' instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-        if not self.selected and self.deduplicated:
-            self.selected = self.deduplicated
-        if not self.filtered and self.duplicates:
-            self.filtered = self.duplicates
-        if not self.deduplicated:
-            self.deduplicated = self.selected
-        if not self.duplicates:
-            self.duplicates = self.filtered
 
     @property
     def duplicate_ratio(self) -> float:
