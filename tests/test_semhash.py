@@ -189,7 +189,9 @@ def test_self_filter_outliers(use_ann: bool, model: Encoder, train_texts: list[s
 def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the _diversify method."""
     # Create a dummy SemHash instance
-    semhash = SemHash(index=None, model=None, columns=["text"], was_string=True)  # type: ignore
+    from semhash import semhash as semhash_module
+
+    semhash_instance = SemHash(index=None, model=None, columns=["text"], was_string=True)  # type: ignore
     # Prepare a fake ranking with three records
     records = ["a", "b", "c"]
     scores = [3.0, 2.0, 1.0]
@@ -197,14 +199,14 @@ def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
     # Create dummy embeddings for the records
     embeddings = np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]])
     # Monkeypatch featurize to return the dummy embeddings
-    monkeypatch.setattr(semhash, "_featurize", lambda records, columns, model: embeddings)
+    monkeypatch.setattr(semhash_module, "featurize", lambda records, columns, model: embeddings)
 
     # Test diversity=0.0: pure relevance, should pick top 2 by score
-    result_rel = semhash._diversify(ranking, candidate_limit=3, selection_size=2, diversity=0.0)
+    result_rel = semhash_instance._diversify(ranking, candidate_limit=3, selection_size=2, diversity=0.0)
     assert result_rel.selected == ["a", "b"]
 
     # Test diversity=1.0: pure diversity, should first pick 'a', then pick most dissimilar: 'c'
-    result_div = semhash._diversify(ranking, candidate_limit=3, selection_size=2, diversity=1.0)
+    result_div = semhash_instance._diversify(ranking, candidate_limit=3, selection_size=2, diversity=1.0)
     assert result_div.selected == ["a", "c"]
 
 

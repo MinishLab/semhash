@@ -1,8 +1,13 @@
+from collections import defaultdict
 from collections.abc import Sequence
-from typing import Any, Protocol
+from typing import Any, Protocol, TypeAlias, TypeVar
 
 import numpy as np
 from frozendict import frozendict
+
+# Type definitions
+Record = TypeVar("Record", str, dict[str, Any])
+DuplicateList: TypeAlias = list[tuple[Record, float]]
 
 
 class Encoder(Protocol):
@@ -54,3 +59,91 @@ def compute_candidate_limit(
     # 4) enforce upper bound (and never exceed the dataset)
     limit = min(limit, max_candidates, total)
     return limit
+
+
+def featurize(
+    records: Sequence[dict[str, str]],
+    columns: Sequence[str],
+    model: Encoder,
+) -> np.ndarray:
+    """
+    Featurize a list of records using the model.
+
+    :param records: A list of records.
+    :param columns: Columns to featurize.
+    :param model: An Encoder model.
+    :return: The embeddings of the records.
+    """
+    # Extract the embeddings for each column across all records
+    embeddings_per_col = []
+    for col in columns:
+        col_texts = [r[col] for r in records]
+        col_emb = model.encode(col_texts)
+        embeddings_per_col.append(np.asarray(col_emb))
+
+    return np.concatenate(embeddings_per_col, axis=1)
+
+
+def remove_exact_duplicates(
+    records: Sequence[dict[str, str]],
+    columns: Sequence[str],
+    reference_records: list[list[dict[str, str]]] | None = None,
+) -> tuple[list[dict[str, str]], list[tuple[dict[str, str], list[dict[str, str]]]]]:
+    """
+    Remove exact duplicates based on the unpacked string representation of each record.
+
+    If reference_records is None, the function will only check for duplicates within the records list.
+
+    :param records: A list of records to check for exact duplicates.
+    :param columns: Columns to unpack.
+    :param reference_records: A list of records to compare against. These are already unpacked
+    :return: A list of deduplicated records and a list of duplicates.
+    """
+    deduplicated = []
+    duplicates = []
+
+    column_set = set(columns)
+    # Build a seen set from reference_records if provided
+    seen: defaultdict[frozendict[str, str], list[dict[str, str]]] = defaultdict(list)
+    if reference_records is not None:
+        for record_set in reference_records:
+            key = to_frozendict(record_set[0], column_set)
+            seen[key] = list(record_set)
+    in_one_set = reference_records is None
+
+    for record in records:
+        frozen_record = frozendict({k: v for k, v in record.items() if k in column_set})
+        if duplicated_records := seen.get(frozen_record):
+            duplicates.append((record, duplicated_records))
+        else:
+            deduplicated.append(record)
+            # Only add current documents to seen if no reference set is used
+            if in_one_set:
+                seen[frozen_record].append(record)
+
+    return deduplicated, duplicates
+
+
+def prepare_records(
+    records: Sequence[Record], columns: Sequence[str] | None
+) -> tuple[list[dict[str, str]], Sequence[str], bool]:
+    """
+    Validate and prepare records for processing.
+
+    :param records: A list of records (strings or dictionaries).
+    :param columns: Columns to use if records are dictionaries.
+    :return: Tuple of (dict_records, columns, was_string).
+    :raises ValueError: If columns are not provided for dictionary records.
+    """
+    if columns is None and isinstance(records[0], dict):
+        raise ValueError("Columns must be specified when passing dictionaries.")
+
+    if isinstance(records[0], str):
+        columns = ["text"]
+        dict_records: list[dict[str, str]] = [{"text": str(record)} for record in records]
+        was_string = True
+    else:
+        dict_records = list(records)
+        was_string = False
+
+    return dict_records, columns, was_string
