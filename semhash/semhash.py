@@ -155,7 +155,7 @@ class SemHash(Generic[Record]):
         dict_records, columns, was_string = cls._prepare_records(records, columns)
 
         # Remove exact duplicates
-        deduplicated_records, exact_duplicates = cls._remove_exact_duplicates(dict_records, columns)  # type: ignore
+        deduplicated_records, exact_duplicates = cls._remove_exact_duplicates(dict_records, columns)
 
         # Build items list. Each item is a list of exact duplicates
         items: list[list[dict[str, str]]] = [[record] for record in deduplicated_records]
