@@ -146,7 +146,7 @@ def test_self_find_representative(use_ann: bool, model: Encoder, train_texts: li
     result = semhash.self_find_representative(
         candidate_limit=5,
         selection_size=3,
-        lambda_param=0.5,
+        diversity=0.5,
     )
     assert len(result.selected) == 3, "Expected 3 representatives"
     selected = {r["text"] for r in result.selected}
@@ -160,7 +160,7 @@ def test_self_find_representative(use_ann: bool, model: Encoder, train_texts: li
 def test_find_representative(use_ann: bool, model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
     """Test the find_representative method."""
     semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
-    result = semhash.find_representative(records=test_texts, candidate_limit=5, selection_size=3, lambda_param=0.5)
+    result = semhash.find_representative(records=test_texts, candidate_limit=5, selection_size=3, diversity=0.5)
     assert len(result.selected) == 3, "Expected 3 representatives"
     selected = {r["text"] for r in result.selected}
     assert selected == {"grapefruit", "banana", "apple"}, "Expected representatives to be grapefruit, banana, and apple"
@@ -186,8 +186,8 @@ def test_self_filter_outliers(use_ann: bool, model: Encoder, train_texts: list[s
     assert filtered == {"car", "bicycle"}, "Expected outliers to be car and bicycle"
 
 
-def test__mmr(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test the _mmr method."""
+def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the _diversify method."""
     # Create a dummy SemHash instance
     semhash = SemHash(index=None, model=None, columns=["text"], was_string=True)  # type: ignore
     # Prepare a fake ranking with three records
@@ -199,20 +199,10 @@ def test__mmr(monkeypatch: pytest.MonkeyPatch) -> None:
     # Monkeypatch featurize to return the dummy embeddings
     monkeypatch.setattr(semhash, "_featurize", lambda records, columns, model: embeddings)
 
-    # Test lambda=1.0: pure relevance, should pick top 2 by score
-    result_rel = semhash._mmr(ranking, candidate_limit=3, selection_size=2, lambda_param=1.0)
+    # Test diversity=0.0: pure relevance, should pick top 2 by score
+    result_rel = semhash._diversify(ranking, candidate_limit=3, selection_size=2, diversity=0.0)
     assert result_rel.selected == ["a", "b"]
 
-    # Test lambda=0.0: pure diversity, should first pick 'a', then pick most dissimilar: 'c'
-    result_div = semhash._mmr(ranking, candidate_limit=3, selection_size=2, lambda_param=0.0)
+    # Test diversity=1.0: pure diversity, should first pick 'a', then pick most dissimilar: 'c'
+    result_div = semhash._diversify(ranking, candidate_limit=3, selection_size=2, diversity=1.0)
     assert result_div.selected == ["a", "c"]
-
-
-def test_mmr_invalid_lambda_raises() -> None:
-    """Test that invalid lambda values raise ValueError."""
-    semhash = SemHash(index=None, model=None, columns=["text"], was_string=True)  # type: ignore
-    dummy = FilterResult(selected=["x"], filtered=[], scores_selected=[0.5], scores_filtered=[])
-    with pytest.raises(ValueError):
-        semhash._mmr(dummy, candidate_limit=1, selection_size=1, lambda_param=-0.1)
-    with pytest.raises(ValueError):
-        semhash._mmr(dummy, candidate_limit=1, selection_size=1, lambda_param=1.1)

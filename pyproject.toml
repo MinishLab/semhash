@@ -25,6 +25,7 @@ dependencies = [
     "model2vec>=0.3.4",
     "vicinity[usearch]>=0.4.3",
     "frozendict",
+    "pyversity",
 ]
 
 [build-system]
