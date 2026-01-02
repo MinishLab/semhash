@@ -97,6 +97,31 @@ class SemHash(Generic[Record]):
 
         return deduplicated, duplicates
 
+    @staticmethod
+    def _prepare_records(
+        records: Sequence[Record], columns: Sequence[str] | None
+    ) -> tuple[list[dict[str, str]], Sequence[str], bool]:
+        """
+        Validate and prepare records for processing.
+
+        :param records: A list of records (strings or dictionaries).
+        :param columns: Columns to use if records are dictionaries.
+        :return: Tuple of (dict_records, columns, was_string).
+        :raises ValueError: If columns are not provided for dictionary records.
+        """
+        if columns is None and isinstance(records[0], dict):
+            raise ValueError("Columns must be specified when passing dictionaries.")
+
+        if isinstance(records[0], str):
+            columns = ["text"]
+            dict_records: list[dict[str, str]] = [{"text": str(record)} for record in records]
+            was_string = True
+        else:
+            dict_records = list(records)
+            was_string = False
+
+        return dict_records, columns, was_string
+
     @classmethod
     def from_embeddings(
         cls,
@@ -126,17 +151,8 @@ class SemHash(Generic[Record]):
         if len(embeddings) != len(records):
             raise ValueError(f"Number of embeddings ({len(embeddings)}) must match number of records ({len(records)})")
 
-        if columns is None and isinstance(records[0], dict):
-            raise ValueError("Columns must be specified when passing dictionaries.")
-
-        # Determine if records were originally strings
-        was_string = isinstance(records[0], str)
-
-        if was_string:
-            columns = ["text"]
-            dict_records: list[dict[str, str]] = [{"text": str(record)} for record in records]
-        else:
-            dict_records = list(records)  # type: ignore
+        # Prepare and validate records
+        dict_records, columns, was_string = cls._prepare_records(records, columns)
 
         # Remove exact duplicates
         deduplicated_records, exact_duplicates = cls._remove_exact_duplicates(dict_records, columns)  # type: ignore
@@ -190,18 +206,9 @@ class SemHash(Generic[Record]):
         :param ann_backend: (Optional) The ANN backend to use if use_ann is True. Defaults to Backend.USEARCH.
         :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
         :return: A SemHash instance with a fitted vicinity index.
-        :raises ValueError: If columns are not provided for dictionary records.
         """
-        if columns is None and isinstance(records[0], dict):
-            raise ValueError("Columns must be specified when passing dictionaries.")
-
-        if isinstance(records[0], str):
-            columns = ["text"]
-            dict_records: list[dict[str, str]] = [{"text": record} for record in records]
-            was_string = True
-        else:
-            dict_records = list(records)
-            was_string = False
+        # Prepare and validate records
+        dict_records, columns, was_string = cls._prepare_records(records, columns)
 
         # If no model is provided, load the default model
         if model is None:
