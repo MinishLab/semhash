@@ -182,7 +182,7 @@ class SemHash(Generic[Record]):
             vectors=deduplicated_embeddings, items=items, backend_type=backend_type, **kwargs
         )
 
-        return cls(index=index, model=model, columns=columns, was_string=was_string)  # type: ignore
+        return cls(index=index, model=model, columns=columns, was_string=was_string)
 
     @classmethod
     def from_records(
