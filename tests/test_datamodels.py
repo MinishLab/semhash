@@ -97,27 +97,6 @@ def test_rethreshold_exception() -> None:
         d.rethreshold(0.6)
 
 
-def test_deprecation_deduplicated_duplicates() -> None:
-    """Test deprecation warnings for deduplicated and duplicates fields."""
-    if semhash.version.__version__ < "0.4.0":
-        with pytest.warns(DeprecationWarning):
-            d = DeduplicationResult(
-                deduplicated=["a", "b", "c"],
-                duplicates=[
-                    DuplicateRecord("d", False, [("x", 0.9), ("y", 0.8)]),
-                    DuplicateRecord("e", False, [("z", 0.8)]),
-                ],
-                threshold=0.8,
-            )
-    else:
-        raise ValueError("deprecate `deduplicated` and `duplicates` fields in `DeduplicationResult`")
-    assert d.selected == ["a", "b", "c"]
-    assert d.filtered == [
-        DuplicateRecord("d", False, [("x", 0.9), ("y", 0.8)]),
-        DuplicateRecord("e", False, [("z", 0.8)]),
-    ]
-
-
 def test_selected_with_duplicates_strings() -> None:
     """Test selected_with_duplicates for strings."""
     d = DeduplicationResult(
