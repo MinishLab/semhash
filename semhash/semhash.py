@@ -98,55 +98,6 @@ class SemHash(Generic[Record]):
         return deduplicated, duplicates
 
     @classmethod
-    def _build_index_from_embeddings(
-        cls,
-        dict_records: list[dict[str, str]],
-        embeddings: np.ndarray,
-        columns: Sequence[str],
-        use_ann: bool,
-        ann_backend: Backend | str,
-        **kwargs: Any,
-    ) -> Index:
-        """
-        Build an index from records and their embeddings.
-
-        :param dict_records: Records as dictionaries.
-        :param embeddings: Embeddings for all the records.
-        :param columns: Columns to check for exact duplicates.
-        :param use_ann: Whether to use ANN backend.
-        :param ann_backend: The ANN backend type.
-        :param **kwargs: Additional kwargs for the index.
-        :return: A fitted Index.
-        """
-        # Remove exact duplicates
-        deduplicated_records, exact_duplicates = cls._remove_exact_duplicates(dict_records, columns)
-
-        # Build items list. Each item is a list of exact duplicates
-        items: list[list[dict[str, str]]] = [[record] for record in deduplicated_records]
-
-        # Add exact duplicates to their corresponding items
-        for duplicate_record, original_records in exact_duplicates:
-            for item in items:
-                if item[0] == original_records[0]:
-                    item.append(duplicate_record)
-                    break
-
-        # Build index mapping for embeddings
-        embedding_indices = []
-        for i, record in enumerate(dict_records):
-            if record in deduplicated_records:
-                embedding_indices.append(i)
-
-        # Select embeddings for non-exact-duplicate records
-        deduplicated_embeddings = embeddings[embedding_indices]
-
-        # Create the index
-        backend_type = ann_backend if use_ann else Backend.BASIC
-        return Index.from_vectors_and_items(
-            vectors=deduplicated_embeddings, items=items, backend_type=backend_type, **kwargs
-        )
-
-    @classmethod
     def from_embeddings(
         cls,
         embeddings: np.ndarray,
@@ -187,14 +138,32 @@ class SemHash(Generic[Record]):
         else:
             dict_records = list(records)  # type: ignore
 
-        # Use shared logic to build index from records and embeddings
-        index = cls._build_index_from_embeddings(
-            dict_records=dict_records,
-            embeddings=embeddings,
-            columns=columns,  # type: ignore
-            use_ann=use_ann,
-            ann_backend=ann_backend,
-            **kwargs,
+        # Remove exact duplicates
+        deduplicated_records, exact_duplicates = cls._remove_exact_duplicates(dict_records, columns)  # type: ignore
+
+        # Build items list. Each item is a list of exact duplicates
+        items: list[list[dict[str, str]]] = [[record] for record in deduplicated_records]
+
+        # Add exact duplicates to their corresponding items
+        for duplicate_record, original_records in exact_duplicates:
+            for item in items:
+                if item[0] == original_records[0]:
+                    item.append(duplicate_record)
+                    break
+
+        # Build index mapping for embeddings (accounting for removed exact duplicates)
+        embedding_indices = []
+        for i, record in enumerate(dict_records):
+            if record in deduplicated_records:
+                embedding_indices.append(i)
+
+        # Select embeddings for non-exact-duplicate records
+        deduplicated_embeddings = embeddings[embedding_indices]
+
+        # Create the index
+        backend_type = ann_backend if use_ann else Backend.BASIC
+        index = Index.from_vectors_and_items(
+            vectors=deduplicated_embeddings, items=items, backend_type=backend_type, **kwargs
         )
 
         return cls(index=index, model=model, columns=columns, was_string=was_string)  # type: ignore
