@@ -338,7 +338,8 @@ class SemHash(Generic[Record]):
 
         :param records: The records to rank and select representatives from.
         :param selection_size: Number of representatives to select.
-        :param candidate_limit: Number of top candidates to consider. Defaults to "auto".
+        :param candidate_limit: Number of top candidates to consider for diversity reranking.
+            Defaults to "auto", which calculates the limit based on the total number of records.
         :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
         :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
         :return: A FilterResult with the diversified candidates.
@@ -363,7 +364,8 @@ class SemHash(Generic[Record]):
         to select a diverse set of representatives.
 
         :param selection_size: Number of representatives to select.
-        :param candidate_limit: Number of top candidates to consider. Defaults to "auto".
+        :param candidate_limit: Number of top candidates to consider for diversity reranking.
+            Defaults to "auto", which calculates the limit based on the total number of records.
         :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
         :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
         :return: A FilterResult with the diversified representatives.
