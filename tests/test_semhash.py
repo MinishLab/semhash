@@ -146,7 +146,7 @@ def test_self_find_representative(use_ann: bool, model: Encoder, train_texts: li
     result = semhash.self_find_representative(
         candidate_limit=5,
         selection_size=3,
-        lambda_param=0.5,
+        diversity=0.5,
     )
     assert len(result.selected) == 3, "Expected 3 representatives"
     selected = {r["text"] for r in result.selected}
@@ -160,7 +160,7 @@ def test_self_find_representative(use_ann: bool, model: Encoder, train_texts: li
 def test_find_representative(use_ann: bool, model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
     """Test the find_representative method."""
     semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
-    result = semhash.find_representative(records=test_texts, candidate_limit=5, selection_size=3, lambda_param=0.5)
+    result = semhash.find_representative(records=test_texts, candidate_limit=5, selection_size=3, diversity=0.5)
     assert len(result.selected) == 3, "Expected 3 representatives"
     selected = {r["text"] for r in result.selected}
     assert selected == {"grapefruit", "banana", "apple"}, "Expected representatives to be grapefruit, banana, and apple"
@@ -206,15 +206,3 @@ def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
     # Test diversity=1.0: pure diversity, should first pick 'a', then pick most dissimilar: 'c'
     result_div = semhash._diversify(ranking, candidate_limit=3, selection_size=2, diversity=1.0)
     assert result_div.selected == ["a", "c"]
-
-
-def test_find_representative_both_params_raises(use_ann: bool, model: Encoder, train_texts: list[str]) -> None:
-    """Test that providing both lambda_param and diversity raises ValueError."""
-    semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
-    with pytest.raises(ValueError, match="Cannot specify both"):
-        semhash.self_find_representative(
-            candidate_limit=5,
-            selection_size=3,
-            lambda_param=0.5,
-            diversity=0.5,
-        )

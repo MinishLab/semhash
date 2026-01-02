@@ -321,41 +321,28 @@ class SemHash(Generic[Record]):
             raise ValueError("Records must be either strings or dictionaries.")
         return dict_records
 
-    @staticmethod
-    def _handle_diversity_param(lambda_param: float | None, diversity: float | None) -> float:
-        """Handle deprecated lambda_param parameter and convert to diversity."""
-        if lambda_param is not None and diversity is not None:
-            raise ValueError("Cannot specify both 'lambda_param' (deprecated) and 'diversity'. Use 'diversity' only.")
-        if lambda_param is not None:
-            warnings.warn(
-                "'lambda_param' is deprecated. Use 'diversity' instead (diversity = 1.0 - lambda_param)",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            return 1.0 - lambda_param
-        return diversity if diversity is not None else 0.5
-
     def find_representative(
         self,
         records: Sequence[Record],
         selection_size: int = 10,
         candidate_limit: int | Literal["auto"] = "auto",
-        lambda_param: float | None = None,
-        diversity: float | None = None,
+        diversity: float = 0.5,
         strategy: Strategy | str = Strategy.MMR,
     ) -> FilterResult:
         """
-        Find representative samples from records using diversification.
+        Find representative samples from a given set of records against the fitted index.
+
+        First, the records are ranked using average similarity.
+        Then, the top candidates are re-ranked using Maximal Marginal Relevance (MMR)
+        to select a diverse set of representatives.
 
         :param records: The records to rank and select representatives from.
         :param selection_size: Number of representatives to select.
         :param candidate_limit: Number of top candidates to consider. Defaults to "auto".
-        :param lambda_param: (Deprecated) Use 'diversity' instead. Note: diversity = 1.0 - lambda_param
         :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
         :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
         :return: A FilterResult with the diversified candidates.
         """
-        diversity = self._handle_diversity_param(lambda_param, diversity)
         ranking = self._rank_by_average_similarity(records)
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
@@ -365,21 +352,22 @@ class SemHash(Generic[Record]):
         self,
         selection_size: int = 10,
         candidate_limit: int | Literal["auto"] = "auto",
-        lambda_param: float | None = None,
-        diversity: float | None = None,
+        diversity: float = 0.5,
         strategy: Strategy | str = Strategy.MMR,
     ) -> FilterResult:
         """
-        Find representative samples from the fitted dataset using diversification.
+        Find representative samples from the fitted dataset.
+
+        First, the rank the records are ranked using average similarity.
+        Then, the top candidates are re-ranked using Maximal Marginal Relevance (MMR)
+        to select a diverse set of representatives.
 
         :param selection_size: Number of representatives to select.
         :param candidate_limit: Number of top candidates to consider. Defaults to "auto".
-        :param lambda_param: (Deprecated) Use 'diversity' instead. Note: diversity = 1.0 - lambda_param
         :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
         :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
         :return: A FilterResult with the diversified representatives.
         """
-        diversity = self._handle_diversity_param(lambda_param, diversity)
         ranking = self._self_rank_by_average_similarity()
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
