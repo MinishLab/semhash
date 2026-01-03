@@ -5,7 +5,7 @@ from collections import defaultdict
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Generic
+from typing import Generic
 
 from frozendict import frozendict
 
