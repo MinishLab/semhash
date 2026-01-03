@@ -5,14 +5,11 @@ from collections import defaultdict
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Generic, TypeAlias, TypeVar
+from typing import Generic
 
 from frozendict import frozendict
 
-from semhash.utils import to_frozendict
-
-Record = TypeVar("Record", str, dict[str, Any])
-DuplicateList: TypeAlias = list[tuple[Record, float]]
+from semhash.utils import DuplicateList, Record, to_frozendict
 
 
 @dataclass
