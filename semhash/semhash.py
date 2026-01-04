@@ -57,7 +57,7 @@ class SemHash(Generic[Record]):
         :param records: A list of records (strings or dictionaries).
         :param columns: Columns to featurize if records are dictionaries.
         :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
-        :param ann_backend: (Optional) The backend to use. Defaults to Backend.USEARCH.
+        :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
         :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
         :return: A SemHash instance with a fitted vicinity index.
         """
@@ -117,7 +117,7 @@ class SemHash(Generic[Record]):
         :param model: The Encoder model used for creating the embeddings.
         :param columns: Columns to use if records are dictionaries. If None and records are strings,
             defaults to ["text"].
-        :param ann_backend: (Optional) The backend to use. Defaults to Backend.USEARCH.
+        :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
         :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
         :return: A SemHash instance with a fitted vicinity index.
         :raises ValueError: If the number of embeddings doesn't match the number of records.
