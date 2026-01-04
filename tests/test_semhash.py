@@ -209,6 +209,13 @@ def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
     result_div = semhash_instance._diversify(ranking, candidate_limit=3, selection_size=2, diversity=1.0)
     assert result_div.selected == ["a", "c"]
 
+    # Test empty candidates (candidate_limit=0)
+    result_empty = semhash_instance._diversify(ranking, candidate_limit=0, selection_size=2, diversity=0.5)
+    assert result_empty.selected == []
+    assert result_empty.filtered == []
+    assert result_empty.scores_selected == []
+    assert result_empty.scores_filtered == []
+
 
 def test_from_embeddings(use_ann: bool, model: Encoder, train_texts: list[str]) -> None:
     """Test from_embeddings constructor with validation and comparison to from_records."""
