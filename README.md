@@ -280,7 +280,7 @@ from semhash import SemHash
 texts = load_dataset("ag_news", split="train")["text"]
 
 # Load an embedding model (in this example, a multilingual model)
-model = StaticModel.from_pretrained("minishlab/M2V_multilingual_output")
+model = StaticModel.from_pretrained("minishlab/potion-multilingual-128M")
 
 # Initialize a SemHash with the model and custom encoder
 semhash = SemHash.from_records(records=texts, model=model)
