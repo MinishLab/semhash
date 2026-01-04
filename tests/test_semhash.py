@@ -188,8 +188,7 @@ def test_self_filter_outliers(use_ann: bool, model: Encoder, train_texts: list[s
 
 def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the _diversify method."""
-    # Create a dummy SemHash instance
-    from semhash import semhash as semhash_module
+    from semhash import semhash
 
     semhash_instance = SemHash(index=None, model=None, columns=["text"], was_string=True)  # type: ignore
     # Prepare a fake ranking with three records
@@ -199,7 +198,7 @@ def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
     # Create dummy embeddings for the records
     embeddings = np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]])
     # Monkeypatch featurize to return the dummy embeddings
-    monkeypatch.setattr(semhash_module, "featurize", lambda records, columns, model: embeddings)
+    monkeypatch.setattr(semhash, "featurize", lambda records, columns, model: embeddings)
 
     # Test diversity=0.0: pure relevance, should pick top 2 by score
     result_rel = semhash_instance._diversify(ranking, candidate_limit=3, selection_size=2, diversity=0.0)
