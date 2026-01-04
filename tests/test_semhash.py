@@ -190,7 +190,7 @@ def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the _diversify method."""
     from semhash import semhash
 
-    semhash_instance = SemHash(index=None, model=None, columns=["text"], was_string=True)  # type: ignore
+    semhash_instance = SemHash(index=None, model=None, columns=["text"], was_string=True)
     # Prepare a fake ranking with three records
     records = ["a", "b", "c"]
     scores = [3.0, 2.0, 1.0]
