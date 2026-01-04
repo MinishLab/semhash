@@ -407,7 +407,7 @@ representative_texts = semhash.self_find_representative().selected
 
 SemHash is extremely fast and scales to large datasets with millions of records. We've benchmarked both single-dataset deduplication and train/test deduplication across a variety of datasets. For example, deduplicating 1.8M records takes only ~83 seconds on CPU.
 
-For detailed benchmark results including performance metrics across 17 datasets, see the [benchmarks directory](benchmarks/README.md).
+For detailed benchmark results including performance metrics across 17 datasets, as well as code to reproduce the benchmarks, see the [benchmarks directory](benchmarks/README.md).
 
 ## License
 
