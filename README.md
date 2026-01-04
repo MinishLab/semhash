@@ -280,7 +280,7 @@ from semhash import SemHash
 texts = load_dataset("ag_news", split="train")["text"]
 
 # Load an embedding model (in this example, a multilingual model)
-model = StaticModel.from_pretrained("minishlab/M2V_multilingual_output")
+model = StaticModel.from_pretrained("minishlab/potion-multilingual-128M")
 
 # Initialize a SemHash with the model and custom encoder
 semhash = SemHash.from_records(records=texts, model=model)
@@ -318,21 +318,23 @@ deduplicated_texts = semhash.self_deduplicate()
 <summary>  Using custom ANN backends </summary>
 <br>
 
-The following code snippet shows how to use a custom ANN backend and custom args with SemHash:
+By default, we use [USearch](https://github.com/unum-cloud/USearch) as the ANN (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ANN. If you want to use a flat/exact-matching backend, you can set `ann_backend=Backend.BASIC` in the SemHash constructor:
+
+```python
+from semhash import SemHash
+from vicinity import Backend
+
+semhash = SemHash.from_records(records=texts, ann_backend=Backend.BASIC)
+```
+
+Any backend from [Vicinity](https://github.com/MinishLab/vicinity) can be used with SemHash. The following code snippet shows how to use [FAISS](https://github.com/facebookresearch/faiss) with a custom `nlist` parameter:
 
 ```python
 from datasets import load_dataset
 from semhash import SemHash
 from vicinity import Backend
 
-# Load a dataset to deduplicate
-texts = load_dataset("ag_news", split="train")["text"]
-
-# Initialize a SemHash with the model and custom ann backend and custom args
 semhash = SemHash.from_records(records=texts, ann_backend=Backend.FAISS, nlist=50)
-
-# Deduplicate the texts
-deduplicated_texts = semhash.self_deduplicate()
 ```
 
 For the full list of supported ANN backends and args, see the [Vicinity docs](https://github.com/MinishLab/vicinity/tree/main?tab=readme-ov-file#supported-backends).
@@ -398,11 +400,6 @@ representative_texts = semhash.self_find_representative().selected
 ```
 </details>
 
-NOTE: By default, we use the ANN (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ANN. If you want to use the flat/exact-matching backend, you can set `use_ann=False` in the SemHash constructor:
-
-```python
-semhash = SemHash.from_records(records=texts, use_ann=False)
-```
 
 
 
@@ -410,7 +407,7 @@ semhash = SemHash.from_records(records=texts, use_ann=False)
 
 We've benchmarked SemHash on a variety of datasets to measure the deduplication performance and speed. The benchmarks were run with the following setup:
 - The benchmarks were all run on CPU
-- The benchmarks were all run with `use_ann=True`
+- The benchmarks were all run with the default ANN backend (usearch)
 - The used encoder is the default encoder ([potion-base-8M](https://huggingface.co/minishlab/potion-base-8M)).
 - The timings include the encoding time, index building time, and deduplication time.
 ### Train Deduplication Benchmark

@@ -45,7 +45,7 @@ def main() -> None:  # noqa: C901
 
         # Build the SemHash instance
         build_start = perf_counter()
-        semhash = SemHash.from_records(model=model, use_ann=True, records=train_records, columns=columns)
+        semhash = SemHash.from_records(model=model, records=train_records, columns=columns)
         build_end = perf_counter()
         build_time = build_end - build_start
         # Time how long it takes to deduplicate the train set

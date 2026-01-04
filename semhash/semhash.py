@@ -45,7 +45,6 @@ class SemHash(Generic[Record]):
         cls,
         records: Sequence[Record],
         columns: Sequence[str] | None = None,
-        use_ann: bool = True,
         model: Encoder | None = None,
         ann_backend: Backend | str = Backend.USEARCH,
         **kwargs: Any,
@@ -57,9 +56,8 @@ class SemHash(Generic[Record]):
 
         :param records: A list of records (strings or dictionaries).
         :param columns: Columns to featurize if records are dictionaries.
-        :param use_ann: Whether to use approximate nearest neighbors (True) or basic search (False). Default is True.
         :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
-        :param ann_backend: (Optional) The ANN backend to use if use_ann is True. Defaults to Backend.USEARCH.
+        :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
         :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
         :return: A SemHash instance with a fitted vicinity index.
         """
@@ -90,11 +88,10 @@ class SemHash(Generic[Record]):
         embeddings = featurize(deduplicated_records, columns, model)
 
         # Build the Vicinity index
-        backend = ann_backend if use_ann else Backend.BASIC
         index = Index.from_vectors_and_items(
             vectors=embeddings,
             items=items,
-            backend_type=backend,
+            backend_type=ann_backend,
             **kwargs,
         )
 
@@ -107,7 +104,6 @@ class SemHash(Generic[Record]):
         records: Sequence[Record],
         model: Encoder,
         columns: Sequence[str] | None = None,
-        use_ann: bool = True,
         ann_backend: Backend | str = Backend.USEARCH,
         **kwargs: Any,
     ) -> SemHash:
@@ -121,8 +117,7 @@ class SemHash(Generic[Record]):
         :param model: The Encoder model used for creating the embeddings.
         :param columns: Columns to use if records are dictionaries. If None and records are strings,
             defaults to ["text"].
-        :param use_ann: Whether to use approximate nearest neighbors (True) or basic search (False). Default is True.
-        :param ann_backend: (Optional) The ANN backend to use if use_ann is True. Defaults to Backend.USEARCH.
+        :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
         :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
         :return: A SemHash instance with a fitted vicinity index.
         :raises ValueError: If the number of embeddings doesn't match the number of records.
@@ -157,9 +152,8 @@ class SemHash(Generic[Record]):
         deduplicated_embeddings = embeddings[embedding_indices]
 
         # Create the index
-        backend_type = ann_backend if use_ann else Backend.BASIC
         index = Index.from_vectors_and_items(
-            vectors=deduplicated_embeddings, items=items, backend_type=backend_type, **kwargs
+            vectors=deduplicated_embeddings, items=items, backend_type=ann_backend, **kwargs
         )
 
         return cls(index=index, model=model, columns=columns, was_string=was_string)
