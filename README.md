@@ -405,67 +405,9 @@ representative_texts = semhash.self_find_representative().selected
 
 ## Benchmarks
 
-We've benchmarked SemHash on a variety of datasets to measure the deduplication performance and speed. The benchmarks were run with the following setup:
-- The benchmarks were all run on CPU
-- The benchmarks were all run with the default ANN backend (usearch)
-- The used encoder is the default encoder ([potion-base-8M](https://huggingface.co/minishlab/potion-base-8M)).
-- The timings include the encoding time, index building time, and deduplication time.
-### Train Deduplication Benchmark
+SemHash is extremely fast and scales to large datasets with millions of records. We've benchmarked both single-dataset deduplication and train/test deduplication across a variety of datasets. For example, deduplicating 1.8M records takes only ~83 seconds on CPU.
 
-| Dataset              |  Original Train Size |  Deduplicated Train Size |  % Removed |   Deduplication Time (s) |
-|----------------------|----------------------|--------------------------|------------|--------------------------|
-| bbc                  |                 1225 |                     1144 |       6.61 |                     0.57 |
-| senteval_cr          |                 3012 |                     2990 |       0.73 |                     0.14 |
-| tweet_sentiment_extraction |                27481 |                    26695 |       2.86 |                     1.77 |
-| emotion              |                16000 |                    15695 |       1.91 |                     0.77 |
-| amazon_counterfactual |                 5000 |                     4992 |       0.16 |                     0.33 |
-| ag_news              |               120000 |                   106921 |      10.90 |                     5.20 |
-| enron_spam           |                31716 |                    20540 |      35.24 |                     2.03 |
-| subj                 |                 8000 |                     7990 |       0.12 |                     0.63 |
-| sst5                 |                 8544 |                     8526 |       0.21 |                     0.58 |
-| 20_newgroups         |                11314 |                    10684 |       5.57 |                     0.73 |
-| hatespeech_offensive |                22783 |                    22090 |       3.04 |                     0.92 |
-| ade                  |                17637 |                    15718 |      10.88 |                     0.73 |
-| imdb                 |                25000 |                    24830 |       0.68 |                     1.76 |
-| massive_scenario     |                11514 |                     9366 |      18.66 |                     0.47 |
-| student              |               117519 |                    63856 |      45.66 |                     8.80 |
-| squad_v2             |               130319 |                   109698 |      15.82 |                     8.81 |
-| wikitext             |              1801350 |                   884645 |      50.89 |                    83.53 |
-
-
-### Train/Test Deduplication Benchmark
-
-| Dataset              |   Train Size |    Test Size |   Deduplicated Test Size |  % Removed |   Deduplication Time (s) |
-|----------------------|--------------|--------------|--------------------------|------------|--------------------------|
-| bbc                  |         1225 |         1000 |                      870 |      13.00 |                     0.71 |
-| senteval_cr          |         3012 |          753 |                      750 |       0.40 |                     0.13 |
-| tweet_sentiment_extraction |        27481 |         3534 |                     3412 |       3.45 |                     1.53 |
-| emotion              |        16000 |         2000 |                     1926 |       3.70 |                     0.65 |
-| amazon_counterfactual |         5000 |         5000 |                     4990 |       0.20 |                     0.51 |
-| ag_news              |       120000 |         7600 |                     6198 |      18.45 |                     3.74 |
-| enron_spam           |        31716 |         2000 |                     1060 |      47.00 |                     1.94 |
-| subj                 |         8000 |         2000 |                     1999 |       0.05 |                     0.62 |
-| sst5                 |         8544 |         2210 |                     2205 |       0.23 |                     0.59 |
-| 20_newgroups         |        11314 |         7532 |                     7098 |       5.76 |                     2.25 |
-| hatespeech_offensive |        22783 |         2000 |                     1925 |       3.75 |                     0.77 |
-| ade                  |        17637 |         5879 |                     4952 |      15.77 |                     0.81 |
-| imdb                 |        25000 |        25000 |                    24795 |       0.82 |                     2.81 |
-| massive_scenario     |        11514 |         2974 |                     2190 |      26.36 |                     0.46 |
-| student              |       117519 |         5000 |                     2393 |      52.14 |                     3.78 |
-| squad_v2             |       130319 |        11873 |                    11863 |       0.08 |                     7.13 |
-| wikitext             |      1801350 |         4358 |                     2139 |      50.92 |                    40.32 |
-
-
-As can be seen, SemHash is extremely fast, and scales to large datasets with millions of records. There are some notable examples of train/test leakage, such as `enron_spam` and `student`, where the test dataset contains a significant amount of semantic overlap with the training dataset.
-
-### Reproducing the Benchmarks
-
-To run the benchmarks yourself, you can use the following command (assuming you have the `datasets` library installed):
-
-```bash
-python -m benchmarks.run_benchmarks
-```
-Optionally, the datasets can be updated in the [data.py](https://github.com/MinishLab/semhash/blob/main/benchmarks/data.py) file.
+For detailed benchmark results including performance metrics across 17 datasets, see the [benchmarks directory](benchmarks/README.md).
 
 ## License
 
