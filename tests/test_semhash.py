@@ -6,7 +6,7 @@ from semhash.datamodels import FilterResult
 from semhash.utils import Encoder
 
 
-def test_single_dataset_deduplication(use_ann: bool, model: Encoder) -> None:
+def test_single_dataset_deduplication(model: Encoder) -> None:
     """Test single dataset deduplication."""
     # No duplicates
     texts = [
@@ -14,7 +14,7 @@ def test_single_dataset_deduplication(use_ann: bool, model: Encoder) -> None:
         "The master sword can seal the darkness.",
         "Ganondorf has invaded Hyrule!",
     ]
-    semhash = SemHash.from_records(records=texts, use_ann=use_ann, model=model)
+    semhash = SemHash.from_records(records=texts, model=model)
     deduplicated_texts = semhash.self_deduplicate().selected
 
     assert deduplicated_texts == texts
@@ -25,12 +25,12 @@ def test_single_dataset_deduplication(use_ann: bool, model: Encoder) -> None:
         "It's dangerous to go alone!",  # Exact duplicate
         "It's not safe to go alone!",  # Semantically similar
     ]
-    semhash = SemHash.from_records(records=texts, use_ann=use_ann, model=model)
+    semhash = SemHash.from_records(records=texts, model=model)
     deduplicated_texts = semhash.self_deduplicate(0.7).selected
     assert deduplicated_texts == ["It's dangerous to go alone!"]
 
 
-def test_multi_dataset_deduplication(use_ann: bool, model: Encoder) -> None:
+def test_multi_dataset_deduplication(model: Encoder) -> None:
     """Test deduplication across two datasets."""
     # No duplicates
     texts1 = [
@@ -43,7 +43,7 @@ def test_multi_dataset_deduplication(use_ann: bool, model: Encoder) -> None:
         "Zelda is the princess of Hyrule.",
         "Ganon is the king of thieves.",
     ]
-    semhash = SemHash.from_records(texts1, columns=None, use_ann=use_ann, model=model)
+    semhash = SemHash.from_records(texts1, columns=None, model=model)
     deduplicated_texts = semhash.deduplicate(texts2).selected
     assert deduplicated_texts == texts2
 
@@ -57,7 +57,7 @@ def test_multi_dataset_deduplication(use_ann: bool, model: Encoder) -> None:
     assert deduplicated_texts == []
 
 
-def test_single_dataset_deduplication_multicolumn(use_ann: bool, model: Encoder) -> None:
+def test_single_dataset_deduplication_multicolumn(model: Encoder) -> None:
     """Test single dataset deduplication with multi-column records."""
     records = [
         {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
@@ -72,7 +72,6 @@ def test_single_dataset_deduplication_multicolumn(use_ann: bool, model: Encoder)
     semhash = SemHash.from_records(
         records,
         columns=["question", "context", "answer"],
-        use_ann=use_ann,
         model=model,
     )
     deduplicated = semhash.self_deduplicate(threshold=0.7)
@@ -83,7 +82,7 @@ def test_single_dataset_deduplication_multicolumn(use_ann: bool, model: Encoder)
     ]
 
 
-def test_multi_dataset_deduplication_multicolumn(use_ann: bool, model: Encoder) -> None:
+def test_multi_dataset_deduplication_multicolumn(model: Encoder) -> None:
     """Test multi dataset deduplication with multi-column records."""
     train_records = [
         {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
@@ -101,7 +100,6 @@ def test_multi_dataset_deduplication_multicolumn(use_ann: bool, model: Encoder) 
     semhash = SemHash.from_records(
         train_records,
         columns=["question", "context", "answer"],
-        use_ann=use_ann,
         model=model,
     )
     deduplicated = semhash.deduplicate(test_records).selected
@@ -110,17 +108,17 @@ def test_multi_dataset_deduplication_multicolumn(use_ann: bool, model: Encoder) 
     ]
 
 
-def test_from_records_without_columns(use_ann: bool, model: Encoder) -> None:
+def test_from_records_without_columns(model: Encoder) -> None:
     """Test fitting without specifying columns."""
     records = [
         {"question": "What is the hero's name?", "context": "The hero is Link", "answer": "Link"},
         {"question": "Who is the princess?", "context": "The princess is Zelda", "answer": "Zelda"},
     ]
     with pytest.raises(ValueError):
-        SemHash.from_records(records, columns=None, use_ann=use_ann, model=model)
+        SemHash.from_records(records, columns=None, model=model)
 
 
-def test_deduplicate_with_only_exact_duplicates(use_ann: bool, model: Encoder) -> None:
+def test_deduplicate_with_only_exact_duplicates(model: Encoder) -> None:
     """Test deduplicating with only exact duplicates."""
     texts1 = [
         "It's dangerous to go alone!",
@@ -132,7 +130,7 @@ def test_deduplicate_with_only_exact_duplicates(use_ann: bool, model: Encoder) -
         "It's dangerous to go alone!",
         "It's dangerous to go alone!",
     ]
-    semhash = SemHash.from_records(texts1, use_ann=use_ann, model=model)
+    semhash = SemHash.from_records(texts1, model=model)
     deduplicated = semhash.self_deduplicate()
     assert deduplicated.selected == ["It's dangerous to go alone!"]
 
@@ -140,9 +138,9 @@ def test_deduplicate_with_only_exact_duplicates(use_ann: bool, model: Encoder) -
     assert deduplicated.selected == []
 
 
-def test_self_find_representative(use_ann: bool, model: Encoder, train_texts: list[str]) -> None:
+def test_self_find_representative(model: Encoder, train_texts: list[str]) -> None:
     """Test the self_find_representative method."""
-    semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
+    semhash = SemHash.from_records(records=train_texts, model=model)
     result = semhash.self_find_representative(
         candidate_limit=5,
         selection_size=3,
@@ -157,18 +155,18 @@ def test_self_find_representative(use_ann: bool, model: Encoder, train_texts: li
     }, "Expected representatives to be blueberry, pineapple, and grape"
 
 
-def test_find_representative(use_ann: bool, model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
+def test_find_representative(model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
     """Test the find_representative method."""
-    semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
+    semhash = SemHash.from_records(records=train_texts, model=model)
     result = semhash.find_representative(records=test_texts, candidate_limit=5, selection_size=3, diversity=0.5)
     assert len(result.selected) == 3, "Expected 3 representatives"
     selected = {r["text"] for r in result.selected}
     assert selected == {"grapefruit", "banana", "apple"}, "Expected representatives to be grapefruit, banana, and apple"
 
 
-def test_filter_outliers(use_ann: bool, model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
+def test_filter_outliers(model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
     """Test the filter_outliers method."""
-    semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
+    semhash = SemHash.from_records(records=train_texts, model=model)
     result = semhash.filter_outliers(records=test_texts, outlier_percentage=0.2)
     assert len(result.filtered) == 2, "Expected 2 outliers"
     assert len(result.selected) == len(test_texts) - 2
@@ -176,9 +174,9 @@ def test_filter_outliers(use_ann: bool, model: Encoder, train_texts: list[str], 
     assert filtered == {"motorcycle", "plane"}, "Expected outliers to be motorcycle and plane"
 
 
-def test_self_filter_outliers(use_ann: bool, model: Encoder, train_texts: list[str]) -> None:
+def test_self_filter_outliers(model: Encoder, train_texts: list[str]) -> None:
     """Test the self_filter_outliers method."""
-    semhash = SemHash.from_records(records=train_texts, use_ann=use_ann, model=model)
+    semhash = SemHash.from_records(records=train_texts, model=model)
     result = semhash.self_filter_outliers(outlier_percentage=0.1)
     assert len(result.filtered) == 2, "Expected 2 outliers"
     assert len(result.selected) == len(train_texts) - 2
@@ -216,7 +214,7 @@ def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result_empty.scores_filtered == []
 
 
-def test_from_embeddings(use_ann: bool, model: Encoder, train_texts: list[str]) -> None:
+def test_from_embeddings(model: Encoder, train_texts: list[str]) -> None:
     """Test from_embeddings constructor with validation and comparison to from_records."""
     # Test validation: mismatched shapes
     with pytest.raises(ValueError, match="Number of embeddings"):
@@ -224,12 +222,10 @@ def test_from_embeddings(use_ann: bool, model: Encoder, train_texts: list[str]) 
         SemHash.from_embeddings(embeddings=wrong_embeddings, records=train_texts, model=model)
 
     # Test that from_embeddings behaves same as from_records
-    semhash_from_records = SemHash.from_records(records=train_texts, model=model, use_ann=use_ann)
+    semhash_from_records = SemHash.from_records(records=train_texts, model=model)
 
     embeddings = model.encode(train_texts)
-    semhash_from_embeddings = SemHash.from_embeddings(
-        embeddings=embeddings, records=train_texts, model=model, use_ann=use_ann
-    )
+    semhash_from_embeddings = SemHash.from_embeddings(embeddings=embeddings, records=train_texts, model=model)
 
     # Both should give same deduplication results
     result1 = semhash_from_records.self_deduplicate(threshold=0.95)
