@@ -369,6 +369,35 @@ deduplicated_dataframe = pd.DataFrame(deduplicated_records)
 
 </details>
 
+<details>
+<summary> Initializing from embeddings </summary>
+<br>
+You can also initialize SemHash from pre-computed embeddings. The following code snippet shows how to do this:
+
+```python
+from datasets import load_dataset
+from model2vec import StaticModel
+from semhash import SemHash
+
+# Load a dataset
+texts = load_dataset("ag_news", split="train")["text"]
+
+# Load an embedding model
+model = StaticModel.from_pretrained("minishlab/potion-base-8M")
+
+# Create embeddings
+embeddings = model.encode(texts)
+
+# Initialize SemHash from embeddings
+semhash = SemHash.from_embeddings(embeddings=embeddings, records=texts, model=model)
+
+# Deduplicate, filter outliers, and find representative samples
+deduplicated_texts = semhash.self_deduplicate().selected
+filtered_texts = semhash.self_filter_outliers().selected
+representative_texts = semhash.self_find_representative().selected
+```
+</details>
+
 NOTE: By default, we use the ANN (approximate-nearest neighbors) backend for deduplication. We recommend keeping this since the recall for smaller datasets is ~100%, and it's needed for larger datasets (>1M samples) since these will take too long to deduplicate without ANN. If you want to use the flat/exact-matching backend, you can set `use_ann=False` in the SemHash constructor:
 
 ```python

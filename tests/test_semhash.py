@@ -188,8 +188,9 @@ def test_self_filter_outliers(use_ann: bool, model: Encoder, train_texts: list[s
 
 def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the _diversify method."""
-    # Create a dummy SemHash instance
-    semhash = SemHash(index=None, model=None, columns=["text"], was_string=True)  # type: ignore
+    from semhash import semhash
+
+    semhash_instance = SemHash(index=None, model=None, columns=["text"], was_string=True)
     # Prepare a fake ranking with three records
     records = ["a", "b", "c"]
     scores = [3.0, 2.0, 1.0]
@@ -197,12 +198,42 @@ def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
     # Create dummy embeddings for the records
     embeddings = np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]])
     # Monkeypatch featurize to return the dummy embeddings
-    monkeypatch.setattr(semhash, "_featurize", lambda records, columns, model: embeddings)
+    monkeypatch.setattr(semhash, "featurize", lambda records, columns, model: embeddings)
 
     # Test diversity=0.0: pure relevance, should pick top 2 by score
-    result_rel = semhash._diversify(ranking, candidate_limit=3, selection_size=2, diversity=0.0)
+    result_rel = semhash_instance._diversify(ranking, candidate_limit=3, selection_size=2, diversity=0.0)
     assert result_rel.selected == ["a", "b"]
 
     # Test diversity=1.0: pure diversity, should first pick 'a', then pick most dissimilar: 'c'
-    result_div = semhash._diversify(ranking, candidate_limit=3, selection_size=2, diversity=1.0)
+    result_div = semhash_instance._diversify(ranking, candidate_limit=3, selection_size=2, diversity=1.0)
     assert result_div.selected == ["a", "c"]
+
+    # Test empty candidates (candidate_limit=0)
+    result_empty = semhash_instance._diversify(ranking, candidate_limit=0, selection_size=2, diversity=0.5)
+    assert result_empty.selected == []
+    assert result_empty.filtered == []
+    assert result_empty.scores_selected == []
+    assert result_empty.scores_filtered == []
+
+
+def test_from_embeddings(use_ann: bool, model: Encoder, train_texts: list[str]) -> None:
+    """Test from_embeddings constructor with validation and comparison to from_records."""
+    # Test validation: mismatched shapes
+    with pytest.raises(ValueError, match="Number of embeddings"):
+        wrong_embeddings = model.encode(["apple", "banana"])
+        SemHash.from_embeddings(embeddings=wrong_embeddings, records=train_texts, model=model)
+
+    # Test that from_embeddings behaves same as from_records
+    semhash_from_records = SemHash.from_records(records=train_texts, model=model, use_ann=use_ann)
+
+    embeddings = model.encode(train_texts)
+    semhash_from_embeddings = SemHash.from_embeddings(
+        embeddings=embeddings, records=train_texts, model=model, use_ann=use_ann
+    )
+
+    # Both should give same deduplication results
+    result1 = semhash_from_records.self_deduplicate(threshold=0.95)
+    result2 = semhash_from_embeddings.self_deduplicate(threshold=0.95)
+
+    assert len(result1.selected) == len(result2.selected)
+    assert len(result1.filtered) == len(result2.filtered)
