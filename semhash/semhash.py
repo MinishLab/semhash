@@ -25,10 +25,6 @@ from semhash.utils import (
 
 
 class SemHash(Generic[Record]):
-    # ==================================================================================
-    # CONSTRUCTION
-    # ==================================================================================
-
     def __init__(self, index: Index, model: Encoder, columns: Sequence[str], was_string: bool) -> None:
         """
         Initialize SemHash.
@@ -161,10 +157,6 @@ class SemHash(Generic[Record]):
         )
 
         return cls(index=index, model=model, columns=columns, was_string=was_string)
-
-    # ==================================================================================
-    # DEDUPLICATION
-    # ==================================================================================
 
     def self_deduplicate(
         self,
@@ -373,10 +365,6 @@ class SemHash(Generic[Record]):
 
         return result
 
-    # ==================================================================================
-    # OUTLIER FILTERING
-    # ==================================================================================
-
     def self_filter_outliers(
         self,
         outlier_percentage: float = 0.1,
@@ -505,10 +493,6 @@ class SemHash(Generic[Record]):
             scores_selected=list(inlier_scores),
             scores_filtered=list(outlier_scores),
         )
-
-    # ==================================================================================
-    # REPRESENTATIVE SELECTION
-    # ==================================================================================
 
     def self_find_representative(
         self,
