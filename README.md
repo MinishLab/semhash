@@ -2,7 +2,7 @@
 
 <h2 align="center">
   <img width="30%" alt="SemHash logo" src="assets/images/semhash_logo_v2.png"><br/>
-  Fast Semantic Text Deduplication & Filtering
+  Fast Semantic Deduplication & Filtering
 </h2>
 
 
@@ -38,9 +38,9 @@
 </div>
 
 
-SemHash is a lightweight and flexible tool for deduplicating datasets, filtering outliers, and finding representative samples using semantic similarity. It combines fast embedding generation from [Model2Vec](https://github.com/MinishLab/model2vec) with efficient ANN-based similarity search through [Vicinity](https://github.com/MinishLab/vicinity).
+SemHash is a lightweight library for semantic deduplication, outlier filtering, and representative sample selection. It's fully multimodal: text works out-of-the-box, and you can bring embeddings from images, audio, or custom models. For text, it ships with [Model2Vec](https://github.com/MinishLab/model2vec) by default for fast, efficient embedding generation.
 
-SemHash supports both single-dataset deduplication & filtering (e.g., cleaning up a train set by removing duplicates and outliers) and multi-dataset deduplication & filtering (e.g., ensuring no overlap between a test set and a train set). It works with simple datasets, such as text lists, and more complex ones, like multi-column QA datasets. Additionally, it includes functions to inspect deduplication results, making it easier to understand and refine your data cleaning process.
+SemHash supports both single-dataset operations (clean a training set) and cross-dataset operations (deduplicate test against train). It works with simple lists and complex multi-column datasets, and includes inspection tools to help you understand and refine results. All operations use [Vicinity](https://github.com/MinishLab/vicinity) for efficient similarity search.
 
 ## Quickstart
 
@@ -49,7 +49,7 @@ Install the package with:
 pip install semhash
 ```
 
-Deduplicate a single dataset, filter outliers, and find representative samples with the following code (note: the examples assume you have `datasets` installed, which you can install with `pip install datasets`):
+Deduplicate a single dataset, filter outliers, and find representative samples with the following code (note: the examples assume you have `datasets` installed, which you can install with `pip install datasets`. The image example also requires `timm`):
 
 ```python
 from datasets import load_dataset
@@ -69,6 +69,34 @@ filtered_texts = semhash.self_filter_outliers().selected
 
 # Find representative texts
 representative_texts = semhash.self_find_representative().selected
+```
+
+Or, deduplicate an image dataset:
+
+```python
+import timm
+import torch
+from datasets import load_dataset
+from semhash import SemHash
+
+# Generate embeddings with a vision model
+images = load_dataset("uoft-cs/cifar10", split="test")["img"][:100]
+model = timm.create_model("mobilenetv3_small_100", pretrained=True, num_classes=0).eval()
+transform = timm.data.create_transform(**timm.data.resolve_model_data_config(model))
+with torch.no_grad():
+    embeddings = model(torch.stack([transform(img) for img in images])).numpy()
+
+# Initialize SemHash from embeddings
+semhash = SemHash.from_embeddings(embeddings, [f"img_{i}.jpg" for i in range(100)], model)
+
+# Deduplicate the images
+deduplicated_images = semhash.self_deduplicate().selected
+
+# Filter outliers
+outlier_images = semhash.self_filter_outliers().selected
+
+# Find representative images
+representative_images = semhash.self_find_representative().selected
 ```
 
 Or, deduplicate across two datasets, filter outliers, and find representative samples with the following code (e.g., eliminating train/test leakage):
@@ -176,7 +204,7 @@ for item in result.selected_with_duplicates:
 The following examples show the various ways you can use SemHash to deduplicate datasets, filter outliers, and find representative samples. These examples assume you have the `datasets` library installed, which you can install with `pip install datasets`.
 
 <details>
-<summary>  Deduplicate, filter outliers, and find representative samples on a single dataset </summary>
+<summary>  Deduplicate, filter outliers, and find representative samples on a single text dataset </summary>
 <br>
 
 The following code snippet shows how to deduplicate a single dataset, filter outliers, and find representative samples using SemHash (in this example, the train split of the [AG News dataset](https://huggingface.co/datasets/fancyzhx/ag_news)):
@@ -203,7 +231,7 @@ representative_texts = semhash.self_find_representative().selected
 </details>
 
 <details>
-<summary>  Deduplicate, filter outliers, and find representative samples across two datasets </summary>
+<summary>  Deduplicate, filter outliers, and find representative samples across two text datasets </summary>
 <br>
 
 The following code snippet shows how to deduplicate across two datasets, filter outliers, and find representative samples using SemHash (in this example, the train/test split of the [AG News dataset](https://huggingface.co/datasets/fancyzhx/ag_news)):
@@ -235,7 +263,7 @@ representative_test_texts = semhash.find_representative(records=test_texts).sele
 </details>
 
 <details>
-<summary>  Deduplicate, filter outliers, and find representative samples on multi-column datasets </summary>
+<summary>  Deduplicate, filter outliers, and find representative samples on multi-column text datasets </summary>
 <br>
 
 The following code snippet shows how to deduplicate multi-column datasets, filter outliers, and find representative samples using SemHash (in this example, the train split of the QA dataset [SQuAD 2.0](https://huggingface.co/datasets/rajpurkar/squad_v2), which consists of questions, contexts, and answers):
@@ -263,6 +291,45 @@ filtered_records = semhash.self_filter_outliers().selected
 representative_records = semhash.self_find_representative().selected
 ```
 
+</details>
+
+<details>
+<summary>  Deduplicate, filter outliers, and find representative samples on image datasets </summary>
+<br>
+
+The following code snippet shows how to deduplicate images using pre-computed embeddings. The regular `deduplicate`, `filter_outliers`, and `find_representative` methods are designed for text datasets, where the encoder can directly encode the given (string) records. For images (or other modalities), you can use pre-computed embeddings with the `*_from_embeddings` methods:
+
+```python
+from datasets import load_dataset
+import timm, torch
+from semhash import SemHash
+
+# Load images and generate embeddings with a vision model
+train_images = load_dataset("uoft-cs/cifar10", split="test")["img"][:100]
+test_images = load_dataset("uoft-cs/cifar10", split="test")["img"][100:150]
+
+model = timm.create_model("mobilenetv3_small_100", pretrained=True, num_classes=0).eval()
+transform = timm.data.create_transform(**timm.data.resolve_model_data_config(model))
+
+with torch.no_grad():
+    train_emb = model(torch.stack([transform(img) for img in train_images])).numpy()
+    test_emb = model(torch.stack([transform(img) for img in test_images])).numpy()
+
+# Initialize with train set
+train_ids = [f"train_{i}.jpg" for i in range(100)]
+semhash = SemHash.from_embeddings(train_emb, train_ids, model)
+
+# Single-dataset operations (use embeddings already in the index)
+deduplicated_images = semhash.self_deduplicate().selected
+outlier_images = semhash.self_filter_outliers().selected
+representative_images = semhash.self_find_representative().selected
+
+# Cross-dataset operations (use new pre-computed embeddings)
+test_ids = [f"test_{i}.jpg" for i in range(50)]
+deduplicated_test_images = semhash.deduplicate_from_embeddings(test_emb, test_ids).selected
+outlier_test_images = semhash.filter_outliers_from_embeddings(test_emb, test_ids).selected
+representative_test_images = semhash.find_representative_from_embeddings(test_emb, test_ids, selection_size=10).selected
+```
 </details>
 
 <details>
@@ -399,8 +466,6 @@ filtered_texts = semhash.self_filter_outliers().selected
 representative_texts = semhash.self_find_representative().selected
 ```
 </details>
-
-
 
 
 ## Benchmarks

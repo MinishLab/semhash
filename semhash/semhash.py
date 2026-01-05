@@ -25,6 +25,10 @@ from semhash.utils import (
 
 
 class SemHash(Generic[Record]):
+    # ==================================================================================
+    # CONSTRUCTION
+    # ==================================================================================
+
     def __init__(self, index: Index, model: Encoder, columns: Sequence[str], was_string: bool) -> None:
         """
         Initialize SemHash.
@@ -158,68 +162,9 @@ class SemHash(Generic[Record]):
 
         return cls(index=index, model=model, columns=columns, was_string=was_string)
 
-    def deduplicate(
-        self,
-        records: Sequence[Record],
-        threshold: float = 0.9,
-    ) -> DeduplicationResult:
-        """
-        Perform deduplication against the fitted index.
-
-        This method assumes you have already fit on a reference dataset (e.g., a train set) with from_records.
-        It will remove any items from 'records' that are similar above a certain threshold
-        to any item in the fitted dataset.
-
-        :param records: A new set of records (e.g., test set) to deduplicate against the fitted dataset.
-        :param threshold: Similarity threshold for deduplication.
-        :return: A deduplicated list of records.
-        """
-        dict_records = self._validate_if_strings(records)
-
-        # Remove exact duplicates before embedding
-        dict_records, exact_duplicates = remove_exact_duplicates(
-            records=dict_records, columns=self.columns, reference_records=self.index.items
-        )
-        duplicate_records = []
-        for record, duplicates in exact_duplicates:
-            duplicated_with_score = add_scores_to_records(duplicates)
-            duplicate_record = DuplicateRecord(record=record, duplicates=duplicated_with_score, exact=True)
-            duplicate_records.append(duplicate_record)
-
-        # If no records are left after removing exact duplicates, return early
-        if not dict_records:
-            return DeduplicationResult(
-                selected=[], filtered=duplicate_records, threshold=threshold, columns=self.columns
-            )
-
-        # Compute embeddings for the new records
-        embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
-        # Query the fitted index
-        results = self.index.query_threshold(embeddings, threshold=threshold)
-
-        deduplicated_records = []
-        for record, similar_items in zip(dict_records, results):
-            if not similar_items:
-                # No duplicates found, keep this record
-                deduplicated_records.append(record)
-            else:
-                duplicate_records.append(
-                    DuplicateRecord(
-                        record=record,
-                        duplicates=[(item, score) for item, score in similar_items],
-                        exact=False,
-                    )
-                )
-
-        result = DeduplicationResult(
-            selected=deduplicated_records, filtered=duplicate_records, threshold=threshold, columns=self.columns
-        )
-
-        if self._was_string:
-            # Convert records back to strings if the records were originally strings
-            return map_deduplication_result_to_strings(result, columns=self.columns)
-
-        return result
+    # ==================================================================================
+    # DEDUPLICATION
+    # ==================================================================================
 
     def self_deduplicate(
         self,
@@ -290,80 +235,183 @@ class SemHash(Generic[Record]):
 
         return result
 
-    def _validate_if_strings(self, records: Sequence[dict[str, str] | str]) -> Sequence[dict[str, str]]:
-        """
-        Validate if the records are strings.
-
-        If the records are strings, they are converted to dictionaries with a single column.
-
-        :param records: The records to validate.
-        :return: The records as a list of dictionaries.
-        :raises ValueError: If the records are strings but were not originally strings.
-        :raises ValueError: If the records are not all strings or dictionaries.
-        """
-        if isinstance(records[0], str):
-            if not self._was_string:
-                raise ValueError("Records were not originally strings, but you passed strings.")
-            dict_records = [{"text": record} for record in records if isinstance(record, str)]
-        else:
-            dict_records = [record for record in records if isinstance(record, dict)]
-        if len(dict_records) != len(records):
-            raise ValueError("Records must be either strings or dictionaries.")
-        return dict_records
-
-    def find_representative(
+    def deduplicate(
         self,
         records: Sequence[Record],
-        selection_size: int = 10,
-        candidate_limit: int | Literal["auto"] = "auto",
-        diversity: float = 0.5,
-        strategy: Strategy | str = Strategy.MMR,
-    ) -> FilterResult:
+        threshold: float = 0.9,
+    ) -> DeduplicationResult:
         """
-        Find representative samples from a given set of records against the fitted index.
+        Perform deduplication against the fitted index.
 
-        First, the records are ranked using average similarity.
-        Then, the top candidates are re-ranked using Maximal Marginal Relevance (MMR)
-        to select a diverse set of representatives.
+        This method assumes you have already fit on a reference dataset (e.g., a train set) with from_records.
+        It will remove any items from 'records' that are similar above a certain threshold
+        to any item in the fitted dataset.
 
-        :param records: The records to rank and select representatives from.
-        :param selection_size: Number of representatives to select.
-        :param candidate_limit: Number of top candidates to consider for diversity reranking.
-            Defaults to "auto", which calculates the limit based on the total number of records.
-        :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
-        :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
-        :return: A FilterResult with the diversified candidates.
+        :param records: A new set of records (e.g., test set) to deduplicate against the fitted dataset.
+        :param threshold: Similarity threshold for deduplication.
+        :return: A deduplicated list of records.
         """
-        ranking = self._rank_by_average_similarity(records)
-        if candidate_limit == "auto":
-            candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
-        return self._diversify(ranking, candidate_limit, selection_size, diversity, strategy)
+        dict_records = self._validate_if_strings(records)
 
-    def self_find_representative(
+        # Remove exact duplicates before embedding
+        dict_records, exact_duplicates = remove_exact_duplicates(
+            records=dict_records, columns=self.columns, reference_records=self.index.items
+        )
+        duplicate_records = []
+        for record, duplicates in exact_duplicates:
+            duplicated_with_score = add_scores_to_records(duplicates)
+            duplicate_record = DuplicateRecord(record=record, duplicates=duplicated_with_score, exact=True)
+            duplicate_records.append(duplicate_record)
+
+        # If no records are left after removing exact duplicates, return early
+        if not dict_records:
+            return DeduplicationResult(
+                selected=[], filtered=duplicate_records, threshold=threshold, columns=self.columns
+            )
+
+        # Compute embeddings for the new records
+        embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
+        # Query the fitted index
+        results = self.index.query_threshold(embeddings, threshold=threshold)
+
+        deduplicated_records = []
+        for record, similar_items in zip(dict_records, results):
+            if not similar_items:
+                # No duplicates found, keep this record
+                deduplicated_records.append(record)
+            else:
+                duplicate_records.append(
+                    DuplicateRecord(
+                        record=record,
+                        duplicates=[(item, score) for item, score in similar_items],
+                        exact=False,
+                    )
+                )
+
+        result = DeduplicationResult(
+            selected=deduplicated_records, filtered=duplicate_records, threshold=threshold, columns=self.columns
+        )
+
+        if self._was_string:
+            # Convert records back to strings if the records were originally strings
+            return map_deduplication_result_to_strings(result, columns=self.columns)
+
+        return result
+
+    def deduplicate_from_embeddings(
         self,
-        selection_size: int = 10,
-        candidate_limit: int | Literal["auto"] = "auto",
-        diversity: float = 0.5,
-        strategy: Strategy | str = Strategy.MMR,
+        embeddings: np.ndarray,
+        records: Sequence[Record],
+        threshold: float = 0.9,
+    ) -> DeduplicationResult:
+        """
+        Deduplicate records using pre-computed embeddings against the fitted index.
+
+        Use this when you have pre-computed embeddings and want to deduplicate a new
+        dataset against the fitted index without re-encoding. Particularly useful for
+        images, audio, video, or cached embeddings.
+
+        :param embeddings: Pre-computed embeddings of shape (n_records, embedding_dim).
+        :param records: Records corresponding to the embeddings.
+        :param threshold: Similarity threshold for deduplication.
+        :return: A DeduplicationResult with selected/filtered records.
+        :raises ValueError: If the number of embeddings doesn't match the number of records.
+        """
+        if len(embeddings) != len(records):
+            raise ValueError(f"Number of embeddings ({len(embeddings)}) must match number of records ({len(records)})")
+
+        dict_records = self._validate_if_strings(records)
+
+        # Remove exact duplicates before querying
+        dict_records, exact_duplicates = remove_exact_duplicates(
+            records=dict_records, columns=self.columns, reference_records=self.index.items
+        )
+        duplicate_records = []
+        for record, duplicates in exact_duplicates:
+            duplicated_with_score = add_scores_to_records(duplicates)
+            duplicate_record = DuplicateRecord(record=record, duplicates=duplicated_with_score, exact=True)
+            duplicate_records.append(duplicate_record)
+
+        # If no records left after exact duplicate removal, return early
+        if not dict_records:
+            return DeduplicationResult(
+                selected=[], filtered=duplicate_records, threshold=threshold, columns=self.columns
+            )
+
+        # Build mapping from original records to deduplicated records
+        embedding_indices = []
+        for i, record in enumerate(self._validate_if_strings(records)):
+            if record in dict_records:
+                embedding_indices.append(i)
+
+        # Select embeddings for non-exact-duplicate records
+        deduplicated_embeddings = embeddings[embedding_indices]
+
+        # Query the fitted index using pre-computed embeddings
+        results = self.index.query_threshold(deduplicated_embeddings, threshold=threshold)
+
+        deduplicated_records = []
+        for record, similar_items in zip(dict_records, results):
+            if not similar_items:
+                # No duplicates found, keep this record
+                deduplicated_records.append(record)
+            else:
+                duplicate_records.append(
+                    DuplicateRecord(
+                        record=record,
+                        duplicates=[(item, score) for item, score in similar_items],
+                        exact=False,
+                    )
+                )
+
+        result = DeduplicationResult(
+            selected=deduplicated_records, filtered=duplicate_records, threshold=threshold, columns=self.columns
+        )
+
+        if self._was_string:
+            return map_deduplication_result_to_strings(result, columns=self.columns)
+
+        return result
+
+    # ==================================================================================
+    # OUTLIER FILTERING
+    # ==================================================================================
+
+    def self_filter_outliers(
+        self,
+        outlier_percentage: float = 0.1,
     ) -> FilterResult:
         """
-        Find representative samples from the fitted dataset.
+        Filter outliers in the fitted dataset.
 
-        First, the rank the records are ranked using average similarity.
-        Then, the top candidates are re-ranked using Maximal Marginal Relevance (MMR)
-        to select a diverse set of representatives.
+        The method ranks the records stored in the index and filters the bottom outlier_percentage
+        of records as outliers.
 
-        :param selection_size: Number of representatives to select.
-        :param candidate_limit: Number of top candidates to consider for diversity reranking.
-            Defaults to "auto", which calculates the limit based on the total number of records.
-        :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
-        :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
-        :return: A FilterResult with the diversified representatives.
+        :param outlier_percentage: The percentage (between 0 and 1) of records to consider as outliers.
+        :return: A FilterResult where 'selected' contains the inliers and 'filtered' contains the outliers.
+        :raises ValueError: If outlier_percentage is not between 0 and 1.
         """
+        if outlier_percentage < 0.0 or outlier_percentage > 1.0:
+            raise ValueError("outlier_percentage must be between 0 and 1")
         ranking = self._self_rank_by_average_similarity()
-        if candidate_limit == "auto":
-            candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
-        return self._diversify(ranking, candidate_limit, selection_size, diversity, strategy)
+        outlier_count = ceil(len(ranking.selected) * outlier_percentage)
+        if outlier_count == 0:
+            # If the outlier count is 0, return an empty selection
+            return FilterResult(
+                selected=[], filtered=ranking.selected, scores_selected=[], scores_filtered=ranking.scores_selected
+            )
+
+        outlier_records = ranking.selected[-outlier_count:]
+        outlier_scores = ranking.scores_selected[-outlier_count:]
+        inlier_records = ranking.selected[:-outlier_count]
+        inlier_scores = ranking.scores_selected[:-outlier_count]
+
+        return FilterResult(
+            selected=inlier_records,
+            filtered=outlier_records,
+            scores_selected=inlier_scores,
+            scores_filtered=outlier_scores,
+        )
 
     def filter_outliers(
         self,
@@ -403,41 +451,228 @@ class SemHash(Generic[Record]):
             scores_filtered=outlier_scores,
         )
 
-    def self_filter_outliers(
+    def filter_outliers_from_embeddings(
         self,
+        embeddings: np.ndarray,
+        records: Sequence[Record],
         outlier_percentage: float = 0.1,
     ) -> FilterResult:
         """
-        Filter outliers in the fitted dataset.
+        Filter outliers using pre-computed embeddings against the fitted index.
 
-        The method ranks the records stored in the index and filters the bottom outlier_percentage
-        of records as outliers.
+        Ranks records by their average similarity to the fitted index and filters
+        the bottom outlier_percentage as outliers. Use this when you have pre-computed
+        embeddings from images, audio, video, or cached computations.
 
-        :param outlier_percentage: The percentage (between 0 and 1) of records to consider as outliers.
-        :return: A FilterResult where 'selected' contains the inliers and 'filtered' contains the outliers.
+        :param embeddings: Pre-computed embeddings of shape (n_records, embedding_dim).
+        :param records: Records corresponding to the embeddings.
+        :param outlier_percentage: The percentage (between 0 and 1) of records to consider outliers.
+        :return: A FilterResult where 'selected' contains inliers and 'filtered' contains outliers.
         :raises ValueError: If outlier_percentage is not between 0 and 1.
+        :raises ValueError: If the number of embeddings doesn't match the number of records.
         """
         if outlier_percentage < 0.0 or outlier_percentage > 1.0:
             raise ValueError("outlier_percentage must be between 0 and 1")
-        ranking = self._self_rank_by_average_similarity()
-        outlier_count = ceil(len(ranking.selected) * outlier_percentage)
+        if len(embeddings) != len(records):
+            raise ValueError(f"Number of embeddings ({len(embeddings)}) must match number of records ({len(records)})")
+
+        # Rank by average similarity using pre-computed embeddings
+        dict_records = self._validate_if_strings(records)
+        results = self.index.query_top_k(embeddings, k=100, vectors_are_in_index=False)
+
+        # Compute average similarity for each record
+        sorted_scores = sorted(
+            ((record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)),
+            key=lambda x: x[1],
+            reverse=True,
+        )
+        selected, scores_selected = zip(*sorted_scores) if sorted_scores else ([], [])
+
+        outlier_count = ceil(len(selected) * outlier_percentage)
         if outlier_count == 0:
-            # If the outlier count is 0, return an empty selection
             return FilterResult(
-                selected=[], filtered=ranking.selected, scores_selected=[], scores_filtered=ranking.scores_selected
+                selected=[], filtered=list(selected), scores_selected=[], scores_filtered=list(scores_selected)
             )
 
-        outlier_records = ranking.selected[-outlier_count:]
-        outlier_scores = ranking.scores_selected[-outlier_count:]
-        inlier_records = ranking.selected[:-outlier_count]
-        inlier_scores = ranking.scores_selected[:-outlier_count]
+        outlier_records = selected[-outlier_count:]
+        outlier_scores = scores_selected[-outlier_count:]
+        inlier_records = selected[:-outlier_count]
+        inlier_scores = scores_selected[:-outlier_count]
 
         return FilterResult(
-            selected=inlier_records,
-            filtered=outlier_records,
-            scores_selected=inlier_scores,
-            scores_filtered=outlier_scores,
+            selected=list(inlier_records),
+            filtered=list(outlier_records),
+            scores_selected=list(inlier_scores),
+            scores_filtered=list(outlier_scores),
         )
+
+    # ==================================================================================
+    # REPRESENTATIVE SELECTION
+    # ==================================================================================
+
+    def self_find_representative(
+        self,
+        selection_size: int = 10,
+        candidate_limit: int | Literal["auto"] = "auto",
+        diversity: float = 0.5,
+        strategy: Strategy | str = Strategy.MMR,
+    ) -> FilterResult:
+        """
+        Find representative samples from the fitted dataset.
+
+        First, the rank the records are ranked using average similarity.
+        Then, the top candidates are re-ranked using Maximal Marginal Relevance (MMR)
+        to select a diverse set of representatives.
+
+        :param selection_size: Number of representatives to select.
+        :param candidate_limit: Number of top candidates to consider for diversity reranking.
+            Defaults to "auto", which calculates the limit based on the total number of records.
+        :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
+        :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
+        :return: A FilterResult with the diversified representatives.
+        """
+        ranking = self._self_rank_by_average_similarity()
+        if candidate_limit == "auto":
+            candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
+        return self._diversify(ranking, candidate_limit, selection_size, diversity, strategy)
+
+    def find_representative(
+        self,
+        records: Sequence[Record],
+        selection_size: int = 10,
+        candidate_limit: int | Literal["auto"] = "auto",
+        diversity: float = 0.5,
+        strategy: Strategy | str = Strategy.MMR,
+    ) -> FilterResult:
+        """
+        Find representative samples from a given set of records against the fitted index.
+
+        First, the records are ranked using average similarity.
+        Then, the top candidates are re-ranked using Maximal Marginal Relevance (MMR)
+        to select a diverse set of representatives.
+
+        :param records: The records to rank and select representatives from.
+        :param selection_size: Number of representatives to select.
+        :param candidate_limit: Number of top candidates to consider for diversity reranking.
+            Defaults to "auto", which calculates the limit based on the total number of records.
+        :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
+        :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
+        :return: A FilterResult with the diversified candidates.
+        """
+        ranking = self._rank_by_average_similarity(records)
+        if candidate_limit == "auto":
+            candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
+        return self._diversify(ranking, candidate_limit, selection_size, diversity, strategy)
+
+    def find_representative_from_embeddings(
+        self,
+        embeddings: np.ndarray,
+        records: Sequence[Record],
+        selection_size: int = 10,
+        candidate_limit: int | Literal["auto"] = "auto",
+        diversity: float = 0.5,
+        strategy: Strategy | str = Strategy.MMR,
+    ) -> FilterResult:
+        """
+        Find representative samples using pre-computed embeddings against the fitted index.
+
+        Ranks records by average similarity to the fitted index, then applies diversification
+        to select diverse representatives. Use this with pre-computed embeddings from images,
+        audio, video, or cached computations.
+
+        :param embeddings: Pre-computed embeddings of shape (n_records, embedding_dim).
+        :param records: Records corresponding to the embeddings.
+        :param selection_size: Number of representatives to select.
+        :param candidate_limit: Number of top candidates to consider for diversity reranking.
+            Defaults to "auto", which calculates the limit based on the total number of records.
+        :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
+        :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
+        :return: A FilterResult with the diversified representatives.
+        :raises ValueError: If the number of embeddings doesn't match the number of records.
+        """
+        if len(embeddings) != len(records):
+            raise ValueError(f"Number of embeddings ({len(embeddings)}) must match number of records ({len(records)})")
+
+        # Rank by average similarity using pre-computed embeddings
+        dict_records = self._validate_if_strings(records)
+        results = self.index.query_top_k(embeddings, k=100, vectors_are_in_index=False)
+
+        # Compute average similarity for each record
+        sorted_scores = sorted(
+            ((record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)),
+            key=lambda x: x[1],
+            reverse=True,
+        )
+        selected, scores_selected = zip(*sorted_scores) if sorted_scores else ([], [])
+
+        # Create ranking result
+        ranking = FilterResult(
+            selected=list(selected),
+            filtered=[],
+            scores_selected=list(scores_selected),
+            scores_filtered=[],
+        )
+
+        if candidate_limit == "auto":
+            candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
+
+        # Diversify using pre-computed embeddings
+        candidates = ranking.selected[:candidate_limit]
+        relevance = ranking.scores_selected[:candidate_limit]
+
+        if not candidates:
+            return FilterResult(selected=[], filtered=[], scores_selected=[], scores_filtered=[])
+
+        # Get embeddings for the top candidates
+        # Need to map candidates back to their indices in the original embeddings
+        candidate_indices = []
+        dict_records_list = list(dict_records)
+        for candidate in candidates:
+            try:
+                idx = dict_records_list.index(candidate)
+                candidate_indices.append(idx)
+            except ValueError:
+                pass
+
+        candidate_embeddings = embeddings[candidate_indices]
+
+        # Diversify
+        result = diversify(
+            embeddings=candidate_embeddings,
+            scores=np.array(relevance),
+            k=selection_size,
+            strategy=strategy,
+            diversity=diversity,
+        )
+
+        selected_set = set(result.indices)
+        return FilterResult(
+            selected=[candidates[i] for i in result.indices],
+            filtered=[rec for i, rec in enumerate(candidates) if i not in selected_set],
+            scores_selected=result.selection_scores.tolist(),
+            scores_filtered=[score for i, score in enumerate(relevance) if i not in selected_set],
+        )
+
+    def _validate_if_strings(self, records: Sequence[dict[str, str] | str]) -> Sequence[dict[str, str]]:
+        """
+        Validate if the records are strings.
+
+        If the records are strings, they are converted to dictionaries with a single column.
+
+        :param records: The records to validate.
+        :return: The records as a list of dictionaries.
+        :raises ValueError: If the records are strings but were not originally strings.
+        :raises ValueError: If the records are not all strings or dictionaries.
+        """
+        if isinstance(records[0], str):
+            if not self._was_string:
+                raise ValueError("Records were not originally strings, but you passed strings.")
+            dict_records = [{"text": record} for record in records if isinstance(record, str)]
+        else:
+            dict_records = [record for record in records if isinstance(record, dict)]
+        if len(dict_records) != len(records):
+            raise ValueError("Records must be either strings or dictionaries.")
+        return dict_records
 
     def _rank_by_average_similarity(
         self,

@@ -15,15 +15,15 @@ class Encoder(Protocol):
 
     def encode(
         self,
-        sentences: list[str] | str | Sequence[str],
+        inputs: list[str] | str | Sequence[str],
         **kwargs: Any,
     ) -> np.ndarray:
         """
-        Encode a list of sentences into embeddings.
+        Encode inputs into embeddings.
 
-        :param sentences: A list of sentences to encode.
+        :param inputs: Inputs to encode (texts, image paths, audio files, or any identifiers).
         :param **kwargs: Additional keyword arguments.
-        :return: The embeddings of the sentences.
+        :return: The embeddings of the inputs.
         """
         ...  # pragma: no cover
 
@@ -77,8 +77,8 @@ def featurize(
     # Extract the embeddings for each column across all records
     embeddings_per_col = []
     for col in columns:
-        col_texts = [r[col] for r in records]
-        col_emb = model.encode(col_texts)
+        col_values = [r[col] for r in records]
+        col_emb = model.encode(col_values)
         embeddings_per_col.append(np.asarray(col_emb))
 
     return np.concatenate(embeddings_per_col, axis=1)
