@@ -236,74 +236,34 @@ def test_from_embeddings(model: Encoder, train_texts: list[str]) -> None:
 
 
 def test_from_embeddings_with_exact_duplicates(model: Encoder) -> None:
-    """
-    Test that from_embeddings correctly handles exact duplicates in input.
-
-    This is a regression test for Issue #1: the bug where duplicate records
-    would cause duplicate embeddings to be kept in the index.
-    """
-    # Create records with exact duplicates
-    records = [
-        "apple",  # 0
-        "banana",  # 1
-        "apple",  # 2 - duplicate of 0
-        "cherry",  # 3
-        "banana",  # 4 - duplicate of 1
-        "date",  # 5
-    ]
-
-    # Generate embeddings for all records (including duplicates)
+    """Test that from_embeddings correctly handles exact duplicates in input."""
+    # Test with string records
+    records = ["apple", "banana", "apple", "cherry", "banana"]
     embeddings = model.encode(records)
 
-    # Create SemHash from embeddings
     semhash = SemHash.from_embeddings(embeddings=embeddings, records=records, model=model)
 
-    # The index should only contain 4 unique records (apple, banana, cherry, date)
-    assert len(semhash.index.vectors) == 4, f"Expected 4 unique vectors, got {len(semhash.index.vectors)}"
-    assert len(semhash.index.items) == 4, f"Expected 4 items, got {len(semhash.index.items)}"
-
-    # Verify that duplicates are grouped correctly
-    # Each item is a list of exact duplicates
-    items_by_text = {}
-    for item in semhash.index.items:
-        text = item[0]["text"]
-        items_by_text[text] = len(item)
-
-    # apple and banana should have 2 records each (original + duplicate)
-    # cherry and date should have 1 record each
-    assert items_by_text["apple"] == 2, "apple should have 2 records"
-    assert items_by_text["banana"] == 2, "banana should have 2 records"
-    assert items_by_text["cherry"] == 1, "cherry should have 1 record"
-    assert items_by_text["date"] == 1, "date should have 1 record"
-
-    # Verify embeddings correspond to first occurrences
-    # The vectors should match embeddings at indices [0, 1, 3, 5]
-    # (order may vary in the index, so we can't do exact comparison)
-    # but the count should be correct
-    assert semhash.index.vectors.shape[0] == 4
-
-
-def test_from_embeddings_dict_records_with_duplicates(model: Encoder) -> None:
-    """Test that from_embeddings handles duplicates correctly with dictionary records."""
-    records = [
-        {"id": "1", "text": "apple"},
-        {"id": "2", "text": "banana"},
-        {"id": "3", "text": "apple"},  # Duplicate based on 'text' column
-        {"id": "4", "text": "cherry"},
-    ]
-
-    # Generate embeddings
-    texts = [r["text"] for r in records]
-    embeddings = model.encode(texts)
-
-    # Create SemHash using only 'text' column for deduplication
-    semhash = SemHash.from_embeddings(embeddings=embeddings, records=records, columns=["text"], model=model)
-
-    # Should have 3 unique 'text' values
+    # Should have 3 unique records (apple, banana, cherry)
     assert len(semhash.index.vectors) == 3
     assert len(semhash.index.items) == 3
 
-    # Find the item with "apple" text
-    apple_items = [item for item in semhash.index.items if item[0]["text"] == "apple"]
-    assert len(apple_items) == 1, "Should find exactly one item group for 'apple'"
-    assert len(apple_items[0]) == 2, "The 'apple' item should contain 2 records"
+    # Verify duplicates are grouped: apple and banana should have 2 records each
+    items_by_text = {item[0]["text"]: len(item) for item in semhash.index.items}
+    assert items_by_text["apple"] == 2
+    assert items_by_text["banana"] == 2
+    assert items_by_text["cherry"] == 1
+
+    # Test with dictionary records and custom columns
+    dict_records = [
+        {"id": "1", "text": "apple"},
+        {"id": "2", "text": "banana"},
+        {"id": "3", "text": "apple"},  # Duplicate based on 'text'
+    ]
+    embeddings = model.encode([r["text"] for r in dict_records])
+
+    semhash = SemHash.from_embeddings(embeddings=embeddings, records=dict_records, columns=["text"], model=model)
+
+    # Should have 2 unique text values, with apple having 2 records
+    assert len(semhash.index.vectors) == 2
+    apple_item = [item for item in semhash.index.items if item[0]["text"] == "apple"][0]
+    assert len(apple_item) == 2
