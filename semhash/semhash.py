@@ -143,10 +143,19 @@ class SemHash(Generic[Record]):
                     break
 
         # Build index mapping for embeddings (accounting for removed exact duplicates)
+        # We need to keep only the first occurrence of each unique record
+        col_set = set(columns)
+        seen_hashes = set()
         embedding_indices = []
+
         for i, record in enumerate(dict_records):
-            if record in deduplicated_records:
-                embedding_indices.append(i)
+            frozen = to_frozendict(record, col_set)
+            # Only keep the first occurrence of each unique record
+            if frozen not in seen_hashes:
+                # Check if this record hash is in the deduplicated set
+                if any(to_frozendict(dedup_rec, col_set) == frozen for dedup_rec in deduplicated_records):
+                    embedding_indices.append(i)
+                    seen_hashes.add(frozen)
 
         # Select embeddings for non-exact-duplicate records
         deduplicated_embeddings = embeddings[embedding_indices]
