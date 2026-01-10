@@ -173,6 +173,11 @@ def test_filter_outliers(model: Encoder, train_texts: list[str], test_texts: lis
     filtered = {r["text"] for r in result.filtered}
     assert filtered == {"motorcycle", "plane"}, "Expected outliers to be motorcycle and plane"
 
+    # Test with outlier_percentage=0.0 (should return no outliers)
+    result_zero = semhash.filter_outliers(records=test_texts, outlier_percentage=0.0)
+    assert result_zero.filtered == []
+    assert len(result_zero.selected) == len(test_texts)
+
 
 def test_self_filter_outliers(model: Encoder, train_texts: list[str]) -> None:
     """Test the self_filter_outliers method."""
@@ -182,6 +187,11 @@ def test_self_filter_outliers(model: Encoder, train_texts: list[str]) -> None:
     assert len(result.selected) == len(train_texts) - 2
     filtered = {r["text"] for r in result.filtered}
     assert filtered == {"car", "bicycle"}, "Expected outliers to be car and bicycle"
+
+    # Test with outlier_percentage=0.0 (should return no outliers)
+    result_zero = semhash.self_filter_outliers(outlier_percentage=0.0)
+    assert result_zero.filtered == []
+    assert len(result_zero.selected) == len(train_texts)
 
 
 def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -234,10 +244,8 @@ def test_from_embeddings(model: Encoder, train_texts: list[str]) -> None:
     assert len(result1.selected) == len(result2.selected)
     assert len(result1.filtered) == len(result2.filtered)
 
-
-def test_from_embeddings_keeps_first_occurrence_embedding(model: Encoder) -> None:
-    """Test that from_embeddings keeps first-occurrence embeddings and drops duplicates."""
-    records = ["img1", "img2", "img1", "img3"]
+    # Test that from_embeddings keeps first-occurrence embeddings and drops duplicates
+    records = ["apple", "banana", "apple", "cherry"]
     embeddings = np.array([[0.0], [1.0], [2.0], [3.0]], dtype=np.float32)
 
     semhash = SemHash.from_embeddings(embeddings=embeddings, records=records, model=model)
@@ -245,21 +253,3 @@ def test_from_embeddings_keeps_first_occurrence_embedding(model: Encoder) -> Non
     assert semhash.index.vectors.shape == (3, 1)
     # Should keep embeddings at indices 0, 1, 3 (first occurrences of img1, img2, img3)
     assert semhash.index.vectors.tolist() == [[0.0], [1.0], [3.0]]
-
-
-def test_filter_outliers_zero_percentage(model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
-    """Test filter_outliers with outlier_percentage=0.0 returns no outliers."""
-    semhash = SemHash.from_records(records=train_texts, model=model)
-    result = semhash.filter_outliers(records=test_texts, outlier_percentage=0.0)
-
-    assert result.filtered == []
-    assert len(result.selected) == len(test_texts)
-
-
-def test_self_filter_outliers_zero_percentage(model: Encoder, train_texts: list[str]) -> None:
-    """Test self_filter_outliers with outlier_percentage=0.0 returns no outliers."""
-    semhash = SemHash.from_records(records=train_texts, model=model)
-    result = semhash.self_filter_outliers(outlier_percentage=0.0)
-
-    assert result.filtered == []
-    assert len(result.selected) == len(train_texts)
