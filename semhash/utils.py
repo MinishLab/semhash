@@ -112,7 +112,7 @@ def remove_exact_duplicates(
     in_one_set = reference_records is None
 
     for record in records:
-        frozen_record = frozendict({k: v for k, v in record.items() if k in column_set})
+        frozen_record = to_frozendict(record, column_set)
         if duplicated_records := seen.get(frozen_record):
             duplicates.append((record, duplicated_records))
         else:
@@ -133,8 +133,12 @@ def prepare_records(
     :param records: A list of records (strings or dictionaries).
     :param columns: Columns to use if records are dictionaries.
     :return: Tuple of (dict_records, columns, was_string).
+    :raises ValueError: If records are empty.
     :raises ValueError: If columns are not provided for dictionary records.
     """
+    if len(records) == 0:
+        raise ValueError("records must not be empty")
+
     if columns is None and isinstance(records[0], dict):
         raise ValueError("Columns must be specified when passing dictionaries.")
 

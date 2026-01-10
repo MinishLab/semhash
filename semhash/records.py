@@ -31,7 +31,7 @@ def map_deduplication_result_to_strings(result: DeduplicationResult, columns: Se
                 exact=dup_rec.exact,
             )
         )
-    return DeduplicationResult(selected=deduplicated_str, filtered=mapped, threshold=result.threshold)
+    return DeduplicationResult(selected=deduplicated_str, filtered=mapped, threshold=result.threshold, columns=columns)
 
 
 def add_scores_to_records(records: list[dict[str, str]]) -> list[tuple[dict[str, str], float]]:

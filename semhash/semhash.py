@@ -120,42 +120,51 @@ class SemHash(Generic[Record]):
         :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
         :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
         :return: A SemHash instance with a fitted vicinity index.
+        :raises ValueError: If records are empty.
         :raises ValueError: If the number of embeddings doesn't match the number of records.
+        :raises ValueError: If embeddings is not a 2D array.
         :raises ValueError: If columns are not provided for dictionary records.
         """
-        if len(embeddings) != len(records):
-            raise ValueError(f"Number of embeddings ({len(embeddings)}) must match number of records ({len(records)})")
+        if len(records) == 0:
+            raise ValueError("records must not be empty")
+
+        embeddings = np.asarray(embeddings)
+        if embeddings.ndim != 2:
+            raise ValueError(f"embeddings must be a 2D array, got shape {embeddings.shape}")
+
+        if embeddings.shape[0] != len(records):
+            raise ValueError(
+                f"Number of embeddings ({embeddings.shape[0]}) must match number of records ({len(records)})"
+            )
 
         # Prepare and validate records
         dict_records, columns, was_string = prepare_records(records, columns)
 
-        # Remove exact duplicates
-        deduplicated_records, exact_duplicates = remove_exact_duplicates(dict_records, columns)
+        column_set = set(columns)
 
-        # Build items list. Each item is a list of exact duplicates
-        items: list[list[dict[str, str]]] = [[record] for record in deduplicated_records]
+        # Group exact duplicates (by columns) and keep only the first embedding per group
+        items: list[list[dict[str, str]]] = []
+        keep_embedding_indices: list[int] = []
+        key_to_item_idx: dict[frozendict[str, str], int] = {}
 
-        # Add exact duplicates to their corresponding items
-        for duplicate_record, original_records in exact_duplicates:
-            for item in items:
-                if item[0] == original_records[0]:
-                    item.append(duplicate_record)
-                    break
-
-        # Build index mapping for embeddings (accounting for removed exact duplicates)
-        embedding_indices = []
         for i, record in enumerate(dict_records):
-            if record in deduplicated_records:
-                embedding_indices.append(i)
+            key = to_frozendict(record, column_set)
+            item_idx = key_to_item_idx.get(key)
+            if item_idx is None:
+                key_to_item_idx[key] = len(items)
+                items.append([record])
+                keep_embedding_indices.append(i)
+            else:
+                items[item_idx].append(record)
 
-        # Select embeddings for non-exact-duplicate records
-        deduplicated_embeddings = embeddings[embedding_indices]
+        deduplicated_embeddings = embeddings[keep_embedding_indices]
 
-        # Create the index
         index = Index.from_vectors_and_items(
-            vectors=deduplicated_embeddings, items=items, backend_type=ann_backend, **kwargs
+            vectors=deduplicated_embeddings,
+            items=items,
+            backend_type=ann_backend,
+            **kwargs,
         )
-
         return cls(index=index, model=model, columns=columns, was_string=was_string)
 
     def deduplicate(
@@ -298,9 +307,13 @@ class SemHash(Generic[Record]):
 
         :param records: The records to validate.
         :return: The records as a list of dictionaries.
+        :raises ValueError: If records are empty.
         :raises ValueError: If the records are strings but were not originally strings.
         :raises ValueError: If the records are not all strings or dictionaries.
         """
+        if len(records) == 0:
+            raise ValueError("records must not be empty")
+
         if isinstance(records[0], str):
             if not self._was_string:
                 raise ValueError("Records were not originally strings, but you passed strings.")
@@ -386,9 +399,12 @@ class SemHash(Generic[Record]):
         ranking = self._rank_by_average_similarity(records)
         outlier_count = ceil(len(ranking.selected) * outlier_percentage)
         if outlier_count == 0:
-            # If the outlier count is 0, return an empty selection
+            # If the outlier count is 0, return no outliers
             return FilterResult(
-                selected=[], filtered=ranking.selected, scores_selected=[], scores_filtered=ranking.scores_selected
+                selected=ranking.selected,
+                filtered=[],
+                scores_selected=ranking.scores_selected,
+                scores_filtered=[],
             )
 
         outlier_records = ranking.selected[-outlier_count:]
@@ -422,9 +438,12 @@ class SemHash(Generic[Record]):
         ranking = self._self_rank_by_average_similarity()
         outlier_count = ceil(len(ranking.selected) * outlier_percentage)
         if outlier_count == 0:
-            # If the outlier count is 0, return an empty selection
+            # If the outlier count is 0, return no outliers
             return FilterResult(
-                selected=[], filtered=ranking.selected, scores_selected=[], scores_filtered=ranking.scores_selected
+                selected=ranking.selected,
+                filtered=[],
+                scores_selected=ranking.scores_selected,
+                scores_filtered=[],
             )
 
         outlier_records = ranking.selected[-outlier_count:]
