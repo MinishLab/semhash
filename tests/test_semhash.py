@@ -525,3 +525,37 @@ def test_from_dataset_multicolumn_does_not_embed_duplicates(model: Encoder) -> N
 
     # Total encoded should be 6 (3 representatives × 2 columns)
     assert sum(counting_encoder.encode_calls) == 6
+
+
+def test_from_records_coerces_non_string_dict_values(model: Encoder) -> None:
+    """Test that from_records coerces non-string dict values to strings."""
+    records = [{"id": 1}, {"id": 2}, {"id": 1}]  # Integers, with duplicate
+    semhash = SemHash.from_records(records, columns=["id"], model=model)
+
+    # Should have deduplicated to 2 unique items
+    assert semhash.index.vectors.shape[0] == 2
+    assert len(semhash.index.items) == 2
+
+    # First bucket should have 2 records (id=1 appears twice)
+    bucket_sizes = [len(bucket) for bucket in semhash.index.items]
+    assert 2 in bucket_sizes
+
+
+def test_from_records_preserves_first_occurrence_order(model: Encoder) -> None:
+    """Test that from_records preserves first-occurrence order (deterministic)."""
+    texts = ["zebra", "apple", "zebra", "banana", "apple", "cherry"]
+    semhash = SemHash.from_records(texts, model=model)
+
+    # Get first record from each bucket
+    firsts = [bucket[0]["text"] for bucket in semhash.index.items]
+
+    # Should be in first-occurrence order
+    assert firsts == ["zebra", "apple", "banana", "cherry"]
+
+
+def test_from_records_rejects_none_in_dict_values(model: Encoder) -> None:
+    """Test that from_records rejects None values in dict records."""
+    records = [{"text": "apple"}, {"text": None}, {"text": "banana"}]
+
+    with pytest.raises(ValueError, match="has None value"):
+        SemHash.from_records(records, columns=["text"], model=model)

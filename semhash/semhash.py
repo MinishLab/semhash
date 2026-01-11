@@ -103,21 +103,23 @@ class SemHash(Generic[Record]):
         if model is None:
             model = StaticModel.from_pretrained("minishlab/potion-base-8M")
 
-        # Remove exact duplicates
-        deduplicated_records, duplicates = remove_exact_duplicates(dict_records, columns)
-
+        # Single-pass grouping by exact key (same as from_dataset for consistency)
         col_set = set(columns)
-        duplicate_map = defaultdict(list)
-        for x, _ in duplicates:
-            frozen_record = to_frozendict(x, col_set)
-            duplicate_map[frozen_record].append(x)
+        buckets: dict[frozendict[str, str], list[dict[str, str]]] = {}
+        order: list[frozendict[str, str]] = []
 
-        items: list[list[dict[str, str]]] = []
-        for record in deduplicated_records:
-            i = [record]
-            frozen_record = to_frozendict(record, col_set)
-            i.extend(duplicate_map[frozen_record])
-            items.append(i)
+        for r in dict_records:
+            key = to_frozendict(r, col_set)
+            bucket = buckets.get(key)
+            if bucket is None:
+                buckets[key] = [r]
+                order.append(key)
+            else:
+                bucket.append(r)
+
+        # Build items and deduplicated_records in first-occurrence order
+        items = [buckets[k] for k in order]
+        deduplicated_records = [bucket[0] for bucket in items]
 
         # Create embeddings for deduplicated records only
         embeddings = featurize(deduplicated_records, columns, model)

@@ -155,6 +155,7 @@ def prepare_records(
     :return: Tuple of (dict_records, columns, was_string).
     :raises ValueError: If records are empty.
     :raises ValueError: If columns are not provided for dictionary records.
+    :raises ValueError: If dict record contains None values.
     """
     if len(records) == 0:
         raise ValueError("records must not be empty")
@@ -167,7 +168,18 @@ def prepare_records(
         dict_records: list[dict[str, str]] = [{"text": str(record)} for record in records]
         was_string = True
     else:
-        dict_records = list(records)
+        assert columns is not None
+        # Coerce dict values to strings (matching dataset behavior)
+        dict_records_typed: list[dict[str, Any]] = list(records)  # type: ignore[arg-type]
+        dict_records = []
+        for r in dict_records_typed:
+            coerced = {}
+            for c in columns:
+                val = r.get(c)
+                if val is None:
+                    raise ValueError(f"Column '{c}' has None value in record {r}")
+                coerced[c] = val if isinstance(val, str) else str(val)
+            dict_records.append(coerced)
         was_string = False
 
     return dict_records, columns, was_string
