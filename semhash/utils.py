@@ -28,6 +28,26 @@ class Encoder(Protocol):
         ...  # pragma: no cover
 
 
+class DatasetLike(Protocol):
+    """
+    Protocol for dataset-like objects compatible with SemHash.from_dataset().
+
+    Any object that provides columnar access (dataset[column_name] -> sequence)
+    satisfies this protocol. HuggingFace datasets.Dataset is the primary example,
+    but custom dataset implementations are supported.
+    """
+
+    column_names: Sequence[str]
+
+    def __len__(self) -> int:
+        """Return the number of rows in the dataset."""
+        ...  # pragma: no cover
+
+    def __getitem__(self, key: str) -> Sequence[Any]:
+        """Return all values for the given column name."""
+        ...  # pragma: no cover
+
+
 def to_frozendict(record: dict[str, str], columns: set[str]) -> frozendict[str, str]:
     """Convert a record to a frozendict."""
     return frozendict({k: record.get(k, "") for k in columns})
@@ -153,11 +173,8 @@ def prepare_records(
     return dict_records, columns, was_string
 
 
-def _validate_dataset(dataset: Any, columns: Sequence[str]) -> dict[str, Sequence[Any]]:
+def _validate_dataset(dataset: DatasetLike, columns: Sequence[str]) -> dict[str, Sequence[Any]]:
     """Validate dataset structure and extract columns."""
-    if not hasattr(dataset, "column_names") or not hasattr(dataset, "__len__"):
-        raise TypeError("dataset must have 'column_names' and '__len__' attributes")
-
     missing = set(columns) - set(dataset.column_names)
     if missing:
         raise ValueError(f"Columns {missing} not found in dataset")
@@ -175,15 +192,18 @@ def _validate_dataset(dataset: Any, columns: Sequence[str]) -> dict[str, Sequenc
 
 
 def prepare_dataset_records(
-    dataset: Any,
+    dataset: DatasetLike,
     columns: Sequence[str],
 ) -> tuple[list[dict[str, str]], list[list[dict[str, str]]], bool]:
     """
     Extract, validate, and exact-deduplicate dataset rows using columnar access.
 
-    Expects HuggingFace Dataset-style columnar access (dataset[column_name] returns a sequence).
+    Supports HuggingFace datasets.Dataset and any dataset-like object that provides:
+    - column_names: Sequence[str]
+    - __len__() -> int
+    - __getitem__(column_name: str) -> Sequence[Any] (columnar access)
 
-    :param dataset: A dataset with column_names attribute and columnar access.
+    :param dataset: A dataset-like object with columnar access.
     :param columns: Columns to use for deduplication.
     :return: Tuple of (deduplicated_records, items, was_string) where:
         - deduplicated_records: representative record per exact-duplicate bucket

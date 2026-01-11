@@ -15,6 +15,7 @@ from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResul
 from semhash.index import Index
 from semhash.records import add_scores_to_records, map_deduplication_result_to_strings
 from semhash.utils import (
+    DatasetLike,
     Encoder,
     Record,
     compute_candidate_limit,
@@ -134,7 +135,7 @@ class SemHash(Generic[Record]):
     @classmethod
     def from_dataset(
         cls,
-        dataset: Any,
+        dataset: DatasetLike,
         columns: Sequence[str],
         model: Encoder | None = None,
         ann_backend: Backend | str = Backend.USEARCH,
@@ -146,9 +147,14 @@ class SemHash(Generic[Record]):
         Extracts records from the dataset, deduplicates them, and embeds only
         representative records (not duplicates). The encoder controls batching internally.
 
-        Expects HuggingFace Dataset-style columnar access (dataset[column_name] returns a sequence).
+        Supports any dataset-like object that provides:
+        - column_names: Sequence[str]
+        - __len__() -> int
+        - __getitem__(column_name: str) -> Sequence[Any] (columnar access)
 
-        :param dataset: A dataset with column_names attribute and columnar access (dataset[column]).
+        HuggingFace datasets.Dataset satisfies this contract, but custom implementations work too.
+
+        :param dataset: A dataset-like object with columnar access.
         :param columns: Columns to use for deduplication (same as from_records).
         :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
         :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.

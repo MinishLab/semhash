@@ -317,8 +317,8 @@ def test_from_dataset_validation(model: Encoder) -> None:
 
     ds = Dataset.from_dict({"text": ["apple", "banana"]})
 
-    # Test invalid dataset type
-    with pytest.raises(TypeError, match="must have 'column_names' and '__len__' attributes"):
+    # Test invalid dataset type (Protocol violation results in AttributeError)
+    with pytest.raises(AttributeError):
         SemHash.from_dataset(dataset={"text": ["apple"]}, columns=["text"], model=model)
 
     # Test missing column
