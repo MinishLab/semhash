@@ -328,3 +328,36 @@ def test_from_dataset_equivalence_to_from_records(model: Encoder) -> None:
 
     assert len(result1.selected) == len(result2.selected)
     assert len(result1.filtered) == len(result2.filtered)
+
+
+def test_from_dataset_does_not_embed_duplicates(model: Encoder, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that from_dataset only embeds representative records, not duplicates."""
+    from typing import Any
+
+    from datasets import Dataset
+
+    # Create dataset with exact duplicates
+    ds = Dataset.from_dict({"text": ["apple", "banana", "apple", "cherry", "banana", "apple"]})
+
+    # Track how many times encode is called and with how many records
+    encode_call_count = 0
+    total_encoded = 0
+
+    original_encode = model.encode
+
+    def tracked_encode(texts: Any, **kwargs: Any) -> Any:
+        nonlocal encode_call_count, total_encoded
+        encode_call_count += 1
+        total_encoded += len(texts)
+        return original_encode(texts, **kwargs)
+
+    monkeypatch.setattr(model, "encode", tracked_encode)
+
+    semhash = SemHash.from_dataset(dataset=ds, columns=["text"], model=model)
+
+    # Should only have encoded 3 unique records (apple, banana, cherry)
+    assert semhash.index.vectors.shape[0] == 3
+    # Total encoded should be 3, not 6
+    assert total_encoded == 3
+    # Should be called once (for the deduplicated records)
+    assert encode_call_count == 1
