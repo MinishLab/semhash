@@ -74,3 +74,34 @@ def test_prepare_records() -> None:
     records = [{"text": "hello"}]
     with pytest.raises(ValueError, match="Columns must be specified"):
         prepare_records(records, None)
+
+
+def test_remove_exact_duplicates_with_reference_records() -> None:
+    """Test exact duplicate removal with reference_records for cross-dataset filtering."""
+    # Build reference buckets (simulates index.items structure)
+    reference_records = [
+        [{"text": "apple"}],  # bucket 1: apple (1 occurrence)
+        [{"text": "banana"}, {"text": "banana"}],  # bucket 2: banana (2 occurrences)
+    ]
+
+    # New records to check against reference
+    new_records = [
+        {"text": "cherry"},  # New (not in reference)
+        {"text": "apple"},  # Exact match with reference
+        {"text": "date"},  # New (not in reference)
+        {"text": "banana"},  # Exact match with reference
+    ]
+
+    deduplicated, duplicates = remove_exact_duplicates(new_records, ["text"], reference_records=reference_records)
+
+    # Deduplicated should only contain records NOT in reference
+    assert len(deduplicated) == 2
+    assert {"text": "cherry"} in deduplicated
+    assert {"text": "date"} in deduplicated
+
+    # Duplicates should contain records that match reference
+    assert len(duplicates) == 2
+    # Each duplicate is (record, reference_bucket)
+    dup_records = [d[0] for d in duplicates]
+    assert {"text": "apple"} in dup_records
+    assert {"text": "banana"} in dup_records

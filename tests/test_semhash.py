@@ -317,8 +317,8 @@ def test_from_dataset_validation(model: Encoder) -> None:
 
     ds = Dataset.from_dict({"text": ["apple", "banana"]})
 
-    # Test invalid dataset type (Protocol violation results in AttributeError)
-    with pytest.raises(AttributeError):
+    # Test invalid dataset type (Protocol violation)
+    with pytest.raises(TypeError, match="must satisfy DatasetLike"):
         SemHash.from_dataset(dataset={"text": ["apple"]}, columns=["text"], model=model)
 
     # Test missing column
@@ -450,3 +450,78 @@ def test_from_dataset_was_string_only_for_actual_strings(model: Encoder) -> None
     result_ints = semhash_ints.self_deduplicate(threshold=0.95)
     assert all(isinstance(r, dict) for r in result_ints.selected)
     assert all("text" in r for r in result_ints.selected)
+
+
+def test_from_dataset_with_custom_dataset_like(model: Encoder) -> None:
+    """Test that from_dataset works with custom DatasetLike implementations (no HF dependency)."""
+
+    class MiniDataset:
+        """Minimal DatasetLike implementation for testing."""
+
+        column_names = ["text"]
+
+        def __init__(self, data: dict[str, list[str]]) -> None:
+            self._data = data
+
+        def __len__(self) -> int:
+            return len(self._data["text"])
+
+        def __getitem__(self, key: str) -> list[str]:
+            return self._data[key]
+
+    # Create custom dataset with duplicates
+    ds = MiniDataset({"text": ["apple", "banana", "apple"]})
+
+    semhash = SemHash.from_dataset(ds, columns=["text"], model=model)
+
+    # Should have deduplicated to 2 unique items
+    assert len(semhash.index.items) == 2
+    assert len(semhash.index.vectors) == 2
+
+    # Should work with deduplication
+    result = semhash.self_deduplicate(threshold=0.95)
+    assert len(result.selected) == 2
+
+
+def test_from_dataset_multicolumn_does_not_embed_duplicates(model: Encoder) -> None:
+    """Test that multi-column from_dataset only embeds representatives (validates per-column encoding)."""
+    from typing import Any
+
+    from datasets import Dataset
+
+    # Create dataset with exact duplicates across multiple columns
+    ds = Dataset.from_dict(
+        {
+            "col1": ["a", "b", "a", "c"],  # "a" appears twice
+            "col2": ["x", "y", "x", "z"],  # matching pattern
+        }
+    )
+
+    # Create a counting encoder wrapper
+    class CountingEncoder:
+        def __init__(self, base_encoder: Any) -> None:
+            self.base_encoder = base_encoder
+            self.encode_calls: list[int] = []
+
+        def encode(self, sentences: Any, **kwargs: Any) -> Any:
+            if isinstance(sentences, str):
+                sentences = [sentences]
+            self.encode_calls.append(len(sentences))
+            return self.base_encoder.encode(sentences, **kwargs)
+
+    counting_encoder = CountingEncoder(model)
+
+    semhash = SemHash.from_dataset(dataset=ds, columns=["col1", "col2"], model=counting_encoder)  # type: ignore[arg-type]
+
+    # Should have 3 representatives (unique combinations)
+    assert semhash.index.vectors.shape[0] == 3
+
+    # featurize() encodes once per column, so we expect 2 calls (for col1 and col2)
+    assert len(counting_encoder.encode_calls) == 2
+
+    # Each call should have 3 texts (the representatives)
+    assert counting_encoder.encode_calls[0] == 3  # col1
+    assert counting_encoder.encode_calls[1] == 3  # col2
+
+    # Total encoded should be 6 (3 representatives × 2 columns)
+    assert sum(counting_encoder.encode_calls) == 6

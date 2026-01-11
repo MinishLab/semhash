@@ -173,9 +173,14 @@ def prepare_records(
     return dict_records, columns, was_string
 
 
-def _validate_dataset(dataset: DatasetLike, columns: Sequence[str]) -> dict[str, Sequence[Any]]:
-    """Validate dataset structure and extract columns."""
-    missing = set(columns) - set(dataset.column_names)
+def _validate_dataset(dataset: DatasetLike, columns: Sequence[str]) -> tuple[dict[str, Sequence[Any]], int]:
+    """Validate dataset structure and extract columns. Returns (cols, n)."""
+    try:
+        column_names = dataset.column_names
+    except AttributeError as e:
+        raise TypeError("dataset must satisfy DatasetLike (column_names, __len__, __getitem__)") from e
+
+    missing = set(columns) - set(column_names)
     if missing:
         raise ValueError(f"Columns {missing} not found in dataset")
 
@@ -188,7 +193,7 @@ def _validate_dataset(dataset: DatasetLike, columns: Sequence[str]) -> dict[str,
         if len(cols[c]) != n:
             raise ValueError(f"Column '{c}' length ({len(cols[c])}) does not match dataset length ({n})")
 
-    return cols
+    return cols, n
 
 
 def prepare_dataset_records(
@@ -210,8 +215,7 @@ def prepare_dataset_records(
         - items: buckets of exact duplicates (each bucket is list[record])
         - was_string: True iff columns == ["text"] and ALL raw values were strings
     """
-    cols = _validate_dataset(dataset, columns)
-    n = len(dataset)
+    cols, n = _validate_dataset(dataset, columns)
     col_set = set(columns)
     was_string = len(columns) == 1 and columns[0] == "text"
 
