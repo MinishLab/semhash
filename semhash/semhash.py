@@ -152,6 +152,7 @@ class SemHash(Generic[Record]):
         :return: A SemHash instance with a fitted vicinity index.
         :raises TypeError: If dataset doesn't have required attributes.
         :raises ValueError: If columns are not found in the dataset.
+        :raises ValueError: If any column contains None values.
         """
         if not hasattr(dataset, "column_names") or not hasattr(dataset, "__len__"):
             raise TypeError("dataset must have 'column_names' and '__len__' attributes")
@@ -168,31 +169,51 @@ class SemHash(Generic[Record]):
         # Columnar extraction (fast path for HF datasets - avoids row-wise indexing)
         n = len(dataset)
         cols = {c: dataset[c] for c in columns}
-        dict_records: list[dict[str, str]] = [{c: str(cols[c][i]) for c in columns} for i in range(n)]
-
-        # Exact dedup first (cheap) - we only embed representatives
-        deduplicated_records, duplicates = remove_exact_duplicates(dict_records, columns)
-
         col_set = set(columns)
-        duplicate_map = defaultdict(list)
-        for x, _ in duplicates:
-            duplicate_map[to_frozendict(x, col_set)].append(x)
 
+        # Helper: coerce values to string with None check
+        def _coerce(val: Any, *, col: str, idx: int) -> str:
+            if val is None:
+                raise ValueError(f"Column '{col}' has None at index {idx}")
+            return val if isinstance(val, str) else str(val)
+
+        # Group dataset rows by exact key without building dicts for all rows.
+        # This avoids materializing N dict objects and is memory-efficient for large datasets.
+        key_to_indices: dict[frozendict[str, str], list[int]] = defaultdict(list)
+        key_first_idx: dict[frozendict[str, str], int] = {}
+
+        for i in range(n):
+            row = {c: _coerce(cols[c][i], col=c, idx=i) for c in columns}
+            key = to_frozendict(row, col_set)
+            key_to_indices[key].append(i)
+            if key not in key_first_idx:
+                key_first_idx[key] = i
+
+        # Deterministic output: preserve first occurrence order
+        ordered_keys = sorted(key_to_indices.keys(), key=lambda k: key_first_idx[k])
+
+        # Representatives = first index per key; items hold full duplicate buckets.
         items: list[list[dict[str, str]]] = []
-        for record in deduplicated_records:
-            bucket = [record]
-            bucket.extend(duplicate_map[to_frozendict(record, col_set)])
-            items.append(bucket)
+        deduplicated_records: list[dict[str, str]] = []
+
+        for key in ordered_keys:
+            indices = key_to_indices[key]
+            bucket = [{c: _coerce(cols[c][i], col=c, idx=i) for c in columns} for i in indices]
+            deduplicated_records.append(bucket[0])  # representative
+            items.append(bucket)  # all exact duplicates
 
         # Embed representatives only (encoder decides batching internally)
         vectors = featurize(records=deduplicated_records, columns=columns, model=model)
+
+        # Match from_records behavior: return strings for single "text" column
+        was_string = len(columns) == 1 and columns[0] == "text"
 
         return cls._from_vectors_and_items(
             vectors=vectors,
             items=items,
             model=model,
             columns=columns,
-            was_string=False,  # dataset inputs are dict-like
+            was_string=was_string,
             ann_backend=ann_backend,
             **kwargs,
         )
