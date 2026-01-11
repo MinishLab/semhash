@@ -11,13 +11,15 @@ from model2vec import StaticModel
 from pyversity import Strategy, diversify
 from vicinity import Backend
 
-from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult, Record
+from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult
 from semhash.index import Index
 from semhash.records import add_scores_to_records, map_deduplication_result_to_strings
 from semhash.utils import (
     Encoder,
+    Record,
     compute_candidate_limit,
     featurize,
+    prepare_dataset_records,
     prepare_records,
     remove_exact_duplicates,
     to_frozendict,
@@ -130,7 +132,7 @@ class SemHash(Generic[Record]):
         )
 
     @classmethod
-    def from_dataset(  # noqa: C901
+    def from_dataset(
         cls,
         dataset: Any,
         columns: Sequence[str],
@@ -152,84 +154,16 @@ class SemHash(Generic[Record]):
         :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
         :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
         :return: A SemHash instance with a fitted vicinity index.
-        :raises TypeError: If dataset doesn't have required attributes.
-        :raises ValueError: If columns are not found in the dataset.
-        :raises ValueError: If any column contains None values.
         """
-        if not hasattr(dataset, "column_names") or not hasattr(dataset, "__len__"):
-            raise TypeError("dataset must have 'column_names' and '__len__' attributes")
-
-        # Validate columns exist
-        missing = set(columns) - set(dataset.column_names)
-        if missing:
-            raise ValueError(f"Columns {missing} not found in dataset")
-
         # Load default model if needed
         if model is None:
             model = StaticModel.from_pretrained("minishlab/potion-base-8M")
 
-        # Columnar extraction (fast path for HF datasets - avoids row-wise indexing)
-        n = len(dataset)
-        if n == 0:
-            raise ValueError("dataset must not be empty")
-
-        cols = {c: dataset[c] for c in columns}
-
-        # Validate that all columns have the same length as the dataset
-        for c in columns:
-            if len(cols[c]) != n:
-                raise ValueError(f"Column '{c}' length ({len(cols[c])}) does not match dataset length ({n})")
-
-        col_set = set(columns)
-
-        # Helper: coerce values to string with None check
-        def _coerce(val: Any, *, col: str, idx: int) -> str:
-            if val is None:
-                raise ValueError(f"Column '{col}' has None at index {idx}")
-            return val if isinstance(val, str) else str(val)
-
-        # Group dataset rows by exact key without building dicts for all rows.
-        # This avoids materializing N dict objects and is memory-efficient for large datasets.
-        key_to_indices: dict[frozendict[str, str], list[int]] = defaultdict(list)
-        key_first_idx: dict[frozendict[str, str], int] = {}
-
-        # Track whether "text" column contains only strings (for was_string)
-        was_string = len(columns) == 1 and columns[0] == "text"
-
-        for i in range(n):
-            row = {}
-            for c in columns:
-                raw = cols[c][i]
-                if raw is None:
-                    raise ValueError(f"Column '{c}' has None at index {i}")
-                # Check if text column value is actually a string
-                if c == "text" and was_string and not isinstance(raw, str):
-                    was_string = False
-                row[c] = raw if isinstance(raw, str) else str(raw)
-
-            key = to_frozendict(row, col_set)
-            key_to_indices[key].append(i)
-            if key not in key_first_idx:
-                key_first_idx[key] = i
-
-        # Deterministic output: preserve first occurrence order
-        ordered_keys = sorted(key_to_indices.keys(), key=lambda k: key_first_idx[k])
-
-        # Representatives = first index per key; items hold full duplicate buckets.
-        items: list[list[dict[str, str]]] = []
-        deduplicated_records: list[dict[str, str]] = []
-
-        for key in ordered_keys:
-            indices = key_to_indices[key]
-            bucket = [{c: _coerce(cols[c][i], col=c, idx=i) for c in columns} for i in indices]
-            deduplicated_records.append(bucket[0])  # representative
-            items.append(bucket)  # all exact duplicates
+        # Extract, validate, and deduplicate dataset records
+        deduplicated_records, items, was_string = prepare_dataset_records(dataset, columns)
 
         # Embed representatives only (encoder decides batching internally)
         vectors = featurize(records=deduplicated_records, columns=columns, model=model)
-
-        # was_string was tracked during the main loop above
-        # (True only if columns==["text"] and all values were strings)
 
         return cls._from_vectors_and_items(
             vectors=vectors,

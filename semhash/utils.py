@@ -151,3 +151,78 @@ def prepare_records(
         was_string = False
 
     return dict_records, columns, was_string
+
+
+def prepare_dataset_records(  # noqa: C901
+    dataset: Any,
+    columns: Sequence[str],
+) -> tuple[list[dict[str, str]], list[list[dict[str, str]]], bool]:
+    """
+    Extract, validate, and exact-deduplicate dataset rows using columnar access.
+
+    Expects HuggingFace Dataset-style columnar access (dataset[column_name] returns a sequence).
+
+    :param dataset: A dataset with column_names attribute and columnar access.
+    :param columns: Columns to use for deduplication.
+    :return: Tuple of (deduplicated_records, items, was_string) where:
+        - deduplicated_records: representative record per exact-duplicate bucket
+        - items: buckets of exact duplicates (each bucket is list[record])
+        - was_string: True iff columns == ["text"] and ALL raw values were strings
+    :raises TypeError: If dataset doesn't have required attributes.
+    :raises ValueError: If columns are not found in dataset.
+    :raises ValueError: If dataset is empty.
+    :raises ValueError: If column lengths don't match dataset length.
+    :raises ValueError: If any column contains None values.
+    """
+    if not hasattr(dataset, "column_names") or not hasattr(dataset, "__len__"):
+        raise TypeError("dataset must have 'column_names' and '__len__' attributes")
+
+    missing = set(columns) - set(dataset.column_names)
+    if missing:
+        raise ValueError(f"Columns {missing} not found in dataset")
+
+    n = len(dataset)
+    if n == 0:
+        raise ValueError("dataset must not be empty")
+
+    cols = {c: dataset[c] for c in columns}
+    for c in columns:
+        if len(cols[c]) != n:
+            raise ValueError(f"Column '{c}' length ({len(cols[c])}) does not match dataset length ({n})")
+
+    col_set = set(columns)
+
+    def coerce_at(i: int, c: str) -> str:
+        raw = cols[c][i]
+        if raw is None:
+            raise ValueError(f"Column '{c}' has None at index {i}")
+        return raw if isinstance(raw, str) else str(raw)
+
+    was_string = len(columns) == 1 and columns[0] == "text"
+
+    key_to_indices: dict[frozendict[str, str], list[int]] = defaultdict(list)
+    key_first_idx: dict[frozendict[str, str], int] = {}
+
+    for i in range(n):
+        # Track "was_string" using RAW values (not coerced)
+        if was_string and not isinstance(cols["text"][i], str):
+            was_string = False
+
+        row = {c: coerce_at(i, c) for c in columns}
+        key = to_frozendict(row, col_set)
+
+        key_to_indices[key].append(i)
+        key_first_idx.setdefault(key, i)
+
+    ordered_keys = sorted(key_to_indices.keys(), key=lambda k: key_first_idx[k])
+
+    items: list[list[dict[str, str]]] = []
+    deduplicated_records: list[dict[str, str]] = []
+
+    for key in ordered_keys:
+        indices = key_to_indices[key]
+        bucket = [{c: coerce_at(i, c) for c in columns} for i in indices]
+        deduplicated_records.append(bucket[0])
+        items.append(bucket)
+
+    return deduplicated_records, items, was_string
