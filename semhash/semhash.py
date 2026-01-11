@@ -387,31 +387,48 @@ class SemHash(Generic[Record]):
 
         return result
 
-    def _validate_if_strings(self, records: Sequence[dict[str, str] | str]) -> list[dict[str, str]]:
+    def _validate_if_strings(self, records: Sequence[dict[str, Any] | str]) -> list[dict[str, str]]:
         """
         Validate if the records are strings.
 
         If the records are strings, they are converted to dictionaries with a single column.
+        If the records are dicts, values are coerced to strings and None is rejected.
 
         :param records: The records to validate.
         :return: The records as a list of dictionaries.
         :raises ValueError: If records are empty.
         :raises ValueError: If the records are strings but were not originally strings.
         :raises ValueError: If the records are not all strings or all dictionaries.
+        :raises ValueError: If dict record contains None values.
         """
         if len(records) == 0:
             raise ValueError("records must not be empty")
 
+        # String path
         if isinstance(records[0], str):
             if not self._was_string:
                 raise ValueError("Records were not originally strings, but you passed strings.")
             if not all(isinstance(r, str) for r in records):
                 raise ValueError("Records must be all strings.")
-            return [{"text": r} for r in records]  # type: ignore[misc,dict-item]
+            # Type narrowing: we've validated all are strings
+            return [{"text": str(r)} for r in records]
 
+        # Dict path - coerce values to strings (matching prepare_records behavior)
         if not all(isinstance(r, dict) for r in records):
             raise ValueError("Records must be all dictionaries.")
-        return list(records)  # type: ignore[return-value,arg-type]
+
+        # Type narrowing: we've validated all are dicts
+        dict_records: Sequence[dict[str, Any]] = records  # type: ignore[assignment]
+        coerced: list[dict[str, str]] = []
+        for r in dict_records:
+            out: dict[str, str] = {}
+            for c in self.columns:
+                val = r.get(c)
+                if val is None:
+                    raise ValueError(f"Column '{c}' has None value in record {r}")
+                out[c] = val if isinstance(val, str) else str(val)
+            coerced.append(out)
+        return coerced
 
     def find_representative(
         self,

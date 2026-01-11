@@ -20,6 +20,14 @@ def test_to_frozendict() -> None:
     assert "b" not in result
 
 
+def test_to_frozendict_rejects_missing_columns() -> None:
+    """Test that to_frozendict raises on missing columns."""
+    record = {"a": "1", "b": "2"}
+
+    with pytest.raises(ValueError, match="Missing column 'c'"):
+        to_frozendict(record, {"a", "c"})
+
+
 def test_compute_candidate_limit() -> None:
     """Test candidate limit computation."""
     # Basic case

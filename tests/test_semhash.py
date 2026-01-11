@@ -559,3 +559,29 @@ def test_from_records_rejects_none_in_dict_values(model: Encoder) -> None:
 
     with pytest.raises(ValueError, match="has None value"):
         SemHash.from_records(records, columns=["text"], model=model)
+
+
+def test_deduplicate_coerces_non_string_dict_values(model: Encoder) -> None:
+    """Test that deduplicate() coerces non-string dict values (consistent with from_records)."""
+    # Build SemHash with string records
+    semhash = SemHash.from_records(["1", "2", "3"], model=model)
+
+    # Pass dict records with integer values to deduplicate
+    new_records = [{"text": 1}, {"text": 2}, {"text": 4}]  # type: ignore[list-item]
+
+    # Should coerce ints to strings and work without error
+    result = semhash.deduplicate(new_records, threshold=0.95)
+
+    # Should have deduplicated (1, 2 already exist)
+    assert len(result.filtered) > 0
+    assert len(result.selected) > 0
+
+
+def test_deduplicate_rejects_none_values(model: Encoder) -> None:
+    """Test that deduplicate() rejects None values in dict records."""
+    semhash = SemHash.from_records(["apple", "banana"], model=model)
+
+    new_records = [{"text": "cherry"}, {"text": None}]  # type: ignore[list-item]
+
+    with pytest.raises(ValueError, match="has None value"):
+        semhash.deduplicate(new_records, threshold=0.95)

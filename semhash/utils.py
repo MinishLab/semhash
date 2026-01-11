@@ -49,8 +49,19 @@ class DatasetLike(Protocol):
 
 
 def to_frozendict(record: dict[str, str], columns: set[str]) -> frozendict[str, str]:
-    """Convert a record to a frozendict."""
-    return frozendict({k: record.get(k, "") for k in columns})
+    """
+    Convert a record to a frozendict.
+
+    :param record: The record to convert.
+    :param columns: The columns to include.
+    :return: A frozendict with only the specified columns.
+    :raises ValueError: If a column is missing from the record.
+    """
+    try:
+        return frozendict({k: record[k] for k in columns})
+    except KeyError as e:
+        missing = e.args[0]
+        raise ValueError(f"Missing column '{missing}' in record {record}") from e
 
 
 def compute_candidate_limit(
