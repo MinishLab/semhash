@@ -156,13 +156,27 @@ class SemHash(Generic[Record]):
 
         HuggingFace datasets.Dataset satisfies this contract, but custom implementations work too.
 
+        Note: If you want to use HuggingFace datasets, install with:
+            pip install 'semhash[datasets]'
+
         :param dataset: A dataset-like object with columnar access.
         :param columns: Columns to use for deduplication (same as from_records).
         :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
         :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
         :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
         :return: A SemHash instance with a fitted vicinity index.
+        :raises ImportError: If using HuggingFace Dataset without datasets package installed.
         """
+        # Check if user is trying to use HuggingFace datasets without installing the package
+        if hasattr(dataset, "__class__") and dataset.__class__.__module__.startswith("datasets"):
+            try:
+                import datasets  # noqa: F401
+            except ImportError as e:
+                raise ImportError(
+                    "HuggingFace `datasets` is required to use HF Dataset objects. "
+                    "Please install it with `pip install 'semhash[datasets]'`"
+                ) from e
+
         # Load default model if needed
         if model is None:
             model = StaticModel.from_pretrained("minishlab/potion-base-8M")

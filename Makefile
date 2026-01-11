@@ -9,7 +9,7 @@ install: venv
 	uv run pre-commit install
 
 install-no-pre-commit:
-	uv pip install ".[dev]"
+	uv pip install ".[dev,all]"
 
 fix:
 	uv run pre-commit run --all-files

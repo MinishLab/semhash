@@ -5,6 +5,18 @@ from semhash import SemHash
 from semhash.datamodels import FilterResult
 from semhash.utils import Encoder
 
+# Check if datasets is available for dataset-specific tests
+try:
+    import datasets  # noqa: F401
+
+    HAS_DATASETS = True
+except ImportError:
+    HAS_DATASETS = False
+
+requires_datasets = pytest.mark.skipif(
+    not HAS_DATASETS, reason="datasets not installed - install with pip install 'semhash[datasets]'"
+)
+
 
 def test_single_dataset_deduplication(model: Encoder) -> None:
     """Test single dataset deduplication."""
@@ -255,6 +267,7 @@ def test_from_embeddings(model: Encoder, train_texts: list[str]) -> None:
     assert semhash.index.vectors.tolist() == [[0.0], [1.0], [3.0]]
 
 
+@requires_datasets
 def test_from_dataset_basic(model: Encoder) -> None:
     """Test from_dataset with a simple HuggingFace dataset."""
     from datasets import Dataset
@@ -273,6 +286,7 @@ def test_from_dataset_basic(model: Encoder) -> None:
     assert len(result.selected) <= 3
 
 
+@requires_datasets
 def test_from_dataset_returns_strings_for_text_column(model: Encoder) -> None:
     """Test that from_dataset returns strings when columns=["text"], matching from_records behavior."""
     from datasets import Dataset
@@ -293,6 +307,7 @@ def test_from_dataset_returns_strings_for_text_column(model: Encoder) -> None:
     assert type(result.selected[0]) == type(result_from_records.selected[0])
 
 
+@requires_datasets
 def test_from_dataset_multicolumn(model: Encoder) -> None:
     """Test from_dataset with multiple columns."""
     from datasets import Dataset
@@ -311,6 +326,7 @@ def test_from_dataset_multicolumn(model: Encoder) -> None:
     assert len(semhash.index.items) == 2
 
 
+@requires_datasets
 def test_from_dataset_validation(model: Encoder) -> None:
     """Test from_dataset input validation."""
     from datasets import Dataset
@@ -336,6 +352,7 @@ def test_from_dataset_validation(model: Encoder) -> None:
         SemHash.from_dataset(dataset=ds_empty, columns=["text"], model=model)
 
 
+@requires_datasets
 def test_from_dataset_equivalence_to_from_records(model: Encoder) -> None:
     """Test that from_dataset produces same results as from_records for same data."""
     from datasets import Dataset
@@ -360,6 +377,7 @@ def test_from_dataset_equivalence_to_from_records(model: Encoder) -> None:
     assert len(result1.filtered) == len(result2.filtered)
 
 
+@requires_datasets
 def test_from_dataset_does_not_embed_duplicates(model: Encoder) -> None:
     """Test that from_dataset only embeds representative records, not duplicates."""
     from typing import Any
@@ -395,6 +413,7 @@ def test_from_dataset_does_not_embed_duplicates(model: Encoder) -> None:
     assert counting_encoder.encode_calls[0] == 3
 
 
+@requires_datasets
 def test_from_dataset_handles_non_string_values(model: Encoder) -> None:
     """Test that from_dataset handles non-string values (e.g., integers) by converting them."""
     from datasets import Dataset
@@ -415,6 +434,7 @@ def test_from_dataset_handles_non_string_values(model: Encoder) -> None:
     assert all("id" in r for r in result.selected)
 
 
+@requires_datasets
 def test_from_dataset_preserves_first_occurrence_order(model: Encoder) -> None:
     """Test that from_dataset preserves the order of first occurrences (deterministic output)."""
     from datasets import Dataset
@@ -434,6 +454,7 @@ def test_from_dataset_preserves_first_occurrence_order(model: Encoder) -> None:
     assert first_occurrences == ["zebra", "apple", "banana", "cherry"]
 
 
+@requires_datasets
 def test_from_dataset_was_string_only_for_actual_strings(model: Encoder) -> None:
     """Test that was_string is only True for text columns with actual string values."""
     from datasets import Dataset
@@ -483,6 +504,7 @@ def test_from_dataset_with_custom_dataset_like(model: Encoder) -> None:
     assert len(result.selected) == 2
 
 
+@requires_datasets
 def test_from_dataset_multicolumn_does_not_embed_duplicates(model: Encoder) -> None:
     """Test that multi-column from_dataset only embeds representatives (validates per-column encoding)."""
     from typing import Any

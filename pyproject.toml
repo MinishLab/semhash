@@ -43,6 +43,12 @@ dev = [
     "ruff",
 ]
 
+# Integrations
+datasets = ["datasets"]
+all = [
+    "datasets",
+]
+
 [project.urls]
 "Homepage" = "https://github.com/MinishLab"
 "Bug Reports" = "https://github.com/MinishLab/semhash/issues"
