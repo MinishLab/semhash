@@ -105,3 +105,16 @@ def test_remove_exact_duplicates_with_reference_records() -> None:
     dup_records = [d[0] for d in duplicates]
     assert {"text": "apple"} in dup_records
     assert {"text": "banana"} in dup_records
+
+
+def test_prepare_records_rejects_mixed_types() -> None:
+    """Test that prepare_records rejects mixed string/dict inputs."""
+    from semhash.utils import prepare_records
+
+    # Mixed types should be rejected
+    with pytest.raises(ValueError, match="All records must be"):
+        prepare_records(["a", {"text": "b"}], None)  # type: ignore[list-item]
+
+    # Starting with dict, then string should also be rejected
+    with pytest.raises(ValueError, match="All records must be"):
+        prepare_records([{"text": "a"}, "b"], ["text"])  # type: ignore[list-item]

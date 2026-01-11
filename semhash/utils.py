@@ -93,11 +93,15 @@ def featurize(
     :param columns: Columns to featurize.
     :param model: An Encoder model.
     :return: The embeddings of the records.
+    :raises ValueError: If a column is missing from one or more records.
     """
     # Extract the embeddings for each column across all records
     embeddings_per_col = []
     for col in columns:
-        col_texts = [r[col] for r in records]
+        try:
+            col_texts = [r[col] for r in records]
+        except KeyError as e:
+            raise ValueError(f"Missing column '{col}' in one or more records") from e
         col_emb = model.encode(col_texts)
         embeddings_per_col.append(np.asarray(col_emb))
 
@@ -156,6 +160,7 @@ def prepare_records(
     :raises ValueError: If records are empty.
     :raises ValueError: If columns are not provided for dictionary records.
     :raises ValueError: If dict record contains None values.
+    :raises ValueError: If records are not homogeneous (mixed strings and dicts).
     """
     if len(records) == 0:
         raise ValueError("records must not be empty")
@@ -164,10 +169,16 @@ def prepare_records(
         raise ValueError("Columns must be specified when passing dictionaries.")
 
     if isinstance(records[0], str):
+        # Validate all records are strings
+        if not all(isinstance(r, str) for r in records):
+            raise ValueError("All records must be strings when the first record is a string.")
         columns = ["text"]
         dict_records: list[dict[str, str]] = [{"text": str(record)} for record in records]
         was_string = True
     else:
+        # Validate all records are dicts
+        if not all(isinstance(r, dict) for r in records):
+            raise ValueError("All records must be dicts when the first record is a dict.")
         assert columns is not None
         # Coerce dict values to strings (matching dataset behavior)
         dict_records_typed: list[dict[str, Any]] = list(records)  # type: ignore[arg-type]

@@ -387,7 +387,7 @@ class SemHash(Generic[Record]):
 
         return result
 
-    def _validate_if_strings(self, records: Sequence[dict[str, str] | str]) -> Sequence[dict[str, str]]:
+    def _validate_if_strings(self, records: Sequence[dict[str, str] | str]) -> list[dict[str, str]]:
         """
         Validate if the records are strings.
 
@@ -397,7 +397,7 @@ class SemHash(Generic[Record]):
         :return: The records as a list of dictionaries.
         :raises ValueError: If records are empty.
         :raises ValueError: If the records are strings but were not originally strings.
-        :raises ValueError: If the records are not all strings or dictionaries.
+        :raises ValueError: If the records are not all strings or all dictionaries.
         """
         if len(records) == 0:
             raise ValueError("records must not be empty")
@@ -405,12 +405,13 @@ class SemHash(Generic[Record]):
         if isinstance(records[0], str):
             if not self._was_string:
                 raise ValueError("Records were not originally strings, but you passed strings.")
-            dict_records = [{"text": record} for record in records if isinstance(record, str)]
-        else:
-            dict_records = [record for record in records if isinstance(record, dict)]
-        if len(dict_records) != len(records):
-            raise ValueError("Records must be either strings or dictionaries.")
-        return dict_records
+            if not all(isinstance(r, str) for r in records):
+                raise ValueError("Records must be all strings.")
+            return [{"text": r} for r in records]  # type: ignore[misc,dict-item]
+
+        if not all(isinstance(r, dict) for r in records):
+            raise ValueError("Records must be all dictionaries.")
+        return list(records)  # type: ignore[return-value,arg-type]
 
     def find_representative(
         self,
