@@ -330,6 +330,11 @@ def test_from_dataset_validation(model: Encoder) -> None:
     with pytest.raises(ValueError, match="Column 'text' has None at index 1"):
         SemHash.from_dataset(dataset=ds_with_none, columns=["text"], model=model)
 
+    # Test empty dataset
+    ds_empty = Dataset.from_dict({"text": []})
+    with pytest.raises(ValueError, match="dataset must not be empty"):
+        SemHash.from_dataset(dataset=ds_empty, columns=["text"], model=model)
+
 
 def test_from_dataset_equivalence_to_from_records(model: Encoder) -> None:
     """Test that from_dataset produces same results as from_records for same data."""
@@ -427,3 +432,21 @@ def test_from_dataset_preserves_first_occurrence_order(model: Encoder) -> None:
 
     # Should preserve first-occurrence order from dataset
     assert first_occurrences == ["zebra", "apple", "banana", "cherry"]
+
+
+def test_from_dataset_was_string_only_for_actual_strings(model: Encoder) -> None:
+    """Test that was_string is only True for text columns with actual string values."""
+    from datasets import Dataset
+
+    # Test 1: text column with strings -> should return strings
+    ds_strings = Dataset.from_dict({"text": ["apple", "banana", "cherry"]})
+    semhash_strings = SemHash.from_dataset(dataset=ds_strings, columns=["text"], model=model)
+    result_strings = semhash_strings.self_deduplicate(threshold=0.95)
+    assert all(isinstance(r, str) for r in result_strings.selected)
+
+    # Test 2: text column with integers -> should return dicts (not strings)
+    ds_ints = Dataset.from_dict({"text": [1, 2, 3]})
+    semhash_ints = SemHash.from_dataset(dataset=ds_ints, columns=["text"], model=model)
+    result_ints = semhash_ints.self_deduplicate(threshold=0.95)
+    assert all(isinstance(r, dict) for r in result_ints.selected)
+    assert all("text" in r for r in result_ints.selected)

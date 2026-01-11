@@ -130,7 +130,7 @@ class SemHash(Generic[Record]):
         )
 
     @classmethod
-    def from_dataset(
+    def from_dataset(  # noqa: C901
         cls,
         dataset: Any,
         columns: Sequence[str],
@@ -144,7 +144,9 @@ class SemHash(Generic[Record]):
         Extracts records from the dataset, deduplicates them, and embeds only
         representative records (not duplicates). The encoder controls batching internally.
 
-        :param dataset: A dataset with column_names attribute and dict-like access.
+        Expects HuggingFace Dataset-style columnar access (dataset[column_name] returns a sequence).
+
+        :param dataset: A dataset with column_names attribute and columnar access (dataset[column]).
         :param columns: Columns to use for deduplication (same as from_records).
         :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
         :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
@@ -168,7 +170,16 @@ class SemHash(Generic[Record]):
 
         # Columnar extraction (fast path for HF datasets - avoids row-wise indexing)
         n = len(dataset)
+        if n == 0:
+            raise ValueError("dataset must not be empty")
+
         cols = {c: dataset[c] for c in columns}
+
+        # Validate that all columns have the same length as the dataset
+        for c in columns:
+            if len(cols[c]) != n:
+                raise ValueError(f"Column '{c}' length ({len(cols[c])}) does not match dataset length ({n})")
+
         col_set = set(columns)
 
         # Helper: coerce values to string with None check
@@ -182,8 +193,20 @@ class SemHash(Generic[Record]):
         key_to_indices: dict[frozendict[str, str], list[int]] = defaultdict(list)
         key_first_idx: dict[frozendict[str, str], int] = {}
 
+        # Track whether "text" column contains only strings (for was_string)
+        was_string = len(columns) == 1 and columns[0] == "text"
+
         for i in range(n):
-            row = {c: _coerce(cols[c][i], col=c, idx=i) for c in columns}
+            row = {}
+            for c in columns:
+                raw = cols[c][i]
+                if raw is None:
+                    raise ValueError(f"Column '{c}' has None at index {i}")
+                # Check if text column value is actually a string
+                if c == "text" and was_string and not isinstance(raw, str):
+                    was_string = False
+                row[c] = raw if isinstance(raw, str) else str(raw)
+
             key = to_frozendict(row, col_set)
             key_to_indices[key].append(i)
             if key not in key_first_idx:
@@ -205,8 +228,8 @@ class SemHash(Generic[Record]):
         # Embed representatives only (encoder decides batching internally)
         vectors = featurize(records=deduplicated_records, columns=columns, model=model)
 
-        # Match from_records behavior: return strings for single "text" column
-        was_string = len(columns) == 1 and columns[0] == "text"
+        # was_string was tracked during the main loop above
+        # (True only if columns==["text"] and all values were strings)
 
         return cls._from_vectors_and_items(
             vectors=vectors,
