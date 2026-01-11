@@ -98,6 +98,58 @@ class SemHash(Generic[Record]):
         return cls(index=index, columns=columns, model=model, was_string=was_string)
 
     @classmethod
+    def from_dataset(
+        cls,
+        dataset: Any,
+        columns: Sequence[str],
+        model: Encoder | None = None,
+        ann_backend: Backend | str = Backend.USEARCH,
+        **kwargs: Any,
+    ) -> SemHash:
+        """
+        Initialize SemHash from a dataset (e.g., HuggingFace Dataset).
+
+        Similar to from_records, but extracts records from a dataset object
+        and computes embeddings in one step.
+
+        :param dataset: A dataset with column_names attribute and dict-like access.
+        :param columns: Columns to use for deduplication (same as from_records).
+        :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
+        :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
+        :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
+        :return: A SemHash instance with a fitted vicinity index.
+        :raises TypeError: If dataset doesn't have required attributes.
+        :raises ValueError: If columns are not found in the dataset.
+        """
+        if not hasattr(dataset, "column_names") or not hasattr(dataset, "__len__"):
+            raise TypeError("dataset must have 'column_names' and '__len__' attributes")
+
+        # Validate columns exist
+        missing = set(columns) - set(dataset.column_names)
+        if missing:
+            raise ValueError(f"Columns {missing} not found in dataset")
+
+        # Load default model if needed
+        if model is None:
+            model = StaticModel.from_pretrained("minishlab/potion-base-8M")
+
+        # Extract records as list of dicts (same format as from_records)
+        records: list[dict[str, str]] = [{col: str(dataset[i][col]) for col in columns} for i in range(len(dataset))]
+
+        # Compute embeddings
+        embeddings = featurize(records=records, columns=columns, model=model)
+
+        # Use from_embeddings (which handles exact dedup internally now)
+        return cls.from_embeddings(
+            embeddings=embeddings,
+            records=records,  # type: ignore[arg-type]
+            model=model,
+            columns=columns,
+            ann_backend=ann_backend,
+            **kwargs,
+        )
+
+    @classmethod
     def from_embeddings(
         cls,
         embeddings: np.ndarray,

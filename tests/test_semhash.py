@@ -253,3 +253,78 @@ def test_from_embeddings(model: Encoder, train_texts: list[str]) -> None:
     assert semhash.index.vectors.shape == (3, 1)
     # Should keep embeddings at indices 0, 1, 3 (first occurrences of img1, img2, img3)
     assert semhash.index.vectors.tolist() == [[0.0], [1.0], [3.0]]
+
+
+def test_from_dataset_basic(model: Encoder) -> None:
+    """Test from_dataset with a simple HuggingFace dataset."""
+    from datasets import Dataset
+
+    # Create a simple dataset with text column
+    ds = Dataset.from_dict({"text": ["apple", "banana", "cherry", "apple"]})
+
+    semhash = SemHash.from_dataset(dataset=ds, columns=["text"], model=model)
+
+    # Should collapse exact duplicate "apple"
+    assert len(semhash.index.vectors) == 3
+    assert len(semhash.index.items) == 3
+
+    # Verify deduplication works
+    result = semhash.self_deduplicate(threshold=0.95)
+    assert len(result.selected) <= 3
+
+
+def test_from_dataset_multicolumn(model: Encoder) -> None:
+    """Test from_dataset with multiple columns."""
+    from datasets import Dataset
+
+    ds = Dataset.from_dict(
+        {
+            "question": ["What is AI?", "What is ML?", "What is AI?"],
+            "context": ["AI explanation", "ML explanation", "AI explanation"],
+        }
+    )
+
+    semhash = SemHash.from_dataset(dataset=ds, columns=["question", "context"], model=model)
+
+    # Should collapse the duplicate row
+    assert len(semhash.index.vectors) == 2
+    assert len(semhash.index.items) == 2
+
+
+def test_from_dataset_validation(model: Encoder) -> None:
+    """Test from_dataset input validation."""
+    from datasets import Dataset
+
+    ds = Dataset.from_dict({"text": ["apple", "banana"]})
+
+    # Test invalid dataset type
+    with pytest.raises(TypeError, match="must have 'column_names' and '__len__' attributes"):
+        SemHash.from_dataset(dataset={"text": ["apple"]}, columns=["text"], model=model)
+
+    # Test missing column
+    with pytest.raises(ValueError, match="not found in dataset"):
+        SemHash.from_dataset(dataset=ds, columns=["missing_col"], model=model)
+
+
+def test_from_dataset_equivalence_to_from_records(model: Encoder) -> None:
+    """Test that from_dataset produces same results as from_records for same data."""
+    from datasets import Dataset
+
+    data = [
+        {"question": "What is AI?", "answer": "Artificial Intelligence"},
+        {"question": "What is ML?", "answer": "Machine Learning"},
+    ]
+    ds = Dataset.from_dict({k: [d[k] for d in data] for k in data[0].keys()})
+
+    semhash_from_dataset = SemHash.from_dataset(dataset=ds, columns=["question", "answer"], model=model)
+    semhash_from_records = SemHash.from_records(records=data, columns=["question", "answer"], model=model)
+
+    # Both should have same number of vectors
+    assert semhash_from_dataset.index.vectors.shape == semhash_from_records.index.vectors.shape
+
+    # Both should give same deduplication results
+    result1 = semhash_from_dataset.self_deduplicate(threshold=0.95)
+    result2 = semhash_from_records.self_deduplicate(threshold=0.95)
+
+    assert len(result1.selected) == len(result2.selected)
+    assert len(result1.filtered) == len(result2.filtered)

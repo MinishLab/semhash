@@ -400,6 +400,44 @@ representative_texts = semhash.self_find_representative().selected
 ```
 </details>
 
+<details>
+<summary> Initializing from a HuggingFace Dataset </summary>
+<br>
+You can also initialize SemHash directly from a HuggingFace Dataset. This is more convenient than manually extracting records, as SemHash will handle the conversion and embedding internally:
+
+```python
+from datasets import load_dataset
+from semhash import SemHash
+
+# Load a HuggingFace dataset
+dataset = load_dataset("ag_news", split="train")
+
+# Initialize SemHash directly from the dataset
+semhash = SemHash.from_dataset(dataset=dataset, columns=["text"])
+
+# Deduplicate, filter outliers, and find representative samples
+deduplicated_texts = semhash.self_deduplicate().selected
+filtered_texts = semhash.self_filter_outliers().selected
+representative_texts = semhash.self_find_representative().selected
+```
+
+This also works with multi-column datasets:
+
+```python
+from datasets import load_dataset
+from semhash import SemHash
+
+# Load a multi-column dataset
+dataset = load_dataset("squad_v2", split="train")
+
+# Initialize SemHash with multiple columns
+semhash = SemHash.from_dataset(dataset=dataset, columns=["question", "context"])
+
+# Deduplicate the records
+deduplicated_records = semhash.self_deduplicate().selected
+```
+</details>
+
 
 
 
