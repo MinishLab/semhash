@@ -13,19 +13,21 @@ from semhash.utils import (
 
 
 def test_to_frozendict() -> None:
-    """Test converting dict to frozendict."""
+    """Test converting dict to frozendict, including error cases."""
     record = {"a": "1", "b": "2", "c": "3"}
+
+    # Basic case: select subset of columns
     result = to_frozendict(record, {"a", "c"})
     assert result == frozendict({"a": "1", "c": "3"})
     assert "b" not in result
 
+    # Works with Sequence (not just set)
+    result = to_frozendict(record, ["a", "b"])
+    assert result == frozendict({"a": "1", "b": "2"})
 
-def test_to_frozendict_rejects_missing_columns() -> None:
-    """Test that to_frozendict raises on missing columns."""
-    record = {"a": "1", "b": "2"}
-
-    with pytest.raises(ValueError, match="Missing column 'c'"):
-        to_frozendict(record, {"a", "c"})
+    # Missing column raises ValueError
+    with pytest.raises(ValueError, match="Missing column 'missing'"):
+        to_frozendict(record, {"a", "missing"})
 
 
 def test_compute_candidate_limit() -> None:
@@ -41,30 +43,51 @@ def test_compute_candidate_limit() -> None:
 
 
 def test_featurize(model: Encoder) -> None:
-    """Test featurizing records."""
+    """Test featurizing records, including error cases."""
     records = [{"text": "hello"}, {"text": "world"}]
     embeddings = featurize(records, ["text"], model)
     assert embeddings.shape == (2, 128)  # Model has 128 dims
     assert isinstance(embeddings, np.ndarray)
 
+    # Missing column raises ValueError
+    with pytest.raises(ValueError, match="Missing column 'missing'"):
+        featurize(records, ["missing"], model)
+
 
 def test_remove_exact_duplicates() -> None:
-    """Test exact duplicate removal."""
+    """Test exact duplicate removal, with and without reference records."""
+    # Basic case: remove duplicates within same list
     records = [
         {"text": "hello", "id": "1"},
         {"text": "world", "id": "2"},
         {"text": "hello", "id": "3"},
     ]
     deduplicated, duplicates = remove_exact_duplicates(records, ["text"])
-
     assert len(deduplicated) == 2
     assert len(duplicates) == 1
     assert duplicates[0][0] == {"text": "hello", "id": "3"}
 
+    # With reference_records: cross-dataset filtering
+    reference_records = [
+        [{"text": "apple"}],
+        [{"text": "banana"}, {"text": "banana"}],
+    ]
+    new_records = [
+        {"text": "cherry"},  # New
+        {"text": "apple"},  # Exists in reference
+        {"text": "date"},  # New
+        {"text": "banana"},  # Exists in reference
+    ]
+    deduplicated, duplicates = remove_exact_duplicates(new_records, ["text"], reference_records=reference_records)
+    assert len(deduplicated) == 2
+    assert {"text": "cherry"} in deduplicated
+    assert {"text": "date"} in deduplicated
+    assert len(duplicates) == 2
+
 
 def test_prepare_records() -> None:
-    """Test preparing records."""
-    # String records
+    """Test preparing records, including validation and edge cases."""
+    # String records -> converts to dicts with "text" column
     records = ["hello", "world"]
     dict_records, columns, was_string = prepare_records(records, None)
     assert was_string is True
@@ -79,48 +102,15 @@ def test_prepare_records() -> None:
     assert dict_records == records
 
     # Dict records without columns raises ValueError
-    records = [{"text": "hello"}]
     with pytest.raises(ValueError, match="Columns must be specified"):
-        prepare_records(records, None)
+        prepare_records([{"text": "hello"}], None)
 
+    # Empty records raises ValueError
+    with pytest.raises(ValueError, match="records must not be empty"):
+        prepare_records([], None)
 
-def test_remove_exact_duplicates_with_reference_records() -> None:
-    """Test exact duplicate removal with reference_records for cross-dataset filtering."""
-    # Build reference buckets (simulates index.items structure)
-    reference_records = [
-        [{"text": "apple"}],  # bucket 1: apple (1 occurrence)
-        [{"text": "banana"}, {"text": "banana"}],  # bucket 2: banana (2 occurrences)
-    ]
-
-    # New records to check against reference
-    new_records = [
-        {"text": "cherry"},  # New (not in reference)
-        {"text": "apple"},  # Exact match with reference
-        {"text": "date"},  # New (not in reference)
-        {"text": "banana"},  # Exact match with reference
-    ]
-
-    deduplicated, duplicates = remove_exact_duplicates(new_records, ["text"], reference_records=reference_records)
-
-    # Deduplicated should only contain records NOT in reference
-    assert len(deduplicated) == 2
-    assert {"text": "cherry"} in deduplicated
-    assert {"text": "date"} in deduplicated
-
-    # Duplicates should contain records that match reference
-    assert len(duplicates) == 2
-    # Each duplicate is (record, reference_bucket)
-    dup_records = [d[0] for d in duplicates]
-    assert {"text": "apple"} in dup_records
-    assert {"text": "banana"} in dup_records
-
-
-def test_prepare_records_rejects_mixed_types() -> None:
-    """Test that prepare_records rejects mixed string/dict inputs."""
-    # Mixed types should be rejected
+    # Mixed types rejected
     with pytest.raises(ValueError, match="All records must be"):
-        prepare_records(["a", {"text": "b"}], None)  # type: ignore[list-item]
-
-    # Starting with dict, then string should also be rejected
+        prepare_records(["a", {"text": "b"}], None)
     with pytest.raises(ValueError, match="All records must be"):
-        prepare_records([{"text": "a"}, "b"], ["text"])  # type: ignore[list-item]
+        prepare_records([{"text": "a"}, "b"], ["text"])
