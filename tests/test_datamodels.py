@@ -1,7 +1,5 @@
 import pytest
 
-import semhash
-import semhash.version
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult, SelectedWithDuplicates
 
 
