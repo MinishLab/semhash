@@ -77,6 +77,21 @@ def test_from_dataset_validation(model: Encoder) -> None:
     with pytest.raises(ValueError, match="dataset must not be empty"):
         SemHash.from_dataset(dataset=ds_empty, columns=["text"], model=model)
 
+    # Column length mismatch (custom DatasetLike with inconsistent columns)
+    class BadDataset:
+        column_names = ["col1", "col2"]
+
+        def __len__(self) -> int:
+            return 3
+
+        def __getitem__(self, key: str) -> list[str]:
+            if key == "col1":
+                return ["a", "b", "c"]
+            return ["x", "y"]  # Wrong length!
+
+    with pytest.raises(ValueError, match="does not match dataset length"):
+        SemHash.from_dataset(dataset=BadDataset(), columns=["col1", "col2"], model=model)
+
 
 def test_from_dataset_was_string_behavior(model: Encoder) -> None:
     """Test was_string logic: returns strings only for text column with actual string values."""

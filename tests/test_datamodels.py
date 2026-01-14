@@ -2,7 +2,7 @@ import pytest
 
 import semhash
 import semhash.version
-from semhash.datamodels import DeduplicationResult, DuplicateRecord, SelectedWithDuplicates
+from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult, SelectedWithDuplicates
 
 
 def test_deduplication_scoring() -> None:
@@ -243,3 +243,10 @@ def test_selected_with_duplicates_cache_invalidation_on_rethreshold() -> None:
     assert result2[0].duplicates[0][0] == "duplicate_1"
     # Results should be different objects
     assert result1 is not result2
+
+
+def test_filter_result_empty() -> None:
+    """Test FilterResult ratios with empty lists."""
+    result = FilterResult(selected=[], filtered=[])
+    assert result.filter_ratio == 0.0
+    assert result.selected_ratio == 1.0

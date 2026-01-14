@@ -101,7 +101,7 @@ class SemHash(Generic[Record]):
         dict_records, columns, was_string = prepare_records(records, columns)
 
         # If no model is provided, load the default model
-        if model is None:
+        if model is None:  # pragma: no cover
             model = StaticModel.from_pretrained("minishlab/potion-base-8M")
 
         # Group by exact match, preserving first-occurrence order
@@ -150,7 +150,7 @@ class SemHash(Generic[Record]):
         :return: A SemHash instance with a fitted vicinity index.
         """
         # Load default model if needed
-        if model is None:
+        if model is None:  # pragma: no cover
             model = StaticModel.from_pretrained("minishlab/potion-base-8M")
 
         # Extract, validate, and deduplicate dataset records
@@ -341,8 +341,8 @@ class SemHash(Generic[Record]):
                 duplicate_records.append(DuplicateRecord(record=curr_record, duplicates=items_with_score, exact=True))
 
             # If we don't see any similar_items, we know the record is not a duplicate.
-            # in rare cases, the item itself might not be a duplicate of itself.
-            if not similar_items:
+            # In rare cases, the item itself might not be returned by the index.
+            if not similar_items:  # pragma: no cover
                 deduplicated_records.append(record)
                 continue
             items, _ = zip(*similar_items)
