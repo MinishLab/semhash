@@ -1,5 +1,9 @@
+from typing import Any
+
 import pytest
 from model2vec import StaticModel
+
+from semhash.utils import Encoder
 
 
 @pytest.fixture
@@ -49,3 +53,34 @@ def test_texts() -> list[str]:
         "motorcycle",  # Outlier
         "plane",  # Outlier
     ]
+
+
+class CountingEncoder:
+    """Encoder wrapper that counts how many items are encoded. Useful for testing efficiency."""
+
+    def __init__(self, base_encoder: Encoder) -> None:
+        """Initialize the counting encoder."""
+        self.base_encoder = base_encoder
+        self.encode_calls: list[int] = []
+
+    def encode(self, sentences: Any, **kwargs: Any) -> Any:
+        """Encode sentences and count the number of items encoded."""
+        if isinstance(sentences, str):
+            sentences = [sentences]
+        self.encode_calls.append(len(sentences))
+        return self.base_encoder.encode(sentences, **kwargs)
+
+    @property
+    def total_encoded(self) -> int:
+        """Total number of items encoded across all calls."""
+        return sum(self.encode_calls)
+
+    def reset(self) -> None:
+        """Reset the call counter."""
+        self.encode_calls = []
+
+
+@pytest.fixture
+def counting_encoder(model: StaticModel) -> CountingEncoder:
+    """A counting encoder wrapper for testing embedding efficiency."""
+    return CountingEncoder(model)

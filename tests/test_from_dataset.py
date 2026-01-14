@@ -1,6 +1,7 @@
 """Tests for SemHash.from_dataset() with HuggingFace datasets."""
 
 import pytest
+from conftest import CountingEncoder
 
 from semhash import SemHash
 from semhash.utils import Encoder
@@ -24,24 +25,6 @@ def test_from_dataset_basic(model: Encoder) -> None:
     # Verify deduplication works
     result = semhash.self_deduplicate(threshold=0.95)
     assert len(result.selected) <= 3
-
-
-def test_from_dataset_returns_strings_for_text_column(model: Encoder) -> None:
-    """Test that from_dataset returns strings when columns=["text"], matching from_records behavior."""
-    ds = Dataset.from_dict({"text": ["apple", "banana", "cherry"]})
-
-    semhash = SemHash.from_dataset(dataset=ds, columns=["text"], model=model)
-
-    # Should return strings (like from_records does)
-    result = semhash.self_deduplicate(threshold=0.95)
-    assert all(isinstance(r, str) for r in result.selected)
-
-    # Verify equivalence with from_records
-    semhash_from_records = SemHash.from_records(records=["apple", "banana", "cherry"], model=model)
-    result_from_records = semhash_from_records.self_deduplicate(threshold=0.95)
-
-    # Both should return strings
-    assert type(result.selected[0]) == type(result_from_records.selected[0])
 
 
 def test_from_dataset_multicolumn(model: Encoder) -> None:
@@ -105,37 +88,34 @@ def test_from_dataset_equivalence_to_from_records(model: Encoder) -> None:
     assert len(result1.filtered) == len(result2.filtered)
 
 
-def test_from_dataset_does_not_embed_duplicates(model: Encoder) -> None:
+@pytest.mark.parametrize(
+    "data,columns,expected_representatives,expected_calls",
+    [
+        # Single column: 6 records, 3 unique -> 1 encode call with 3 items
+        ({"text": ["apple", "banana", "apple", "cherry", "banana", "apple"]}, ["text"], 3, [3]),
+        # Multi column: 4 records, 3 unique -> 2 encode calls (one per column) with 3 items each
+        ({"col1": ["a", "b", "a", "c"], "col2": ["x", "y", "x", "z"]}, ["col1", "col2"], 3, [3, 3]),
+    ],
+    ids=["single_column", "multi_column"],
+)
+def test_from_dataset_does_not_embed_duplicates(
+    counting_encoder: CountingEncoder,
+    data: dict[str, list[str]],
+    columns: list[str],
+    expected_representatives: int,
+    expected_calls: list[int],
+) -> None:
     """Test that from_dataset only embeds representative records, not duplicates."""
-    from typing import Any
+    ds = Dataset.from_dict(data)
 
-    # Create dataset with exact duplicates: 6 records but only 3 unique
-    ds = Dataset.from_dict({"text": ["apple", "banana", "apple", "cherry", "banana", "apple"]})
+    semhash = SemHash.from_dataset(dataset=ds, columns=columns, model=counting_encoder)  # type: ignore[arg-type]
 
-    # Create a counting encoder wrapper
-    class CountingEncoder:
-        def __init__(self, base_encoder: Any) -> None:
-            self.base_encoder = base_encoder
-            self.encode_calls: list[int] = []
+    # Should only have expected number of representatives
+    assert semhash.index.vectors.shape[0] == expected_representatives
 
-        def encode(self, sentences: Any, **kwargs: Any) -> Any:
-            if isinstance(sentences, str):
-                sentences = [sentences]
-            self.encode_calls.append(len(sentences))
-            return self.base_encoder.encode(sentences, **kwargs)
-
-    counting_encoder = CountingEncoder(model)
-
-    semhash = SemHash.from_dataset(dataset=ds, columns=["text"], model=counting_encoder)  # type: ignore[arg-type]
-
-    # Should only have 3 representatives
-    assert semhash.index.vectors.shape[0] == 3
-
-    # Should have encoded exactly 3 records (representatives only), not 6
-    assert sum(counting_encoder.encode_calls) == 3
-    # Should have been called once with all 3 representatives
-    assert len(counting_encoder.encode_calls) == 1
-    assert counting_encoder.encode_calls[0] == 3
+    # Should have encoded only representatives, with expected call pattern
+    assert counting_encoder.encode_calls == expected_calls
+    assert counting_encoder.total_encoded == sum(expected_calls)
 
 
 def test_from_dataset_handles_non_string_values(model: Encoder) -> None:
@@ -173,59 +153,22 @@ def test_from_dataset_preserves_first_occurrence_order(model: Encoder) -> None:
     assert first_occurrences == ["zebra", "apple", "banana", "cherry"]
 
 
-def test_from_dataset_was_string_only_for_actual_strings(model: Encoder) -> None:
-    """Test that was_string is only True for text columns with actual string values."""
-    # Test 1: text column with strings -> should return strings
+def test_from_dataset_was_string_behavior(model: Encoder) -> None:
+    """Test was_string logic: returns strings only for text column with actual string values."""
+    # Case 1: text column with strings -> should return strings (matching from_records)
     ds_strings = Dataset.from_dict({"text": ["apple", "banana", "cherry"]})
     semhash_strings = SemHash.from_dataset(dataset=ds_strings, columns=["text"], model=model)
     result_strings = semhash_strings.self_deduplicate(threshold=0.95)
     assert all(isinstance(r, str) for r in result_strings.selected)
 
-    # Test 2: text column with integers -> should return dicts (not strings)
+    # Verify equivalence with from_records for string case
+    semhash_from_records = SemHash.from_records(records=["apple", "banana", "cherry"], model=model)
+    result_from_records = semhash_from_records.self_deduplicate(threshold=0.95)
+    assert type(result_strings.selected[0]) == type(result_from_records.selected[0])
+
+    # Case 2: text column with integers -> should return dicts (coerced, not true strings)
     ds_ints = Dataset.from_dict({"text": [1, 2, 3]})
     semhash_ints = SemHash.from_dataset(dataset=ds_ints, columns=["text"], model=model)
     result_ints = semhash_ints.self_deduplicate(threshold=0.95)
     assert all(isinstance(r, dict) for r in result_ints.selected)
     assert all("text" in r for r in result_ints.selected)
-
-
-def test_from_dataset_multicolumn_does_not_embed_duplicates(model: Encoder) -> None:
-    """Test that multi-column from_dataset only embeds representatives (validates per-column encoding)."""
-    from typing import Any
-
-    # Create dataset with exact duplicates across multiple columns
-    ds = Dataset.from_dict(
-        {
-            "col1": ["a", "b", "a", "c"],  # "a" appears twice
-            "col2": ["x", "y", "x", "z"],  # matching pattern
-        }
-    )
-
-    # Create a counting encoder wrapper
-    class CountingEncoder:
-        def __init__(self, base_encoder: Any) -> None:
-            self.base_encoder = base_encoder
-            self.encode_calls: list[int] = []
-
-        def encode(self, sentences: Any, **kwargs: Any) -> Any:
-            if isinstance(sentences, str):
-                sentences = [sentences]
-            self.encode_calls.append(len(sentences))
-            return self.base_encoder.encode(sentences, **kwargs)
-
-    counting_encoder = CountingEncoder(model)
-
-    semhash = SemHash.from_dataset(dataset=ds, columns=["col1", "col2"], model=counting_encoder)  # type: ignore[arg-type]
-
-    # Should have 3 representatives (unique combinations)
-    assert semhash.index.vectors.shape[0] == 3
-
-    # featurize() encodes once per column, so we expect 2 calls (for col1 and col2)
-    assert len(counting_encoder.encode_calls) == 2
-
-    # Each call should have 3 texts (the representatives)
-    assert counting_encoder.encode_calls[0] == 3  # col1
-    assert counting_encoder.encode_calls[1] == 3  # col2
-
-    # Total encoded should be 6 (3 representatives × 2 columns)
-    assert sum(counting_encoder.encode_calls) == 6
