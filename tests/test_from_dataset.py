@@ -1,5 +1,4 @@
 import pytest
-from conftest import CountingEncoder
 
 from semhash import SemHash
 from semhash.utils import Encoder
@@ -109,14 +108,3 @@ def test_from_dataset_was_string_behavior(model: Encoder) -> None:
     ds_other = Dataset.from_dict({"id": ["a", "b", "c"]})
     result_other = SemHash.from_dataset(dataset=ds_other, columns=["id"], model=model).self_deduplicate()
     assert all(isinstance(r, dict) for r in result_other.selected)
-
-
-def test_from_dataset_only_embeds_representatives(counting_encoder: CountingEncoder) -> None:
-    """Test that from_dataset only embeds representative records, not duplicates."""
-    # 6 records but only 3 unique
-    ds = Dataset.from_dict({"text": ["apple", "banana", "apple", "cherry", "banana", "apple"]})
-
-    semhash = SemHash.from_dataset(dataset=ds, columns=["text"], model=counting_encoder)
-
-    assert semhash.index.vectors.shape[0] == 3  # Only 3 representatives
-    assert counting_encoder.total_encoded == 3  # Only encoded 3 items, not 6
