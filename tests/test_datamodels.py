@@ -25,34 +25,27 @@ def test_deduplication_scoring_exact() -> None:
     assert d.exact_duplicate_ratio == 0.2
 
 
-def test_deduplication_scoring_exact_empty() -> None:
-    """Test the deduplication scoring."""
+def test_deduplication_scoring_empty() -> None:
+    """Test the deduplication scoring with empty results."""
     d = DeduplicationResult([], [], 0.8, columns=["text"])
+    assert d.duplicate_ratio == 0.0
     assert d.exact_duplicate_ratio == 0.0
 
 
-def test_deduplication_scoring_empty() -> None:
-    """Test the deduplication scoring."""
-    d = DeduplicationResult([], [], 0.8, columns=["text"])
-    assert d.duplicate_ratio == 0.0
-
-
 def test_rethreshold() -> None:
-    """Test rethresholding the duplicates."""
+    """Test rethresholding the duplicates, including empty case."""
     d = DuplicateRecord("a", False, [("b", 0.9), ("c", 0.8)])
     d._rethreshold(0.85)
     assert d.duplicates == [("b", 0.9)]
 
-
-def test_rethreshold_empty() -> None:
-    """Test rethresholding the duplicates."""
-    d = DuplicateRecord("a", False, [])
-    d._rethreshold(0.85)
-    assert d.duplicates == []
+    # Empty case
+    d_empty = DuplicateRecord("a", False, [])
+    d_empty._rethreshold(0.85)
+    assert d_empty.duplicates == []
 
 
 def test_get_least_similar_from_duplicates() -> None:
-    """Test getting the least similar duplicates."""
+    """Test getting the least similar duplicates, including empty case."""
     d = DeduplicationResult(
         ["a", "b", "c"],
         [DuplicateRecord("a", False, [("b", 0.9), ("c", 0.7)]), DuplicateRecord("b", False, [("c", 0.8)])],
@@ -61,11 +54,9 @@ def test_get_least_similar_from_duplicates() -> None:
     result = d.get_least_similar_from_duplicates(1)
     assert result == [("a", "c", 0.7)]
 
-
-def test_get_least_similar_from_duplicates_empty() -> None:
-    """Test getting the least similar duplicates."""
-    d = DeduplicationResult([], [], 0.8, columns=["text"])
-    assert d.get_least_similar_from_duplicates(1) == []
+    # Empty case
+    d_empty = DeduplicationResult([], [], 0.8, columns=["text"])
+    assert d_empty.get_least_similar_from_duplicates(1) == []
 
 
 def test_rethreshold_deduplication_result() -> None:
