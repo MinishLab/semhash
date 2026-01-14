@@ -48,7 +48,7 @@ class DatasetLike(Protocol):
         ...  # pragma: no cover
 
 
-def to_frozendict(record: dict[str, str], columns: set[str]) -> frozendict[str, str]:
+def to_frozendict(record: dict[str, str], columns: Sequence[str] | set[str]) -> frozendict[str, str]:
     """
     Convert a record to a frozendict.
 
@@ -62,6 +62,36 @@ def to_frozendict(record: dict[str, str], columns: set[str]) -> frozendict[str, 
     except KeyError as e:
         missing = e.args[0]
         raise ValueError(f"Missing column '{missing}' in record {record}") from e
+
+
+def group_records_by_key(
+    records: Sequence[dict[str, str]],
+    columns: Sequence[str],
+) -> tuple[list[dict[str, str]], list[list[dict[str, str]]]]:
+    """
+    Group records by exact match on columns, preserving first-occurrence order.
+
+    :param records: Records to group.
+    :param columns: Columns to use as grouping key.
+    :return: Tuple of (deduplicated_records, items) where:
+        - deduplicated_records: first record from each unique group
+        - items: list of groups, each group is a list of exact duplicates
+    """
+    buckets: dict[frozendict[str, str], list[dict[str, str]]] = {}
+    order: list[frozendict[str, str]] = []
+
+    for r in records:
+        key = to_frozendict(r, columns)
+        bucket = buckets.get(key)
+        if bucket is None:
+            buckets[key] = [r]
+            order.append(key)
+        else:
+            bucket.append(r)
+
+    items = [buckets[k] for k in order]
+    deduplicated_records = [bucket[0] for bucket in items]
+    return deduplicated_records, items
 
 
 def compute_candidate_limit(
@@ -250,7 +280,10 @@ def prepare_dataset_records(
         - was_string: True iff columns == ["text"] and ALL raw values were strings
     """
     cols, n = _validate_dataset(dataset, columns)
-    col_set = set(columns)
+
+    # was_string controls whether deduplicate() returns strings or dicts.
+    # We only return strings if: (1) single column named "text", AND (2) all raw
+    # values in the dataset are actual strings (not integers/floats coerced to str).
     was_string = len(columns) == 1 and columns[0] == "text"
 
     def coerce(raw: Any, *, col: str, idx: int) -> str:
@@ -258,27 +291,14 @@ def prepare_dataset_records(
             raise ValueError(f"Column '{col}' has None at index {idx}")
         return raw if isinstance(raw, str) else str(raw)
 
-    # Single-pass grouping: key -> bucket of exact duplicates
-    buckets: dict[frozendict[str, str], list[dict[str, str]]] = {}
-    order: list[frozendict[str, str]] = []
-
+    # Build all records while tracking was_string
+    records: list[dict[str, str]] = []
     for i in range(n):
-        # Track "was_string" using RAW values (not coerced)
         if was_string and not isinstance(cols["text"][i], str):
             was_string = False
+        records.append({c: coerce(cols[c][i], col=c, idx=i) for c in columns})
 
-        row = {c: coerce(cols[c][i], col=c, idx=i) for c in columns}
-        key = to_frozendict(row, col_set)
-
-        bucket = buckets.get(key)
-        if bucket is None:
-            buckets[key] = [row]
-            order.append(key)
-        else:
-            bucket.append(row)
-
-    # Preserve first-occurrence order via the order list
-    items = [buckets[k] for k in order]
-    deduplicated_records = [bucket[0] for bucket in items]
+    # Group by exact match, preserving first-occurrence order
+    deduplicated_records, items = group_records_by_key(records, columns)
 
     return deduplicated_records, items, was_string

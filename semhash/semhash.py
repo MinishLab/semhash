@@ -20,6 +20,7 @@ from semhash.utils import (
     Record,
     compute_candidate_limit,
     featurize,
+    group_records_by_key,
     prepare_dataset_records,
     prepare_records,
     remove_exact_duplicates,
@@ -103,23 +104,8 @@ class SemHash(Generic[Record]):
         if model is None:
             model = StaticModel.from_pretrained("minishlab/potion-base-8M")
 
-        # Single-pass grouping by exact key (same as from_dataset for consistency)
-        col_set = set(columns)
-        buckets: dict[frozendict[str, str], list[dict[str, str]]] = {}
-        order: list[frozendict[str, str]] = []
-
-        for r in dict_records:
-            key = to_frozendict(r, col_set)
-            bucket = buckets.get(key)
-            if bucket is None:
-                buckets[key] = [r]
-                order.append(key)
-            else:
-                bucket.append(r)
-
-        # Build items and deduplicated_records in first-occurrence order
-        items = [buckets[k] for k in order]
-        deduplicated_records = [bucket[0] for bucket in items]
+        # Group by exact match, preserving first-occurrence order
+        deduplicated_records, items = group_records_by_key(dict_records, columns)
 
         # Create embeddings for deduplicated records only
         embeddings = featurize(deduplicated_records, columns, model)
