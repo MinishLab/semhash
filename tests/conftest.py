@@ -1,8 +1,6 @@
 import pytest
 from model2vec import StaticModel
 
-from semhash.utils import Encoder
-
 
 @pytest.fixture
 def model() -> StaticModel:
