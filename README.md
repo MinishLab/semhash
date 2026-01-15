@@ -75,7 +75,7 @@ representative_texts = semhash.self_find_representative().selected
 
 ### Image Deduplication, Filtering & Representative Sampling
 
-Deduplicate an image dataset using a vision model (requires `pip install sentence-transformers`):
+Deduplicate an image dataset, filter outliers, and find representative samples using a vision model (requires `pip install sentence-transformers`):
 
 ```python
 from datasets import load_dataset
