@@ -279,37 +279,6 @@ def test_from_embeddings(model: Encoder, train_texts: list[str]) -> None:
     assert semhash.index.vectors.tolist() == [[0.0], [1.0], [3.0]]
 
 
-def test_from_dataset_with_custom_dataset_like(model: Encoder) -> None:
-    """Test that from_dataset works with custom DatasetLike implementations (no HF dependency)."""
-
-    class MiniDataset:
-        """Minimal DatasetLike implementation for testing."""
-
-        column_names = ["text"]
-
-        def __init__(self, data: dict[str, list[str]]) -> None:
-            self._data = data
-
-        def __len__(self) -> int:
-            return len(self._data["text"])
-
-        def __getitem__(self, key: str) -> list[str]:
-            return self._data[key]
-
-    # Create custom dataset with duplicates
-    ds = MiniDataset({"text": ["apple", "banana", "apple"]})
-
-    semhash = SemHash.from_dataset(ds, columns=["text"], model=model)
-
-    # Should have deduplicated to 2 unique items
-    assert len(semhash.index.items) == 2
-    assert len(semhash.index.vectors) == 2
-
-    # Should work with deduplication
-    result = semhash.self_deduplicate(threshold=0.95)
-    assert len(result.selected) == 2
-
-
 def test_from_records_edge_cases(model: Encoder) -> None:
     """Test from_records edge cases: coercion, order preservation, None rejection."""
     # Coerces non-string dict values to strings

@@ -5,7 +5,7 @@ from typing import Any
 from frozendict import frozendict
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord
-from semhash.utils import DatasetLike, Record, coerce_value, to_frozendict
+from semhash.utils import Record, coerce_value, to_frozendict
 
 
 def group_records_by_key(
@@ -124,69 +124,6 @@ def prepare_records(
         was_string = False
 
     return dict_records, columns, was_string
-
-
-def _validate_dataset(dataset: DatasetLike, columns: Sequence[str]) -> tuple[dict[str, Sequence[Any]], int]:
-    """Validate dataset structure and extract columns."""
-    try:
-        column_names = dataset.column_names
-    except AttributeError as e:
-        raise TypeError("dataset must satisfy DatasetLike (column_names, __len__, __getitem__)") from e
-
-    missing = set(columns) - set(column_names)
-    if missing:
-        raise ValueError(f"Columns {missing} not found in dataset")
-
-    n = len(dataset)
-    if n == 0:
-        raise ValueError("dataset must not be empty")
-
-    cols = {c: dataset[c] for c in columns}
-    for c in columns:
-        if len(cols[c]) != n:
-            raise ValueError(f"Column '{c}' length ({len(cols[c])}) does not match dataset length ({n})")
-
-    return cols, n
-
-
-def prepare_dataset_records(
-    dataset: DatasetLike,
-    columns: Sequence[str],
-) -> tuple[list[dict[str, Any]], list[list[dict[str, Any]]], bool]:
-    """
-    Extract, validate, and exact-deduplicate dataset rows using columnar access.
-
-    :param dataset: A dataset-like object with columnar access.
-    :param columns: Columns to use for deduplication.
-    :return: Tuple of (deduplicated_records, items, was_string) where:
-        - deduplicated_records: representative record per exact-duplicate bucket
-        - items: buckets of exact duplicates (each bucket is list[record])
-        - was_string: True iff columns == ["text"] and ALL raw values were strings
-    """
-    cols, n = _validate_dataset(dataset, columns)
-
-    # was_string controls whether deduplicate() returns strings or dicts.
-    # We only return strings if: (1) single column named "text", AND (2) all raw
-    # values in the dataset are actual strings (not integers/floats coerced to str).
-    was_string = len(columns) == 1 and columns[0] == "text"
-
-    def validate_and_coerce(raw: Any, *, col: str, idx: int) -> Any:
-        """Validate value is not None, then coerce for encoding."""
-        if raw is None:
-            raise ValueError(f"Column '{col}' has None at index {idx}")
-        return coerce_value(raw)
-
-    # Build all records while tracking was_string
-    records: list[dict[str, Any]] = []
-    for i in range(n):
-        if was_string and not isinstance(cols["text"][i], str):
-            was_string = False
-        records.append({c: validate_and_coerce(cols[c][i], col=c, idx=i) for c in columns})
-
-    # Group by exact match, preserving first-occurrence order
-    deduplicated_records, items = group_records_by_key(records, columns)
-
-    return deduplicated_records, items, was_string
 
 
 def dict_to_string(record: dict[str, str], columns: Sequence[str]) -> str:

@@ -28,26 +28,6 @@ class Encoder(Protocol):
         ...  # pragma: no cover
 
 
-class DatasetLike(Protocol):
-    """
-    Protocol for dataset-like objects compatible with SemHash.from_dataset().
-
-    Any object that provides columnar access (dataset[column_name] -> sequence)
-    satisfies this protocol. HuggingFace datasets.Dataset is the primary example,
-    but custom dataset implementations are supported.
-    """
-
-    column_names: Sequence[str]
-
-    def __len__(self) -> int:
-        """Return the number of rows in the dataset."""
-        ...  # pragma: no cover
-
-    def __getitem__(self, key: str) -> Sequence[Any]:
-        """Return all values for the given column name."""
-        ...  # pragma: no cover
-
-
 def make_hashable(value: Any) -> Any:
     """
     Convert a value to a hashable representation for use as dict keys.

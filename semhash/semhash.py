@@ -16,12 +16,10 @@ from semhash.records import (
     add_scores_to_records,
     group_records_by_key,
     map_deduplication_result_to_strings,
-    prepare_dataset_records,
     prepare_records,
     remove_exact_duplicates,
 )
 from semhash.utils import (
-    DatasetLike,
     Encoder,
     Record,
     coerce_value,
@@ -82,41 +80,6 @@ class SemHash(Generic[Record]):
         embeddings = featurize(deduplicated_records, columns, model)
 
         index = Index.from_vectors_and_items(vectors=embeddings, items=items, backend_type=ann_backend, **kwargs)
-        return cls(index=index, model=model, columns=columns, was_string=was_string)
-
-    @classmethod
-    def from_dataset(
-        cls,
-        dataset: DatasetLike,
-        columns: Sequence[str],
-        model: Encoder | None = None,
-        ann_backend: Backend | str = Backend.USEARCH,
-        **kwargs: Any,
-    ) -> SemHash:
-        """
-        Initialize SemHash from a dataset (e.g., HuggingFace Dataset).
-
-        Removes exact duplicates, featurizes the records, and fits a vicinity index.
-        Supports any dataset-like object that follows the DatasetLike protocol.
-
-        :param dataset: A dataset-like object with columnar access.
-        :param columns: Columns to use for deduplication (same as from_records).
-        :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
-        :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
-        :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
-        :return: A SemHash instance with a fitted vicinity index.
-        """
-        # Load default model if needed
-        if model is None:  # pragma: no cover
-            model = StaticModel.from_pretrained("minishlab/potion-base-8M")
-
-        # Extract, validate, and deduplicate dataset records
-        deduplicated_records, items, was_string = prepare_dataset_records(dataset, columns)
-
-        # Create embeddings for deduplicated records only
-        vectors = featurize(records=deduplicated_records, columns=columns, model=model)
-
-        index = Index.from_vectors_and_items(vectors=vectors, items=items, backend_type=ann_backend, **kwargs)
         return cls(index=index, model=model, columns=columns, was_string=was_string)
 
     @classmethod

@@ -3,7 +3,54 @@ import pytest
 from frozendict import frozendict
 
 from semhash.records import prepare_records, remove_exact_duplicates
-from semhash.utils import Encoder, compute_candidate_limit, featurize, to_frozendict
+from semhash.utils import Encoder, coerce_value, compute_candidate_limit, featurize, make_hashable, to_frozendict
+
+
+def test_make_hashable() -> None:
+    """Test make_hashable with various types."""
+    # Fast path: primitives
+    assert make_hashable("hello") == "hello"
+    assert make_hashable(42) == 42
+    assert make_hashable(3.14) == 3.14
+    assert make_hashable(True) is True
+    assert make_hashable(None) is None
+
+    # Objects with tobytes() (simulate PIL Image or numpy array)
+    class MockImage:
+        def tobytes(self) -> bytes:
+            return b"fake_image_data"
+
+    img = MockImage()
+    result = make_hashable(img)
+    assert isinstance(result, str)
+    assert len(result) == 32  # MD5 hex digest
+
+    # Hashable objects (like tuples)
+    assert make_hashable((1, 2, 3)) == (1, 2, 3)
+
+    # Non-hashable fallback to string
+    unhashable = {"key": "value"}
+    result = make_hashable(unhashable)
+    assert result == "{'key': 'value'}"
+
+
+def test_coerce_value() -> None:
+    """Test coerce_value for encoding preparation."""
+    # Strings and bytes pass through
+    assert coerce_value("hello") == "hello"
+    assert coerce_value(b"bytes") == b"bytes"
+
+    # Primitives converted to strings
+    assert coerce_value(42) == "42"
+    assert coerce_value(3.14) == "3.14"
+    assert coerce_value(True) == "True"
+
+    # Complex types pass through unchanged
+    class MockImage:
+        pass
+
+    img = MockImage()
+    assert coerce_value(img) is img
 
 
 def test_to_frozendict() -> None:
