@@ -45,38 +45,6 @@ class SemHash(Generic[Record]):
         self._ranking_cache: FilterResult | None = None
 
     @classmethod
-    def _from_vectors_and_items(
-        cls,
-        *,
-        vectors: np.ndarray,
-        items: list[list[dict[str, str]]],
-        model: Encoder,
-        columns: Sequence[str],
-        was_string: bool,
-        ann_backend: Backend | str,
-        **kwargs: Any,
-    ) -> SemHash:
-        """
-        Internal constructor from vectors and items (after deduplication).
-
-        :param vectors: Embeddings for representative records.
-        :param items: List of item clusters (each cluster contains exact duplicates).
-        :param model: Encoder model.
-        :param columns: Column names.
-        :param was_string: Whether original records were strings.
-        :param ann_backend: ANN backend to use.
-        :param **kwargs: Additional arguments for the index.
-        :return: SemHash instance.
-        """
-        index = Index.from_vectors_and_items(
-            vectors=vectors,
-            items=items,
-            backend_type=ann_backend,
-            **kwargs,
-        )
-        return cls(index=index, model=model, columns=columns, was_string=was_string)
-
-    @classmethod
     def from_records(
         cls,
         records: Sequence[Record],
@@ -110,15 +78,8 @@ class SemHash(Generic[Record]):
         # Create embeddings for deduplicated records only
         embeddings = featurize(deduplicated_records, columns, model)
 
-        return cls._from_vectors_and_items(
-            vectors=embeddings,
-            items=items,
-            model=model,
-            columns=columns,
-            was_string=was_string,
-            ann_backend=ann_backend,
-            **kwargs,
-        )
+        index = Index.from_vectors_and_items(vectors=embeddings, items=items, backend_type=ann_backend, **kwargs)
+        return cls(index=index, model=model, columns=columns, was_string=was_string)
 
     @classmethod
     def from_dataset(
@@ -159,15 +120,8 @@ class SemHash(Generic[Record]):
         # Embed representatives only (encoder decides batching internally)
         vectors = featurize(records=deduplicated_records, columns=columns, model=model)
 
-        return cls._from_vectors_and_items(
-            vectors=vectors,
-            items=items,
-            model=model,
-            columns=columns,
-            was_string=was_string,
-            ann_backend=ann_backend,
-            **kwargs,
-        )
+        index = Index.from_vectors_and_items(vectors=vectors, items=items, backend_type=ann_backend, **kwargs)
+        return cls(index=index, model=model, columns=columns, was_string=was_string)
 
     @classmethod
     def from_embeddings(
@@ -231,15 +185,10 @@ class SemHash(Generic[Record]):
 
         deduplicated_embeddings = embeddings[keep_embedding_indices]
 
-        return cls._from_vectors_and_items(
-            vectors=deduplicated_embeddings,
-            items=items,
-            model=model,
-            columns=columns,
-            was_string=was_string,
-            ann_backend=ann_backend,
-            **kwargs,
+        index = Index.from_vectors_and_items(
+            vectors=deduplicated_embeddings, items=items, backend_type=ann_backend, **kwargs
         )
+        return cls(index=index, model=model, columns=columns, was_string=was_string)
 
     def deduplicate(
         self,
