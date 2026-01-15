@@ -280,7 +280,7 @@ def prepare_records(
 
 
 def _validate_dataset(dataset: DatasetLike, columns: Sequence[str]) -> tuple[dict[str, Sequence[Any]], int]:
-    """Validate dataset structure and extract columns. Returns (cols, n)."""
+    """Validate dataset structure and extract columns.."""
     try:
         column_names = dataset.column_names
     except AttributeError as e:
@@ -308,11 +308,6 @@ def prepare_dataset_records(
 ) -> tuple[list[dict[str, Any]], list[list[dict[str, Any]]], bool]:
     """
     Extract, validate, and exact-deduplicate dataset rows using columnar access.
-
-    Supports HuggingFace datasets.Dataset and any dataset-like object that provides:
-    - column_names: Sequence[str]
-    - __len__() -> int
-    - __getitem__(column_name: str) -> Sequence[Any] (columnar access)
 
     :param dataset: A dataset-like object with columnar access.
     :param columns: Columns to use for deduplication.

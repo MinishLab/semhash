@@ -56,7 +56,7 @@ class SemHash(Generic[Record]):
         """
         Initialize a SemHash instance from records.
 
-        This removes exact duplicates, featurizes the records, and fits a vicinity index.
+        Removes exact duplicates, featurizes the records, and fits a vicinity index.
 
         :param records: A list of records (strings or dictionaries).
         :param columns: Columns to featurize if records are dictionaries.
@@ -93,15 +93,8 @@ class SemHash(Generic[Record]):
         """
         Initialize SemHash from a dataset (e.g., HuggingFace Dataset).
 
-        Extracts records from the dataset, deduplicates them, and embeds only
-        representative records (not duplicates). The encoder controls batching internally.
-
-        Supports any dataset-like object that provides:
-        - column_names: Sequence[str]
-        - __len__() -> int
-        - __getitem__(column_name: str) -> Sequence[Any] (columnar access)
-
-        HuggingFace datasets.Dataset satisfies this contract, but custom implementations work too.
+        Removes exact duplicates, featurizes the records, and fits a vicinity index.
+        Supports any dataset-like object that follows the DatasetLike protocol.
 
         :param dataset: A dataset-like object with columnar access.
         :param columns: Columns to use for deduplication (same as from_records).
@@ -117,7 +110,7 @@ class SemHash(Generic[Record]):
         # Extract, validate, and deduplicate dataset records
         deduplicated_records, items, was_string = prepare_dataset_records(dataset, columns)
 
-        # Embed representatives only (encoder decides batching internally)
+        # Create embeddings for deduplicated records only
         vectors = featurize(records=deduplicated_records, columns=columns, model=model)
 
         index = Index.from_vectors_and_items(vectors=vectors, items=items, backend_type=ann_backend, **kwargs)
@@ -136,7 +129,7 @@ class SemHash(Generic[Record]):
         """
         Initialize a SemHash instance from pre-computed embeddings.
 
-        This removes exact duplicates and fits a vicinity index using the provided embeddings.
+        Removes exact duplicates, featurizes the records, and fits a vicinity index.
 
         :param embeddings: Pre-computed embeddings as a numpy array of shape (n_records, embedding_dim).
         :param records: A list of records (strings or dictionaries) corresponding to the embeddings.
