@@ -283,6 +283,56 @@ representative_records = semhash.self_find_representative().selected
 </details>
 
 <details>
+<summary>  Deduplicate, filter outliers, and find representative samples on image datasets </summary>
+<br>
+
+You can bring your own encoder for any modality by implementing the Encoder protocol. Here's an example using a vision model from timm for image deduplication:
+
+```python
+from datasets import load_dataset
+import timm
+import torch
+from semhash import SemHash
+
+# Requires: pip install timm torch datasets
+
+# Create a custom image encoder
+class VisionEncoder:
+    """Custom encoder using timm models. Implements the Encoder protocol."""
+
+    def __init__(self, model_name: str = "mobilenetv3_small_100"):
+        self.model = timm.create_model(model_name, pretrained=True, num_classes=0).eval()
+        self.transform = timm.data.create_transform(**timm.data.resolve_model_data_config(self.model))
+
+    def encode(self, inputs):
+        """Encode a batch of PIL images into embeddings."""
+        with torch.no_grad():
+            return self.model(torch.stack([self.transform(img) for img in inputs])).numpy()
+
+# Load image dataset
+dataset = load_dataset("uoft-cs/cifar10", split="test")
+train_data = [{"img": img, "id": i} for i, img in enumerate(dataset["img"][:100])]
+test_data = [{"img": img, "id": i} for i, img in enumerate(dataset["img"][100:150])]
+
+# Initialize SemHash with the custom vision encoder
+semhash = SemHash.from_records(train_data, columns=["img"], model=VisionEncoder())
+
+# Single-dataset operations
+deduplicated = semhash.self_deduplicate().selected
+outliers = semhash.self_filter_outliers().selected
+representatives = semhash.self_find_representative().selected
+
+# Cross-dataset operations
+test_deduplicated = semhash.deduplicate(test_data).selected
+test_outliers = semhash.filter_outliers(test_data).selected
+test_representatives = semhash.find_representative(test_data, selection_size=10).selected
+```
+
+The Encoder protocol requires only an `encode(inputs, **kwargs)` method that returns a numpy array. This makes it easy to integrate any embedding model for any modality.
+
+</details>
+
+<details>
 <summary>  Using custom encoders </summary>
 <br>
 
