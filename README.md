@@ -73,7 +73,7 @@ filtered_texts = semhash.self_filter_outliers().selected
 representative_texts = semhash.self_find_representative().selected
 ```
 
-### Image Deduplication
+### Image Deduplication, Filtering & Representative Sampling
 
 Deduplicate an image dataset using a vision model (requires `pip install sentence-transformers`):
 
@@ -91,6 +91,12 @@ semhash = SemHash.from_records(list(dataset), columns=["img"], model=model)
 
 # Deduplicate the images
 deduplicated_images = semhash.self_deduplicate().selected
+
+# Filter outliers
+filtered_images = semhash.self_filter_outliers().selected
+
+# Find representative images
+representative_images = semhash.self_find_representative().selected
 ```
 
 ### Cross-Dataset Deduplication, Filtering & Representative Sampling
@@ -229,14 +235,11 @@ The following code snippet shows how to deduplicate across two datasets, filter 
 from datasets import load_dataset
 from semhash import SemHash
 
-# Initialize a SemHash instance
-semhash = SemHash()
-
 # Load two datasets to deduplicate
 train_texts = load_dataset("ag_news", split="train")["text"]
 test_texts = load_dataset("ag_news", split="test")["text"]
 
-# Initialize a SemHash instance
+# Initialize a SemHash instance with the training data
 semhash = SemHash.from_records(records=train_texts)
 
 # Deduplicate the test data against the training data
@@ -524,7 +527,7 @@ If you use SemHash in your research, please cite the following:
 ```bibtex
 @software{minishlab2025semhash,
   author       = {{van Dongen}, Thomas and Stephan Tulkens},
-  title        = {SemHash: Fast Semantic Text Deduplication \& Filtering},
+  title        = {SemHash: Fast Multimodal Semantic Deduplication \& Filtering},
   year         = {2025},
   publisher    = {Zenodo},
   doi          = {10.5281/zenodo.17265942},
