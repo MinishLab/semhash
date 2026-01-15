@@ -2,14 +2,8 @@ import numpy as np
 import pytest
 from frozendict import frozendict
 
-from semhash.utils import (
-    Encoder,
-    compute_candidate_limit,
-    featurize,
-    prepare_records,
-    remove_exact_duplicates,
-    to_frozendict,
-)
+from semhash.records import prepare_records, remove_exact_duplicates
+from semhash.utils import Encoder, compute_candidate_limit, featurize, to_frozendict
 
 
 def test_to_frozendict() -> None:

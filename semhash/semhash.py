@@ -12,7 +12,14 @@ from vicinity import Backend
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult
 from semhash.index import Index
-from semhash.records import add_scores_to_records, map_deduplication_result_to_strings
+from semhash.records import (
+    add_scores_to_records,
+    group_records_by_key,
+    map_deduplication_result_to_strings,
+    prepare_dataset_records,
+    prepare_records,
+    remove_exact_duplicates,
+)
 from semhash.utils import (
     DatasetLike,
     Encoder,
@@ -20,10 +27,6 @@ from semhash.utils import (
     coerce_value,
     compute_candidate_limit,
     featurize,
-    group_records_by_key,
-    prepare_dataset_records,
-    prepare_records,
-    remove_exact_duplicates,
     to_frozendict,
 )
 
