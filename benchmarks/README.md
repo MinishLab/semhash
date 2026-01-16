@@ -2,6 +2,20 @@
 
 This directory contains the benchmarking code and results for SemHash. The benchmarks measure deduplication performance and speed across a variety of text and image datasets.
 
+## Table of Contents
+
+- [Text Benchmarks](#text-benchmarks)
+  - [Setup](#setup)
+  - [Results](#results)
+  - [Key Findings](#key-findings)
+  - [Running Text Benchmarks](#running-text-benchmarks)
+- [Image Benchmarks](#image-benchmarks)
+  - [Setup](#setup-1)
+  - [Results](#results-1)
+  - [Key Findings](#key-findings-1)
+  - [Running Image Benchmarks](#running-image-benchmarks)
+- [Running All Benchmarks](#running-all-benchmarks)
+
 ## Text Benchmarks
 
 ### Setup
