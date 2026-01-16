@@ -21,6 +21,7 @@ def group_records_by_key(
         - deduplicated_records: first record from each unique group
         - items: list of groups, each group is a list of exact duplicates
     """
+    # Track buckets by key and preserve first-occurrence order
     buckets: dict[frozendict[str, Any], list[dict[str, Any]]] = {}
     order: list[frozendict[str, Any]] = []
 
@@ -28,11 +29,14 @@ def group_records_by_key(
         key = to_frozendict(record, columns)
         bucket = buckets.get(key)
         if bucket is None:
+            # First occurrence: create new bucket and track order
             buckets[key] = [record]
             order.append(key)
         else:
+            # Duplicate: add to existing bucket
             bucket.append(record)
 
+    # Reconstruct in first-occurrence order
     items = [buckets[k] for k in order]
     deduplicated_records = [bucket[0] for bucket in items]
     return deduplicated_records, items
@@ -57,13 +61,13 @@ def remove_exact_duplicates(
     duplicates: list[tuple[dict[str, Any], list[dict[str, Any]]]] = []
 
     column_set = set(columns)
-    # Build a seen set from reference_records if provided
+
+    # Build seen set from reference_records (cross-dataset mode) or empty (single-dataset mode)
     seen: defaultdict[frozendict[str, Any], list[dict[str, Any]]] = defaultdict(list)
     if reference_records is not None:
         for record_set in reference_records:
             key = to_frozendict(record_set[0], column_set)
             seen[key] = list(record_set)
-    in_one_set = reference_records is None
 
     for record in records:
         frozen_record = to_frozendict(record, column_set)
@@ -71,8 +75,8 @@ def remove_exact_duplicates(
             duplicates.append((record, duplicated_records))
         else:
             deduplicated.append(record)
-            # Only add current documents to seen if no reference set is used
-            if in_one_set:
+            # Single-dataset mode: track this record for future comparisons
+            if reference_records is None:
                 seen[frozen_record].append(record)
 
     return deduplicated, duplicates
@@ -98,20 +102,21 @@ def prepare_records(
     if columns is None and isinstance(records[0], dict):
         raise ValueError("Columns must be specified when passing dictionaries.")
 
+    # String path: convert to dicts with "text" column
     if isinstance(records[0], str):
-        # Validate all records are strings
         if not all(isinstance(r, str) for r in records):
             raise ValueError("All records must be strings when the first record is a string.")
         columns = ["text"]
         dict_records: list[dict[str, Any]] = [{"text": record} for record in records]
         was_string = True
+    # Dict path: validate and coerce values
     else:
-        # Validate all records are dicts
         if not all(isinstance(r, dict) for r in records):
             raise ValueError("All records must be dicts when the first record is a dict.")
         assert columns is not None
+
         # Coerce values: stringify primitives, keep complex types raw (for images, etc.)
-        dict_records_typed: list[dict[str, Any]] = list(records)  # type: ignore[arg-type]
+        dict_records_typed: list[dict[str, Any]] = list(records)
         dict_records = []
         for record in dict_records_typed:
             coerced: dict[str, Any] = {}
