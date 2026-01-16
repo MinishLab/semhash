@@ -24,14 +24,14 @@ def group_records_by_key(
     buckets: dict[frozendict[str, Any], list[dict[str, Any]]] = {}
     order: list[frozendict[str, Any]] = []
 
-    for r in records:
-        key = to_frozendict(r, columns)
+    for record in records:
+        key = to_frozendict(record, columns)
         bucket = buckets.get(key)
         if bucket is None:
-            buckets[key] = [r]
+            buckets[key] = [record]
             order.append(key)
         else:
-            bucket.append(r)
+            bucket.append(record)
 
     items = [buckets[k] for k in order]
     deduplicated_records = [bucket[0] for bucket in items]
@@ -113,13 +113,13 @@ def prepare_records(
         # Coerce values: stringify primitives, keep complex types raw (for images, etc.)
         dict_records_typed: list[dict[str, Any]] = list(records)  # type: ignore[arg-type]
         dict_records = []
-        for r in dict_records_typed:
+        for record in dict_records_typed:
             coerced: dict[str, Any] = {}
-            for c in columns:
-                val = r.get(c)
+            for column in columns:
+                val = record.get(column)
                 if val is None:
-                    raise ValueError(f"Column '{c}' has None value in record {r}")
-                coerced[c] = coerce_value(val)
+                    raise ValueError(f"Column '{column}' has None value in record {record}")
+                coerced[column] = coerce_value(val)
             dict_records.append(coerced)
         was_string = False
 
