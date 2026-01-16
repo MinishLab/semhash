@@ -1,16 +1,19 @@
 # SemHash Benchmarks
 
-This directory contains the benchmarking code and results for SemHash. The benchmarks measure deduplication performance and speed across a variety of datasets.
+This directory contains the benchmarking code and results for SemHash. The benchmarks measure deduplication performance and speed across a variety of text and image datasets.
 
-## Setup
+## Text Benchmarks
 
-All benchmarks were run with the following configuration:
+### Setup
+
+All text benchmarks were run with the following configuration:
 - **CPU-only**: All benchmarks run on CPU (no GPU acceleration)
 - **ANN backend**: Default backend (USearch)
 - **Encoder**: Default encoder ([potion-base-8M](https://huggingface.co/minishlab/potion-base-8M))
 - **Timing**: Includes encoding time, index building time, and deduplication time
+- **Dependencies**: Requires `datasets` package (`pip install datasets`)
 
-## Results
+### Results
 
 ### Train Deduplication Benchmark
 
@@ -60,7 +63,7 @@ This benchmark measures the performance of deduplicating a test dataset against 
 | squad_v2             |       130319 |        11873 |                    11863 |       0.08 |                     7.13 |
 | wikitext             |      1801350 |         4358 |                     2139 |      50.92 |                    40.32 |
 
-## Key Findings
+### Key Findings
 
 SemHash is extremely fast and scales to large datasets with millions of records. Some notable findings include:
 
@@ -70,12 +73,77 @@ SemHash is extremely fast and scales to large datasets with millions of records.
   - `student`: 52% of test data overlaps with training data
   - `wikitext`: 51% of test data overlaps with training data
 
-## Running the Benchmarks
+### Running Text Benchmarks
 
-To run the benchmarks yourself:
+To run the text benchmarks yourself:
 
 ```bash
-python -m benchmarks.run_benchmarks
+# Install dependencies
+pip install datasets
+
+# Run benchmarks
+python -m benchmarks.run_text_benchmarks
+# Or using make
+make benchmark-text
 ```
 
-The datasets can be customized by editing `benchmarks/data.py`.
+## Image Benchmarks
+
+### Setup
+
+All image benchmarks were run with the following configuration:
+- **Device**: Apple Silicon GPU (MPS)
+- **ANN backend**: Default backend (USearch)
+- **Encoder**: MobileNetV3-Small ([mobilenetv3_small_100.lamb_in1k](https://huggingface.co/timm/mobilenetv3_small_100.lamb_in1k))
+- **Batch size**: 128 images per batch
+- **Timing**: Includes encoding time, index building time, and deduplication time
+
+### Results
+
+#### Train Deduplication Benchmark
+
+This benchmark measures the performance of deduplicating within a single training dataset.
+
+| Dataset              |  Original Train Size |  Deduplicated Train Size |  % Removed |   Deduplication Time (s) |
+|----------------------|----------------------|--------------------------|------------|--------------------------|
+| cifar10              |                50000 |                    48274 |       3.45 |                    61.20 |
+| fashion_mnist        |                60000 |                    16714 |      72.14 |                    86.61 |
+
+#### Train/Test Deduplication Benchmark
+
+This benchmark measures the performance of deduplicating a test dataset against a training dataset.
+
+| Dataset              |   Train Size |    Test Size |   Deduplicated Test Size |  % Removed |   Deduplication Time (s) |
+|----------------------|--------------|--------------|--------------------------|------------|--------------------------|
+| cifar10              |        50000 |        10000 |                     9397 |       6.03 |                    67.43 |
+| fashion_mnist        |        60000 |        10000 |                     2052 |      79.48 |                    72.14 |
+
+### Key Findings
+
+- **Fashion-MNIST high deduplication**: Fashion-MNIST shows very high duplication rates (72% train, 79% test) due to the simple nature of the dataset (10 clothing categories with similar items)
+- **CIFAR-10 moderate deduplication**: CIFAR-10 shows lower duplication (3.45% train, 6.03% test) as it contains more diverse natural images
+- **Speed**: Image deduplication is fast even for large datasets (60k images in ~87 seconds on MPS)
+
+### Running Image Benchmarks
+
+To run the image benchmarks yourself:
+
+```bash
+# Install dependencies
+pip install timm torch datasets
+
+# Run benchmarks
+python -m benchmarks.run_image_benchmarks
+# Or using make
+make benchmark-image
+```
+
+The image datasets can be customized by editing `benchmarks/data.py` (see `IMAGE_DATASET_DICT`).
+
+## Running All Benchmarks
+
+To run both text and image benchmarks:
+
+```bash
+make benchmark
+```

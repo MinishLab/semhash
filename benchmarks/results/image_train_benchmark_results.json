@@ -1,0 +1,20 @@
+[
+  {
+    "dataset": "cifar10",
+    "original_train_size": 50000,
+    "deduplicated_train_size": 48274,
+    "percent_removed": 3.4519999999999995,
+    "build_time_seconds": 56.00128899999254,
+    "deduplication_time_seconds": 5.201297917010379,
+    "time_seconds": 61.20258691700292
+  },
+  {
+    "dataset": "fashion_mnist",
+    "original_train_size": 60000,
+    "deduplicated_train_size": 16714,
+    "percent_removed": 72.14333333333333,
+    "build_time_seconds": 61.14413262500602,
+    "deduplication_time_seconds": 25.46288070900482,
+    "time_seconds": 86.60701333401084
+  }
+]

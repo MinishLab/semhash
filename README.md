@@ -303,14 +303,28 @@ from semhash import SemHash
 class VisionEncoder:
     """Custom encoder using timm models. Implements the Encoder protocol."""
 
-    def __init__(self, model_name: str = "mobilenetv3_small_100"):
+    def __init__(self, model_name: str = "mobilenetv3_small_100.lamb_in1k"):
         self.model = timm.create_model(model_name, pretrained=True, num_classes=0).eval()
-        self.transform = timm.data.create_transform(**timm.data.resolve_model_data_config(self.model))
+        data_config = timm.data.resolve_model_data_config(self.model)
+        self.transform = timm.data.create_transform(**data_config, is_training=False)
 
-    def encode(self, inputs):
+    def encode(self, inputs, batch_size: int = 128):
         """Encode a batch of PIL images into embeddings."""
+        import numpy as np
+
+        # Convert grayscale to RGB if needed
+        rgb_inputs = [img.convert("RGB") if img.mode != "RGB" else img for img in inputs]
+
+        # Process in batches to avoid memory issues
+        all_embeddings = []
         with torch.no_grad():
-            return self.model(torch.stack([self.transform(img) for img in inputs])).numpy()
+            for i in range(0, len(rgb_inputs), batch_size):
+                batch_inputs = rgb_inputs[i : i + batch_size]
+                batch = torch.stack([self.transform(img) for img in batch_inputs])
+                embeddings = self.model(batch).numpy()
+                all_embeddings.append(embeddings)
+
+        return np.vstack(all_embeddings)
 
 # Load image dataset
 dataset = load_dataset("uoft-cs/cifar10", split="test")
@@ -513,9 +527,22 @@ deduplicated_records = semhash.self_deduplicate().selected
 
 ## Benchmarks
 
-SemHash is extremely fast and scales to large datasets with millions of records. We've benchmarked both single-dataset deduplication and train/test deduplication across a variety of datasets. For example, deduplicating 1.8M records takes only ~83 seconds on CPU.
+SemHash is extremely fast and scales to large datasets with millions of records. We've benchmarked both text and image deduplication across a variety of datasets. For example, deduplicating text 1.8M records takes only ~83 seconds on CPU.
 
-For detailed benchmark results including performance metrics across 17 datasets, as well as code to reproduce the benchmarks, see the [benchmarks directory](benchmarks/README.md).
+For detailed benchmark results and analysis, see the [benchmarks directory](benchmarks/README.md).
+
+### Running Benchmarks
+
+```bash
+# Run text benchmarks
+make benchmark-text
+
+# Run image benchmarks
+make benchmark-image
+
+# Run all benchmarks
+make benchmark
+```
 
 ## License
 
