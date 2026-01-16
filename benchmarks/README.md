@@ -122,7 +122,7 @@ This benchmark measures the performance of deduplicating a test dataset against 
 
 - **Fashion-MNIST high deduplication**: Fashion-MNIST shows very high duplication rates (72% train, 79% test) due to the simple nature of the dataset (10 clothing categories with similar items)
 - **CIFAR-10 moderate deduplication**: CIFAR-10 shows lower duplication (3.45% train, 6.03% test) as it contains more diverse natural images
-- **Speed**: Image deduplication is fast even for large datasets (60k images in ~87 seconds on MPS)
+- **Speed**: Image deduplication is fast even for large datasets (60k images in ~87 seconds on MPS); note that the actual deduplication step is quick, with most time spent on encoding images
 
 ### Running Image Benchmarks
 

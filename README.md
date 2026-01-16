@@ -38,9 +38,9 @@
 </div>
 
 
-SemHash is a lightweight library for semantic deduplication, outlier filtering, and representative sample selection. It's fully multimodal: text works out-of-the-box with fast Model2Vec embeddings, and you can bring your own encoders for images, audio, or custom models.
+SemHash is a lightweight library for semantic deduplication, outlier filtering, and representative sample selection. It's fully multimodal: text works out-of-the-box with fast [Model2Vec](https://github.com/MinishLab/model2vec) embeddings, and you can bring your own encoders for images, audio, or custom models.
 
-SemHash supports both single-dataset operations (clean a training set) and cross-dataset operations (deduplicate test against train). It works with simple lists and complex multi-column datasets, and includes inspection tools to help you understand and refine results. All operations use Vicinity for efficient similarity search.
+SemHash supports both single-dataset operations (clean a training set) and cross-dataset operations (deduplicate test against train). It works with simple lists and complex multi-column datasets, and includes inspection tools to help you understand and refine results. All operations use [Vicinity](https://github.com/MinishLab/vicinity) for efficient similarity search.
 
 ## Quickstart
 
