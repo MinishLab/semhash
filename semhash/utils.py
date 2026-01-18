@@ -126,6 +126,7 @@ def featurize(
     :param model: An Encoder model.
     :return: The embeddings of the records.
     :raises ValueError: If a column is missing from one or more records.
+    :raises TypeError: If encoding fails due to incompatible data types.
     """
     # Extract the embeddings for each column across all records
     embeddings_per_col = []
@@ -141,7 +142,7 @@ def featurize(
             raise TypeError(
                 f"Failed to encode column '{col}' (data type: {sample_type}). "
                 f"If encoding non-text data, provide a compatible encoder via the `model` parameter. "
-                f"See our documentation for more info."
+                f"See the SemHash documentation for more info."
             ) from e
         embeddings_per_col.append(np.asarray(col_emb))
 
