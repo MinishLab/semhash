@@ -134,7 +134,15 @@ def featurize(
             col_texts = [r[col] for r in records]
         except KeyError as e:
             raise ValueError(f"Missing column '{col}' in one or more records") from e
-        col_emb = model.encode(col_texts)
+        try:
+            col_emb = model.encode(col_texts)
+        except TypeError as e:
+            sample_type = type(col_texts[0]).__name__ if col_texts else "unknown"
+            raise TypeError(
+                f"Failed to encode column '{col}' (data type: {sample_type}). "
+                f"If encoding non-text data, provide a compatible encoder via the `model` parameter. "
+                f"See our documentation for more info."
+            ) from e
         embeddings_per_col.append(np.asarray(col_emb))
 
     return np.concatenate(embeddings_per_col, axis=1)

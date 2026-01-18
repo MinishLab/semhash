@@ -94,6 +94,16 @@ def test_featurize(model: Encoder) -> None:
     with pytest.raises(ValueError, match="Missing column 'missing'"):
         featurize(records, ["missing"], model)
 
+    # Non-text data with text encoder raises helpful TypeError
+    class FakeImage:
+        pass
+
+    records_with_images = [{"img": FakeImage()}, {"img": FakeImage()}]
+    with pytest.raises(TypeError, match="Failed to encode column 'img'"):
+        featurize(records_with_images, ["img"], model)
+    with pytest.raises(TypeError, match="data type: FakeImage"):
+        featurize(records_with_images, ["img"], model)
+
 
 def test_remove_exact_duplicates() -> None:
     """Test exact duplicate removal, with and without reference records."""
