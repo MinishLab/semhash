@@ -12,6 +12,7 @@ class DatasetRecord:
     columns: list[str] | None = None
     split_one: str = "train"
     split_two: str = "test"
+    modality: str = "text"
 
 
 DATASET_DICT: dict[str, DatasetRecord] = {
@@ -40,4 +41,9 @@ DATASET_DICT: dict[str, DatasetRecord] = {
     "wikitext": DatasetRecord(
         name="Salesforce/wikitext", text_name="text", label_name="text", sub_directory="wikitext-103-raw-v1"
     ),
+}
+
+IMAGE_DATASET_DICT: dict[str, DatasetRecord] = {
+    "cifar10": DatasetRecord(name="uoft-cs/cifar10", columns=["img"], modality="image"),
+    "fashion_mnist": DatasetRecord(name="fashion_mnist", columns=["image"], modality="image"),
 }

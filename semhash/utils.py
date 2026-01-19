@@ -1,4 +1,4 @@
-from collections import defaultdict
+import hashlib
 from collections.abc import Sequence
 from typing import Any, Protocol, TypeAlias, TypeVar
 
@@ -11,26 +11,78 @@ DuplicateList: TypeAlias = list[tuple[Record, float]]
 
 
 class Encoder(Protocol):
-    """An encoder protocol for SemHash."""
+    """An encoder protocol for SemHash. Supports text, images, or any encodable data."""
 
     def encode(
         self,
-        sentences: list[str] | str | Sequence[str],
+        inputs: Sequence[Any] | Any,
         **kwargs: Any,
     ) -> np.ndarray:
         """
-        Encode a list of sentences into embeddings.
+        Encode a list of inputs into embeddings.
 
-        :param sentences: A list of sentences to encode.
+        :param inputs: A list of inputs to encode (strings, images, etc.).
         :param **kwargs: Additional keyword arguments.
-        :return: The embeddings of the sentences.
+        :return: The embeddings of the inputs.
         """
         ...  # pragma: no cover
 
 
-def to_frozendict(record: dict[str, str], columns: set[str]) -> frozendict[str, str]:
-    """Convert a record to a frozendict."""
-    return frozendict({k: record.get(k, "") for k in columns})
+def make_hashable(value: Any) -> Any:
+    """
+    Convert a value to a hashable representation for use as dict keys.
+
+    Strings and other hashable types are returned as-is.
+    Non-hashable types (like PIL images, numpy arrays) are hashed to a string.
+
+    :param value: The value to make hashable.
+    :return: A hashable representation of the value.
+    """
+    # Fast path: most values are strings or already hashable
+    if isinstance(value, (str, int, float, bool, type(None))):
+        return value
+    # Handle objects with tobytes() (PIL Image, numpy array, etc.)
+    if hasattr(value, "tobytes"):
+        return hashlib.md5(value.tobytes()).hexdigest()
+    # Fallback: try to hash, otherwise stringify
+    try:
+        hash(value)
+        return value
+    except TypeError:
+        return str(value)
+
+
+def coerce_value(value: Any) -> Any:
+    """
+    Coerce a value for encoding: stringify primitives, keep complex types raw.
+
+    This ensures primitives (int, float, bool) work with text encoders,
+    while complex types (PIL images, tensors, etc.) are passed through for multimodal encoders.
+
+    :param value: The value to coerce.
+    :return: The coerced value.
+    """
+    if isinstance(value, (str, bytes)):
+        return value
+    if isinstance(value, (int, float, bool)):
+        return str(value)
+    return value  # Complex types (images, tensors, etc.)
+
+
+def to_frozendict(record: dict[str, Any], columns: Sequence[str] | set[str]) -> frozendict[str, Any]:
+    """
+    Convert a record to a frozendict with hashable values.
+
+    :param record: The record to convert.
+    :param columns: The columns to include.
+    :return: A frozendict with only the specified columns (values made hashable).
+    :raises ValueError: If a column is missing from the record.
+    """
+    try:
+        return frozendict({k: make_hashable(record[k]) for k in columns})
+    except KeyError as e:
+        missing = e.args[0]
+        raise ValueError(f"Missing column '{missing}' in record {record}") from e
 
 
 def compute_candidate_limit(
@@ -62,7 +114,7 @@ def compute_candidate_limit(
 
 
 def featurize(
-    records: Sequence[dict[str, str]],
+    records: Sequence[dict[str, Any]],
     columns: Sequence[str],
     model: Encoder,
 ) -> np.ndarray:
@@ -73,81 +125,25 @@ def featurize(
     :param columns: Columns to featurize.
     :param model: An Encoder model.
     :return: The embeddings of the records.
+    :raises ValueError: If a column is missing from one or more records.
+    :raises TypeError: If encoding fails due to incompatible data types.
     """
     # Extract the embeddings for each column across all records
     embeddings_per_col = []
     for col in columns:
-        col_texts = [r[col] for r in records]
-        col_emb = model.encode(col_texts)
+        try:
+            col_texts = [r[col] for r in records]
+        except KeyError as e:
+            raise ValueError(f"Missing column '{col}' in one or more records") from e
+        try:
+            col_emb = model.encode(col_texts)
+        except TypeError as e:
+            sample_type = type(col_texts[0]).__name__ if col_texts else "unknown"
+            raise TypeError(
+                f"Failed to encode column '{col}' (data type: {sample_type}). "
+                f"If encoding non-text data, provide a compatible encoder via the `model` parameter. "
+                f"See the SemHash documentation for more info."
+            ) from e
         embeddings_per_col.append(np.asarray(col_emb))
 
     return np.concatenate(embeddings_per_col, axis=1)
-
-
-def remove_exact_duplicates(
-    records: Sequence[dict[str, str]],
-    columns: Sequence[str],
-    reference_records: list[list[dict[str, str]]] | None = None,
-) -> tuple[list[dict[str, str]], list[tuple[dict[str, str], list[dict[str, str]]]]]:
-    """
-    Remove exact duplicates based on the unpacked string representation of each record.
-
-    If reference_records is None, the function will only check for duplicates within the records list.
-
-    :param records: A list of records to check for exact duplicates.
-    :param columns: Columns to unpack.
-    :param reference_records: A list of records to compare against. These are already unpacked
-    :return: A list of deduplicated records and a list of duplicates.
-    """
-    deduplicated = []
-    duplicates = []
-
-    column_set = set(columns)
-    # Build a seen set from reference_records if provided
-    seen: defaultdict[frozendict[str, str], list[dict[str, str]]] = defaultdict(list)
-    if reference_records is not None:
-        for record_set in reference_records:
-            key = to_frozendict(record_set[0], column_set)
-            seen[key] = list(record_set)
-    in_one_set = reference_records is None
-
-    for record in records:
-        frozen_record = to_frozendict(record, column_set)
-        if duplicated_records := seen.get(frozen_record):
-            duplicates.append((record, duplicated_records))
-        else:
-            deduplicated.append(record)
-            # Only add current documents to seen if no reference set is used
-            if in_one_set:
-                seen[frozen_record].append(record)
-
-    return deduplicated, duplicates
-
-
-def prepare_records(
-    records: Sequence[Record], columns: Sequence[str] | None
-) -> tuple[list[dict[str, str]], Sequence[str], bool]:
-    """
-    Validate and prepare records for processing.
-
-    :param records: A list of records (strings or dictionaries).
-    :param columns: Columns to use if records are dictionaries.
-    :return: Tuple of (dict_records, columns, was_string).
-    :raises ValueError: If records are empty.
-    :raises ValueError: If columns are not provided for dictionary records.
-    """
-    if len(records) == 0:
-        raise ValueError("records must not be empty")
-
-    if columns is None and isinstance(records[0], dict):
-        raise ValueError("Columns must be specified when passing dictionaries.")
-
-    if isinstance(records[0], str):
-        columns = ["text"]
-        dict_records: list[dict[str, str]] = [{"text": str(record)} for record in records]
-        was_string = True
-    else:
-        dict_records = list(records)
-        was_string = False
-
-    return dict_records, columns, was_string

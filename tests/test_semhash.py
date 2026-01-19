@@ -141,27 +141,31 @@ def test_deduplicate_with_only_exact_duplicates(model: Encoder) -> None:
 def test_self_find_representative(model: Encoder, train_texts: list[str]) -> None:
     """Test the self_find_representative method."""
     semhash = SemHash.from_records(records=train_texts, model=model)
-    result = semhash.self_find_representative(
-        candidate_limit=5,
-        selection_size=3,
-        diversity=0.5,
-    )
+
+    # Test with explicit candidate_limit
+    result = semhash.self_find_representative(candidate_limit=5, selection_size=3, diversity=0.5)
     assert len(result.selected) == 3, "Expected 3 representatives"
     selected = {r["text"] for r in result.selected}
-    assert selected == {
-        "blueberry",
-        "pineapple",
-        "grape",
-    }, "Expected representatives to be blueberry, pineapple, and grape"
+    assert selected == {"blueberry", "pineapple", "grape"}
+
+    # Test with auto candidate_limit (default)
+    result_auto = semhash.self_find_representative(selection_size=3, diversity=0.5)
+    assert len(result_auto.selected) == 3
 
 
 def test_find_representative(model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
     """Test the find_representative method."""
     semhash = SemHash.from_records(records=train_texts, model=model)
+
+    # Test with explicit candidate_limit
     result = semhash.find_representative(records=test_texts, candidate_limit=5, selection_size=3, diversity=0.5)
     assert len(result.selected) == 3, "Expected 3 representatives"
     selected = {r["text"] for r in result.selected}
-    assert selected == {"grapefruit", "banana", "apple"}, "Expected representatives to be grapefruit, banana, and apple"
+    assert selected == {"grapefruit", "banana", "apple"}
+
+    # Test with auto candidate_limit (default)
+    result_auto = semhash.find_representative(records=test_texts, selection_size=3, diversity=0.5)
+    assert len(result_auto.selected) == 3
 
 
 def test_filter_outliers(model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
@@ -173,10 +177,23 @@ def test_filter_outliers(model: Encoder, train_texts: list[str], test_texts: lis
     filtered = {r["text"] for r in result.filtered}
     assert filtered == {"motorcycle", "plane"}, "Expected outliers to be motorcycle and plane"
 
+    # Test FilterResult ratio properties
+    assert result.filter_ratio == len(result.filtered) / len(test_texts)
+    assert result.selected_ratio == len(result.selected) / len(test_texts)
+    assert result.filter_ratio + result.selected_ratio == 1.0
+
     # Test with outlier_percentage=0.0 (should return no outliers)
     result_zero = semhash.filter_outliers(records=test_texts, outlier_percentage=0.0)
     assert result_zero.filtered == []
     assert len(result_zero.selected) == len(test_texts)
+    assert result_zero.filter_ratio == 0.0
+    assert result_zero.selected_ratio == 1.0
+
+    # Invalid outlier_percentage raises ValueError
+    with pytest.raises(ValueError, match="outlier_percentage must be between 0 and 1"):
+        semhash.filter_outliers(records=test_texts, outlier_percentage=-0.1)
+    with pytest.raises(ValueError, match="outlier_percentage must be between 0 and 1"):
+        semhash.filter_outliers(records=test_texts, outlier_percentage=1.5)
 
 
 def test_self_filter_outliers(model: Encoder, train_texts: list[str]) -> None:
@@ -192,6 +209,12 @@ def test_self_filter_outliers(model: Encoder, train_texts: list[str]) -> None:
     result_zero = semhash.self_filter_outliers(outlier_percentage=0.0)
     assert result_zero.filtered == []
     assert len(result_zero.selected) == len(train_texts)
+
+    # Invalid outlier_percentage raises ValueError
+    with pytest.raises(ValueError, match="outlier_percentage must be between 0 and 1"):
+        semhash.self_filter_outliers(outlier_percentage=-0.1)
+    with pytest.raises(ValueError, match="outlier_percentage must be between 0 and 1"):
+        semhash.self_filter_outliers(outlier_percentage=1.5)
 
 
 def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -226,30 +249,80 @@ def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_from_embeddings(model: Encoder, train_texts: list[str]) -> None:
     """Test from_embeddings constructor with validation and comparison to from_records."""
-    # Test validation: mismatched shapes
+    # Validation: empty records
+    with pytest.raises(ValueError, match="records must not be empty"):
+        SemHash.from_embeddings(embeddings=np.array([[]]), records=[], model=model)
+
+    # Validation: non-2D embeddings
+    with pytest.raises(ValueError, match="must be a 2D array"):
+        SemHash.from_embeddings(embeddings=np.array([1, 2, 3]), records=["a", "b", "c"], model=model)
+
+    # Validation: mismatched shapes
     with pytest.raises(ValueError, match="Number of embeddings"):
         wrong_embeddings = model.encode(["apple", "banana"])
         SemHash.from_embeddings(embeddings=wrong_embeddings, records=train_texts, model=model)
 
     # Test that from_embeddings behaves same as from_records
     semhash_from_records = SemHash.from_records(records=train_texts, model=model)
-
     embeddings = model.encode(train_texts)
     semhash_from_embeddings = SemHash.from_embeddings(embeddings=embeddings, records=train_texts, model=model)
 
-    # Both should give same deduplication results
     result1 = semhash_from_records.self_deduplicate(threshold=0.95)
     result2 = semhash_from_embeddings.self_deduplicate(threshold=0.95)
-
     assert len(result1.selected) == len(result2.selected)
-    assert len(result1.filtered) == len(result2.filtered)
 
     # Test that from_embeddings keeps first-occurrence embeddings and drops duplicates
     records = ["apple", "banana", "apple", "cherry"]
     embeddings = np.array([[0.0], [1.0], [2.0], [3.0]], dtype=np.float32)
-
     semhash = SemHash.from_embeddings(embeddings=embeddings, records=records, model=model)
-
     assert semhash.index.vectors.shape == (3, 1)
-    # Should keep embeddings at indices 0, 1, 3 (first occurrences of img1, img2, img3)
     assert semhash.index.vectors.tolist() == [[0.0], [1.0], [3.0]]
+
+
+def test_from_records_edge_cases(model: Encoder) -> None:
+    """Test from_records edge cases: coercion, order preservation, None rejection."""
+    # Coerces non-string dict values to strings
+    records = [{"id": 1}, {"id": 2}, {"id": 1}]  # Integers, with duplicate
+    semhash = SemHash.from_records(records, columns=["id"], model=model)
+    assert semhash.index.vectors.shape[0] == 2  # Deduplicated
+    assert 2 in [len(bucket) for bucket in semhash.index.items]  # id=1 bucket has 2
+
+    # Preserves first-occurrence order (deterministic)
+    texts = ["zebra", "apple", "zebra", "banana", "apple", "cherry"]
+    semhash = SemHash.from_records(texts, model=model)
+    firsts = [bucket[0]["text"] for bucket in semhash.index.items]
+    assert firsts == ["zebra", "apple", "banana", "cherry"]
+
+    # Rejects None values in dict records
+    with pytest.raises(ValueError, match="has None value"):
+        SemHash.from_records([{"text": "apple"}, {"text": None}], columns=["text"], model=model)
+
+
+def test_deduplicate_edge_cases(model: Encoder) -> None:
+    """Test deduplicate() edge cases: coercion, None rejection, empty records, type mismatches."""
+    semhash = SemHash.from_records(["1", "2", "3"], model=model)
+
+    # Coerces non-string dict values
+    result = semhash.deduplicate([{"text": 1}, {"text": 4}], threshold=0.95)
+    assert len(result.filtered) + len(result.selected) == 2
+
+    # Rejects None values
+    with pytest.raises(ValueError, match="has None value"):
+        semhash.deduplicate([{"text": "cherry"}, {"text": None}], threshold=0.95)
+
+    # Rejects empty records
+    with pytest.raises(ValueError, match="records must not be empty"):
+        semhash.deduplicate([], threshold=0.95)
+
+    # Type mismatch: strings passed to dict-based index
+    semhash_dict = SemHash.from_records([{"col": "a"}, {"col": "b"}], columns=["col"], model=model)
+    with pytest.raises(ValueError, match="Records were not originally strings"):
+        semhash_dict.deduplicate(["x", "y"], threshold=0.95)
+
+    # Type mismatch: mixed strings
+    with pytest.raises(ValueError, match="Records must be all strings"):
+        semhash.deduplicate(["a", {"text": "b"}], threshold=0.95)
+
+    # Type mismatch: mixed dicts
+    with pytest.raises(ValueError, match="Records must be all dictionaries"):
+        semhash_dict.deduplicate([{"col": "a"}, "b"], threshold=0.95)

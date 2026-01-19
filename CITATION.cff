@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use SemHash in your research, please cite it as below."
-title: "SemHash: Fast Semantic Text Deduplication & Filtering"
+title: "SemHash: Fast Multimodal Semantic Deduplication & Filtering"
 authors:
   - family-names: "van Dongen"
     given-names: "Thomas"
@@ -14,7 +14,7 @@ date-released: "2025-01-05"
 
 preferred-citation:
   type: software
-  title: "SemHash: Fast Semantic Text Deduplication & Filtering"
+  title: "SemHash: Fast Multimodal Semantic Deduplication & Filtering"
   authors:
     - family-names: "van Dongen"
       given-names: "Thomas"

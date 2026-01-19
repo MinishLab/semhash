@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from collections.abc import Sequence
 from math import ceil
 from typing import Any, Generic, Literal
@@ -11,15 +10,21 @@ from model2vec import StaticModel
 from pyversity import Strategy, diversify
 from vicinity import Backend
 
-from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult, Record
+from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult
 from semhash.index import Index
-from semhash.records import add_scores_to_records, map_deduplication_result_to_strings
-from semhash.utils import (
-    Encoder,
-    compute_candidate_limit,
-    featurize,
+from semhash.records import (
+    add_scores_to_records,
+    group_records_by_key,
+    map_deduplication_result_to_strings,
     prepare_records,
     remove_exact_duplicates,
+)
+from semhash.utils import (
+    Encoder,
+    Record,
+    coerce_value,
+    compute_candidate_limit,
+    featurize,
     to_frozendict,
 )
 
@@ -52,7 +57,7 @@ class SemHash(Generic[Record]):
         """
         Initialize a SemHash instance from records.
 
-        This removes exact duplicates, featurizes the records, and fits a vicinity index.
+        Removes exact duplicates, featurizes the records, and fits a vicinity index.
 
         :param records: A list of records (strings or dictionaries).
         :param columns: Columns to featurize if records are dictionaries.
@@ -65,37 +70,17 @@ class SemHash(Generic[Record]):
         dict_records, columns, was_string = prepare_records(records, columns)
 
         # If no model is provided, load the default model
-        if model is None:
+        if model is None:  # pragma: no cover
             model = StaticModel.from_pretrained("minishlab/potion-base-8M")
 
-        # Remove exact duplicates
-        deduplicated_records, duplicates = remove_exact_duplicates(dict_records, columns)
-
-        col_set = set(columns)
-        duplicate_map = defaultdict(list)
-        for x, _ in duplicates:
-            frozen_record = to_frozendict(x, col_set)
-            duplicate_map[frozen_record].append(x)
-
-        items: list[list[dict[str, str]]] = []
-        for record in deduplicated_records:
-            i = [record]
-            frozen_record = to_frozendict(record, col_set)
-            i.extend(duplicate_map[frozen_record])
-            items.append(i)
+        # Group by exact match, preserving first-occurrence order
+        deduplicated_records, items = group_records_by_key(dict_records, columns)
 
         # Create embeddings for deduplicated records only
         embeddings = featurize(deduplicated_records, columns, model)
 
-        # Build the Vicinity index
-        index = Index.from_vectors_and_items(
-            vectors=embeddings,
-            items=items,
-            backend_type=ann_backend,
-            **kwargs,
-        )
-
-        return cls(index=index, columns=columns, model=model, was_string=was_string)
+        index = Index.from_vectors_and_items(vectors=embeddings, items=items, backend_type=ann_backend, **kwargs)
+        return cls(index=index, model=model, columns=columns, was_string=was_string)
 
     @classmethod
     def from_embeddings(
@@ -110,7 +95,7 @@ class SemHash(Generic[Record]):
         """
         Initialize a SemHash instance from pre-computed embeddings.
 
-        This removes exact duplicates and fits a vicinity index using the provided embeddings.
+        Removes exact duplicates, featurizes the records, and fits a vicinity index.
 
         :param embeddings: Pre-computed embeddings as a numpy array of shape (n_records, embedding_dim).
         :param records: A list of records (strings or dictionaries) corresponding to the embeddings.
@@ -160,10 +145,7 @@ class SemHash(Generic[Record]):
         deduplicated_embeddings = embeddings[keep_embedding_indices]
 
         index = Index.from_vectors_and_items(
-            vectors=deduplicated_embeddings,
-            items=items,
-            backend_type=ann_backend,
-            **kwargs,
+            vectors=deduplicated_embeddings, items=items, backend_type=ann_backend, **kwargs
         )
         return cls(index=index, model=model, columns=columns, was_string=was_string)
 
@@ -267,8 +249,8 @@ class SemHash(Generic[Record]):
                 duplicate_records.append(DuplicateRecord(record=curr_record, duplicates=items_with_score, exact=True))
 
             # If we don't see any similar_items, we know the record is not a duplicate.
-            # in rare cases, the item itself might not be a duplicate of itself.
-            if not similar_items:
+            # In rare cases, the item itself might not be returned by the index.
+            if not similar_items:  # pragma: no cover
                 deduplicated_records.append(record)
                 continue
             items, _ = zip(*similar_items)
@@ -299,30 +281,45 @@ class SemHash(Generic[Record]):
 
         return result
 
-    def _validate_if_strings(self, records: Sequence[dict[str, str] | str]) -> Sequence[dict[str, str]]:
+    def _validate_if_strings(self, records: Sequence[dict[str, Any] | str]) -> list[dict[str, Any]]:
         """
         Validate if the records are strings.
 
         If the records are strings, they are converted to dictionaries with a single column.
+        If the records are dicts, primitives are stringified and complex types (images, etc.) are kept raw.
 
         :param records: The records to validate.
         :return: The records as a list of dictionaries.
         :raises ValueError: If records are empty.
         :raises ValueError: If the records are strings but were not originally strings.
-        :raises ValueError: If the records are not all strings or dictionaries.
+        :raises ValueError: If the records are not all strings or all dictionaries.
+        :raises ValueError: If dict record contains None values.
         """
         if len(records) == 0:
             raise ValueError("records must not be empty")
 
+        # String path
         if isinstance(records[0], str):
             if not self._was_string:
                 raise ValueError("Records were not originally strings, but you passed strings.")
-            dict_records = [{"text": record} for record in records if isinstance(record, str)]
-        else:
-            dict_records = [record for record in records if isinstance(record, dict)]
-        if len(dict_records) != len(records):
-            raise ValueError("Records must be either strings or dictionaries.")
-        return dict_records
+            if not all(isinstance(r, str) for r in records):
+                raise ValueError("Records must be all strings.")
+            return [{"text": r} for r in records]
+
+        # Dict path
+        if not all(isinstance(r, dict) for r in records):
+            raise ValueError("Records must be all dictionaries.")
+
+        dict_records: Sequence[dict[str, Any]] = records  # type: ignore[assignment]
+        result: list[dict[str, Any]] = []
+        for r in dict_records:
+            out = {}
+            for c in self.columns:
+                if (val := r.get(c)) is None:
+                    raise ValueError(f"Column '{c}' has None value in record {r}")
+                out[c] = coerce_value(val)
+            result.append(out)
+        return result
 
     def find_representative(
         self,
