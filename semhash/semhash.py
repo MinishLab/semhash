@@ -312,12 +312,14 @@ class SemHash(Generic[Record]):
 
         dict_records: Sequence[dict[str, Any]] = records  # type: ignore[assignment]
         result: list[dict[str, Any]] = []
-        for r in dict_records:
-            out = {}
-            for c in self.columns:
-                if (val := r.get(c)) is None:
-                    raise ValueError(f"Column '{c}' has None value in record {r}")
-                out[c] = coerce_value(val)
+        for record in dict_records:
+            # Start with a copy of the full record to preserve non-embedding fields
+            out = dict(record)
+            # Then coerce only the embedding columns
+            for col in self.columns:
+                if (val := record.get(col)) is None:
+                    raise ValueError(f"Column '{col}' has None value in record {record}")
+                out[col] = coerce_value(val)
             result.append(out)
         return result
 

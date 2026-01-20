@@ -119,7 +119,9 @@ def prepare_records(
         dict_records_typed: list[dict[str, Any]] = list(records)
         dict_records = []
         for record in dict_records_typed:
-            coerced: dict[str, Any] = {}
+            # Start with a copy of the full record to preserve non-embedding fields
+            coerced: dict[str, Any] = dict(record)
+            # Then coerce only the embedding columns
             for column in columns:
                 val = record.get(column)
                 if val is None:
