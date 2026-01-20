@@ -313,7 +313,9 @@ class SemHash(Generic[Record]):
         dict_records: Sequence[dict[str, Any]] = records  # type: ignore[assignment]
         result: list[dict[str, Any]] = []
         for r in dict_records:
-            out = {}
+            # Start with a copy of the full record to preserve non-embedding fields
+            out = dict(r)
+            # Then coerce only the embedding columns
             for c in self.columns:
                 if (val := r.get(c)) is None:
                     raise ValueError(f"Column '{c}' has None value in record {r}")

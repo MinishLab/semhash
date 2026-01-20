@@ -298,6 +298,41 @@ def test_from_records_edge_cases(model: Encoder) -> None:
         SemHash.from_records([{"text": "apple"}, {"text": None}], columns=["text"], model=model)
 
 
+def test_preserve_non_embedding_fields(model: Encoder) -> None:
+    """Test that fields not specified in columns are preserved in results."""
+    records = [
+        {"id": 0, "text": "triforce", "metadata": "game1"},
+        {"id": 1, "text": "master sword", "metadata": "game2"},
+        {"id": 2, "text": "hylian shield", "metadata": "game3"},
+    ]
+    semhash = SemHash.from_records(records, columns=["text"], model=model)
+
+    # Test self_deduplicate preserves non-embedding fields
+    result = semhash.self_deduplicate(threshold=0.9)
+    assert len(result.selected) == 3, "All records should be unique"
+
+    # All results should have id and metadata fields preserved
+    for record in result.selected:
+        assert "id" in record, "id field should be preserved"
+        assert "text" in record, "text field should be preserved"
+        assert "metadata" in record, "metadata field should be preserved"
+
+    # Check specific values are correct
+    ids = {r["id"] for r in result.selected}
+    assert ids == {0, 1, 2}, "All id values should be preserved"
+
+    metadatas = {r["metadata"] for r in result.selected}
+    assert metadatas == {"game1", "game2", "game3"}, "All metadata values should be preserved"
+
+    # Test that cross-dataset deduplication also preserves fields
+    new_records = [{"id": 10, "text": "triforce", "metadata": "duplicate"}]
+    dup_result = semhash.deduplicate(new_records, threshold=0.9)
+
+    assert len(dup_result.filtered) == 1, "Should detect duplicate"
+    assert "id" in dup_result.filtered[0].record, "id should be preserved in filtered records"
+    assert dup_result.filtered[0].record["id"] == 10, "Correct id value"
+
+
 def test_deduplicate_edge_cases(model: Encoder) -> None:
     """Test deduplicate() edge cases: coercion, None rejection, empty records, type mismatches."""
     semhash = SemHash.from_records(["1", "2", "3"], model=model)
