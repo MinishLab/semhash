@@ -100,3 +100,6 @@ license-files = []
 
 [tool.setuptools.dynamic]
 version = {attr = "semhash.version.__version__"}
+
+[tool.uv]
+exclude-newer = "1 week"

@@ -7,6 +7,10 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 
+[options]
+exclude-newer = "2026-04-26T18:40:04.606094Z"
+exclude-newer-span = "P1W"
+
 [[package]]
 name = "asttokens"
 version = "2.4.1"
