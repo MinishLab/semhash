@@ -73,6 +73,45 @@ filtered_texts = semhash.self_filter_outliers().selected
 representative_texts = semhash.self_find_representative().selected
 ```
 
+### Lexical Deduplication
+
+Pass `mode="lexical"` to deduplicate on overlapping n-grams instead of meaning. This encodes each record as a
+[MinHash](https://en.wikipedia.org/wiki/MinHash) signature rather than an embedding, so no model is loaded and
+similarity scores are estimated Jaccard similarity:
+
+```python
+from semhash import SemHash
+
+texts = [
+    "the master sword can seal the darkness",
+    "the master sword can seal the darkness forever",  # Lexical near-duplicate
+    "the legendary blade banishes evil",               # Same meaning, different words
+]
+
+semhash = SemHash.from_records(records=texts, mode="lexical")
+semhash.self_deduplicate().selected
+# ['the master sword can seal the darkness', 'the legendary blade banishes evil']
+```
+
+Signatures are bit-packed and indexed with Hamming distance, so a record costs `num_perm / 8` bytes — 64 bytes
+at the default setting, against 1 KB for a `potion-base-8M` embedding.
+
+The two modes catch different things: lexical mode finds copy-paste and boilerplate that a semantic model
+considers distinct, and misses paraphrases that semantic mode catches. Because Jaccard and cosine similarity are
+not on the same scale, the default threshold differs per mode (0.9 semantic, 0.7 lexical) — set `threshold`
+explicitly when comparing them.
+
+Every other method (cross-dataset deduplication, multi-column deduplication, outlier filtering, representative
+sampling) works the same way in lexical mode. To tune the shingling or the accuracy of the estimate, pass a
+configured encoder as the model instead of using the mode flag:
+
+```python
+from semhash import MinHashEncoder, SemHash
+
+# Character 5-grams, and a more accurate estimate at the cost of a larger signature.
+semhash = SemHash.from_records(records=texts, model=MinHashEncoder(num_perm=1024, ngram_size=5, analyzer="char"))
+```
+
 ### Image Deduplication, Filtering & Representative Sampling
 
 Deduplicate an image dataset, filter outliers, and find representative samples using a vision model (requires `pip install sentence-transformers`):
@@ -191,6 +230,7 @@ for item in result.selected_with_duplicates:
 - **Fast**: SemHash uses [model2vec](https://github.com/MinishLab/model2vec) to embed texts and [vicinity](https://github.com/MinishLab/vicinity) to perform similarity search, making it extremely fast.
 - **Scalable**: SemHash can deduplicate & filter large datasets with millions of records thanks to the ANN backends in Vicinity.
 - **Flexible**: SemHash can be used to deduplicate & filter a single dataset or across two datasets, and can also be used to deduplicate & filter multi-column datasets (such as QA datasets).
+- **Lexical or semantic**: SemHash deduplicates on meaning by default, or on overlapping n-grams with `mode="lexical"`, which uses MinHash signatures and needs no model.
 - **Lightweight**: SemHash is a lightweight package with minimal dependencies, making it easy to install and use.
 - **Explainable**: Easily inspect the duplicates and what caused them with the `DeduplicationResult` object. You can also view the lowest similarity duplicates to find the right threshold for deduplication for your dataset.
 
@@ -539,6 +579,9 @@ make benchmark-text
 
 # Run image benchmarks
 make benchmark-image
+
+# Run lexical benchmarks (SemHash lexical mode vs datasketch)
+make benchmark-lexical
 
 # Run all benchmarks
 make benchmark

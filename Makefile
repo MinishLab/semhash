@@ -23,4 +23,7 @@ benchmark-text:
 benchmark-image:
 	uv run python -m benchmarks.run_image_benchmarks
 
-benchmark: benchmark-text benchmark-image
+benchmark-lexical:
+	uv run --with datasets --with datasketch python -m benchmarks.run_lexical_benchmarks
+
+benchmark: benchmark-text benchmark-image benchmark-lexical

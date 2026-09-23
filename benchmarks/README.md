@@ -14,6 +14,11 @@ This directory contains the benchmarking code and results for SemHash. The bench
   - [Results](#results-1)
   - [Key Findings](#key-findings-1)
   - [Running Image Benchmarks](#running-image-benchmarks)
+- [Lexical Benchmarks](#lexical-benchmarks)
+  - [Setup](#setup-2)
+  - [Results](#results-2)
+  - [Key Findings](#key-findings-2)
+  - [Running Lexical Benchmarks](#running-lexical-benchmarks)
 - [Running All Benchmarks](#running-all-benchmarks)
 
 ## Text Benchmarks
@@ -154,9 +159,80 @@ make benchmark-image
 
 The image datasets can be customized by editing `benchmarks/data.py` (see `IMAGE_DATASET_DICT`).
 
+## Lexical Benchmarks
+
+These benchmarks compare SemHash's lexical mode against [datasketch](https://github.com/ekzhu/datasketch), the
+reference MinHash / MinHashLSH implementation for Python.
+
+### Setup
+
+Both implementations deduplicate `SetFit/ag_news` at a Jaccard threshold of `0.7` over word 3-grams. SemHash uses
+512 permutations of 1-bit MinHash in a usearch Hamming index; datasketch uses 128 permutations of 32-bit MinHash
+in a banded LSH index. Peak memory is measured per configuration in a separate process.
+
+Recall is measured against known duplicate pairs: every document is paired with a copy in which 10% of the words
+are replaced, and the pairs whose *exact* Jaccard similarity is above the threshold are the ones that should be
+found. Pairs where no word was replaced are left out, since SemHash removes exact duplicates before indexing. The
+recall therefore includes estimator error, not just index error.
+
+### Results
+
+| Estimator    | Permutations | Bytes/record |      MAE | MAE (J>=0.5) |
+|--------------|--------------|--------------|----------|--------------|
+| datasketch   |           64 |          256 |   0.0261 |       0.0221 |
+| datasketch   |          128 |          512 |   0.0185 |       0.0152 |
+| datasketch   |          256 |         1024 |   0.0135 |       0.0113 |
+| semhash      |          256 |           32 |   0.0378 |       0.0155 |
+| semhash      |          512 |           64 |   0.0257 |       0.0120 |
+| semhash      |         1024 |          128 |   0.0175 |       0.0084 |
+
+| Implementation |    Records | Encode (s) |  Index (s) |  Dedup (s) |  Peak RSS (MB) |
+|----------------|------------|------------|------------|------------|----------------|
+| semhash        |      20000 |       0.45 |       0.64 |       0.87 |           36.5 |
+| datasketch     |      20000 |       1.73 |       0.24 |       0.11 |          103.1 |
+| semhash        |     100000 |       2.23 |       3.15 |       3.88 |          237.0 |
+| datasketch     |     100000 |       8.89 |       1.47 |       0.68 |          627.2 |
+
+| Implementation |    Records |  Known pairs |   Recall |
+|----------------|------------|--------------|----------|
+| semhash        |      20000 |         2168 |   0.9066 |
+| datasketch     |      20000 |         2168 |   0.7611 |
+| semhash        |     100000 |        11097 |   0.8813 |
+| datasketch     |     100000 |        11097 |   0.7564 |
+
+### Key Findings
+
+- **Higher recall.** SemHash finds around 89% of known duplicate pairs against datasketch's 76%. LSH recall is set
+  by its banding curve, which is flat in dataset size but caps well below 1 because pairs near the threshold sit on
+  the shallow part of the curve.
+- **Smaller signatures.** 1-bit MinHash stores one bit per permutation instead of 32, so a signature that is as
+  accurate as datasketch's in the deduplication regime is 8x smaller, and peak memory is roughly halved.
+- **Faster encoding, slower indexing.** Encoding is about 4x faster, because the permutations are applied to all
+  shingles at once in wrapping uint32 arithmetic rather than per shingle. Building and querying an HNSW index is slower than hashing into LSH bands, and grows
+  slightly superlinearly, so the total is comparable rather than better.
+- **Recall needs a wide search.** HNSW recall degrades with dataset size at usearch's default expansion (down to
+  0.61 at a million records), which is why the binary index sets it to 512. That holds recall above 0.96 on
+  estimator-achievable pairs from 200k to 1M records, at roughly 4x the build and query cost.
+
+### Running Lexical Benchmarks
+
+To run the lexical benchmarks yourself:
+
+```bash
+# Install dependencies
+pip install datasets datasketch
+
+# Run benchmarks
+python -m benchmarks.run_lexical_benchmarks
+# Or using make
+make benchmark-lexical
+```
+
+Scales and the number of accuracy pairs can be changed with `--scales`, `--recall-scales` and `--accuracy-pairs`.
+
 ## Running All Benchmarks
 
-To run both text and image benchmarks:
+To run the text, image and lexical benchmarks:
 
 ```bash
 make benchmark
