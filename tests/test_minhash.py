@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from semhash import MinHashEncoder, SemHash
+from semhash.utils import Encoder
 
 
 def _estimated_jaccard(a: np.ndarray, b: np.ndarray) -> float:
@@ -23,6 +24,21 @@ def test_signatures_estimate_jaccard(overlap: int) -> None:
 
     # At 1024 permutations the standard deviation of the estimate is at most 0.031, so this allows about 3 sigma.
     assert _estimated_jaccard(*signatures) == pytest.approx(len(x & y) / len(x | y), abs=0.1)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "text", "shingles"),
+    [
+        ({}, "the cat sat on it", {"the cat sat", "cat sat on", "sat on it"}),
+        ({"ngram_size": 2}, "the cat sat", {"the cat", "cat sat"}),
+        ({"analyzer": "char"}, "abcd", {"abc", "bcd"}),
+        ({"analyzer": "char", "ngram_size": 5}, "abcdef", {"abcde", "bcdef"}),
+        ({"analyzer": "char", "ngram_size": 5}, "abc", {"abc"}),
+    ],
+)
+def test_shingle(kwargs: dict[str, Any], text: str, shingles: set[str]) -> None:
+    """Texts are split into word or character n-grams, or kept whole when shorter than one n-gram."""
+    assert MinHashEncoder(**kwargs)._shingle(text) == shingles
 
 
 @pytest.mark.parametrize("text", ["", "short", "a somewhat longer text that has plenty of words in it"])
@@ -45,6 +61,8 @@ def test_encode_is_packed_and_deterministic(text: str, analyzer: Any) -> None:
         (lambda: MinHashEncoder().encode([b"bytes"]), TypeError, "only encodes strings"),
         (lambda: SemHash.from_records(["a b c"], mode="fuzzy"), ValueError, "mode must be"),
         (lambda: SemHash.from_records(["a b c"], mode="lexical", model=MinHashEncoder()), ValueError, "cannot be"),
+        (lambda: SemHash.from_records(["a b c"], mode="lexical", ann_backend="basic"), ValueError, "usearch"),
+        (lambda: SemHash.from_records(["a b c"], mode="lexical", metric="cos"), ValueError, "usearch"),
     ],
 )
 def test_invalid_arguments(create: Callable[[], Any], error: type[Exception], message: str) -> None:
@@ -68,3 +86,11 @@ def test_lexical_mode_deduplicates_on_wording() -> None:
     signatures = semhash.model.encode(texts[:2])  # type: ignore[union-attr]
     assert result.filtered[0].duplicates[0][1] == pytest.approx(_estimated_jaccard(*signatures), abs=1e-6)
     assert len(semhash.self_find_representative(selection_size=2).selected) == 2
+
+
+def test_uint8_embeddings_from_other_encoders_use_cosine(model: Encoder) -> None:
+    """Only MinHash signatures are treated as binary, so other uint8 embeddings are still compared with cosine."""
+    embeddings = np.array([[1, 2], [3, 6]], dtype=np.uint8)
+    semhash = SemHash.from_embeddings(embeddings=embeddings, records=["a", "b"], model=model)
+
+    assert semhash.self_deduplicate(threshold=0.9).selected == ["a"]

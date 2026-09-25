@@ -22,17 +22,18 @@ def shingles(text: str) -> set[str]:
 
 def make_pairs(n: int) -> tuple[list[str], set[tuple[str, str]]]:
     """Pair n / 2 documents with a copy that has 10% of its words replaced, and return the true duplicate pairs."""
-    texts = load_dataset("SetFit/ag_news", split="train")["text"]
+    originals = load_dataset("SetFit/ag_news", split="train")["text"][: n // 2]
     docs: list[str] = []
-    for i in range(n // 2):
-        doc = texts[i % len(texts)] + (f" copy{i // len(texts)}" if i >= len(texts) else "")
-        docs += [doc, " ".join(w if random.random() < 0.9 else f"zz{random.randint(0, 9999)}" for w in doc.split())]
+    for original in originals:
+        modified = " ".join(w if random.random() < 0.9 else f"zz{random.randint(0, 9999)}" for w in original.split())
+        docs += [original, modified]
     # Identical pairs are left out, since SemHash removes exact duplicates before indexing.
     pairs = set()
-    for a, b in zip(docs[::2], docs[1::2]):
-        x, y = shingles(a), shingles(b)
-        if a != b and len(x & y) / len(x | y) >= THRESHOLD:
-            pairs.add((a, b))
+    for original, modified in zip(docs[::2], docs[1::2]):
+        original_shingles, modified_shingles = shingles(original), shingles(modified)
+        jaccard = len(original_shingles & modified_shingles) / len(original_shingles | modified_shingles)
+        if original != modified and jaccard >= THRESHOLD:
+            pairs.add((original, modified))
     return docs, pairs
 
 

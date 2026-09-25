@@ -102,7 +102,13 @@ class SemHash(Generic[Record]):
         # Create embeddings for deduplicated records only
         embeddings = featurize(deduplicated_records, columns, model)
 
-        index = Index.from_vectors_and_items(vectors=embeddings, items=items, backend_type=ann_backend, **kwargs)
+        index = Index.from_vectors_and_items(
+            vectors=embeddings,
+            items=items,
+            backend_type=ann_backend,
+            binary=isinstance(model, MinHashEncoder),
+            **kwargs,
+        )
         return cls(index=index, model=model, columns=columns, was_string=was_string)
 
     @classmethod
@@ -168,7 +174,11 @@ class SemHash(Generic[Record]):
         deduplicated_embeddings = embeddings[keep_embedding_indices]
 
         index = Index.from_vectors_and_items(
-            vectors=deduplicated_embeddings, items=items, backend_type=ann_backend, **kwargs
+            vectors=deduplicated_embeddings,
+            items=items,
+            backend_type=ann_backend,
+            binary=isinstance(model, MinHashEncoder),
+            **kwargs,
         )
         return cls(index=index, model=model, columns=columns, was_string=was_string)
 
@@ -543,7 +553,7 @@ class SemHash(Generic[Record]):
             return FilterResult(selected=[], filtered=[], scores_selected=[], scores_filtered=[])
 
         embeddings = featurize(records=candidates, columns=self.columns, model=self.model)
-        if embeddings.dtype == np.uint8:
+        if isinstance(self.model, MinHashEncoder):
             # Unpack binary signatures to +-1 vectors, whose cosine similarity matches the Hamming index.
             embeddings = np.unpackbits(embeddings, axis=1).astype(np.float32) * 2 - 1
         result = diversify(

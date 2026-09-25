@@ -38,25 +38,33 @@ class Index:
 
     @classmethod
     def from_vectors_and_items(
-        cls, vectors: np.ndarray, items: list[DictItem], backend_type: Backend | str, **kwargs: Any
+        cls,
+        vectors: np.ndarray,
+        items: list[DictItem],
+        backend_type: Backend | str,
+        binary: bool = False,
+        **kwargs: Any,
     ) -> Index:
         """
         Load the index from vectors and items.
 
-        Bit-packed uint8 vectors, such as MinHash signatures, always get a usearch Hamming index.
-
         :param vectors: The vectors of the items.
         :param items: The items in the index.
         :param backend_type: The type of backend to use.
+        :param binary: Whether the vectors are bit-packed binary signatures, such as MinHash signatures, which are
+            compared with Hamming distance. This requires the usearch backend.
         :param **kwargs: Additional arguments to pass to the backend.
         :return: The index.
+        :raises ValueError: If binary vectors are combined with another backend or a metric.
         """
         distance_scale = 1.0
-        if vectors.dtype == np.uint8:
-            # Only usearch supports Hamming distance. Unrelated signatures differ in half of their bits.
-            backend_type = Backend.USEARCH
+        if binary:
+            # Only usearch supports Hamming distance.
+            if Backend(backend_type) != Backend.USEARCH or "metric" in kwargs:
+                raise ValueError("Binary vectors always use the usearch backend with Hamming distance")
             kwargs = {"expansion_add": _BINARY_EXPANSION, "expansion_search": _BINARY_EXPANSION, **kwargs}
             kwargs["metric"] = Metric.HAMMING
+            # Unrelated signatures differ in half of their bits, which is where similarity reaches zero.
             distance_scale = vectors.shape[1] * 8 / 2
 
         backend_class = get_backend_class(backend_type)
