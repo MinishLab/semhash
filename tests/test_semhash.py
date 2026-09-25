@@ -313,6 +313,8 @@ def test_from_records_edge_cases(model: Encoder) -> None:
     # Rejects None values in dict records
     with pytest.raises(ValueError, match="has None value"):
         SemHash.from_records([{"text": "apple"}, {"text": None}], columns=["text"], model=model)
+    with pytest.raises(ValueError, match="Missing column 'text'"):
+        SemHash.from_records([{"text": "apple"}, {"other": "b"}], columns=["text"], model=model)
 
 
 def test_preserve_non_embedding_fields(model: Encoder) -> None:
@@ -361,6 +363,8 @@ def test_deduplicate_edge_cases(model: Encoder) -> None:
     # Rejects None values
     with pytest.raises(ValueError, match="has None value"):
         semhash.deduplicate([{"text": "cherry"}, {"text": None}], threshold=0.95)
+    with pytest.raises(ValueError, match="Missing column 'text'"):
+        semhash.deduplicate([{"other": "cherry"}], threshold=0.95)
 
     # Rejects empty records
     with pytest.raises(ValueError, match="records must not be empty"):

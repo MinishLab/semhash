@@ -82,6 +82,23 @@ def remove_exact_duplicates(
     return deduplicated, duplicates
 
 
+def validate_columns(records: Sequence[dict[str, Any]], columns: Sequence[str]) -> None:
+    """
+    Check that every record has a non-None value for each column.
+
+    :param records: The records to check.
+    :param columns: The columns that must be present.
+    :raises ValueError: If a column is missing from a record.
+    :raises ValueError: If a column has a None value in a record.
+    """
+    for record in records:
+        for column in columns:
+            if column not in record:
+                raise ValueError(f"Missing column '{column}' in record {record}")
+            if record[column] is None:
+                raise ValueError(f"Column '{column}' has None value in record {record}")
+
+
 def prepare_records(
     records: Sequence[Record], columns: Sequence[str] | None
 ) -> tuple[list[dict[str, Any]], Sequence[str], bool]:
@@ -117,10 +134,7 @@ def prepare_records(
 
         # Records are returned unchanged; values are only coerced when embedding and hashing them.
         dict_records = list(records)  # type: ignore[arg-type]
-        for record in dict_records:
-            for column in columns:
-                if record.get(column) is None:
-                    raise ValueError(f"Column '{column}' has None value in record {record}")
+        validate_columns(dict_records, columns)
         was_string = False
 
     return dict_records, columns, was_string

@@ -19,6 +19,7 @@ from semhash.records import (
     map_deduplication_result_to_strings,
     prepare_records,
     remove_exact_duplicates,
+    validate_columns,
 )
 from semhash.utils import (
     Encoder,
@@ -296,10 +297,7 @@ class SemHash(Generic[Record]):
             raise ValueError("Records must be all dictionaries.")
 
         dict_records: list[dict[str, Any]] = list(records)  # type: ignore[arg-type]
-        for record in dict_records:
-            for col in self.columns:
-                if record.get(col) is None:
-                    raise ValueError(f"Column '{col}' has None value in record {record}")
+        validate_columns(dict_records, self.columns)
         return dict_records
 
     def find_representative(
