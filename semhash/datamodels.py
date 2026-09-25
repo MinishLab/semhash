@@ -69,7 +69,7 @@ class DeduplicationResult(Generic[Record]):
     columns: Sequence[str] | None = field(default=None)
 
     def __post_init__(self) -> None:
-        """Retain compact self-deduplication context without changing dataclass construction or serialization."""
+        """Initialize the cache used for rethresholding."""
         self._self_deduplication: tuple[list[list[Record]], list[list[tuple[int, float]]]] | None = None
 
     @classmethod

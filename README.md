@@ -177,7 +177,7 @@ print(f"Exact duplicate ratio: {result.exact_duplicate_ratio}")
 # Find edge cases to tune your threshold
 least_similar = result.get_least_similar_from_duplicates(n=5)
 
-# Adjust threshold using cached matches, without re-embedding
+# Adjust threshold without re-deduplicating
 result.rethreshold(0.95)
 
 # View each kept record with its duplicate cluster
@@ -185,16 +185,6 @@ for item in result.selected_with_duplicates:
     print(f"Kept: {item.record}")
     print(f"Duplicates: {item.duplicates}")  # List of (duplicate_text, similarity_score)
 ```
-
-Each filtered record's `.duplicates` is a one-element list containing its canonical record and their similarity.
-For self-deduplication, canonicals are kept in input order; a group is filtered only if it directly matches
-an already-kept canonical above the threshold. If several canonicals match, the highest-scoring one is used.
-Cross-dataset deduplication similarly reports one reference canonical, not every matching reference record.
-
-`selected_with_duplicates` reconstructs the self-deduplication groups, preserving every occurrence, ID and metadata.
-`exact` describes the match to the final canonical: if an exact group is removed as a near duplicate of another group,
-all its records point to that group's canonical with the near-match score and `exact=False`.
-`rethreshold()` reruns self-deduplication using the original cached group matches, not edits to the result lists.
 
 ## Main Features
 
