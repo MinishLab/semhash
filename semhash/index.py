@@ -14,18 +14,13 @@ DocScore = tuple[dict[str, str], float]
 DocScores = list[DocScore]
 DictItem = list[dict[str, str]]
 
-# HNSW recall on binary signatures degrades with dataset size at usearch's defaults (128/64), dropping to
-# 0.61 at a million records. These wider values hold recall above 0.96 from 200k to 1M records.
+# HNSW recall on binary signatures drops with dataset size at usearch's default expansion, so it is widened.
 _BINARY_EXPANSION = 512
 
 
 class Index:
     def __init__(
-        self,
-        vectors: np.ndarray,
-        items: list[DictItem],
-        backend: AbstractBackend,
-        distance_scale: float = 1.0,
+        self, vectors: np.ndarray, items: list[DictItem], backend: AbstractBackend, distance_scale: float = 1.0
     ) -> None:
         """
         An index that maps vectors to items.
@@ -36,9 +31,7 @@ class Index:
         :param items: The items in the index. This is a list of lists. Each sublist contains one or more dictionaries
             that represent records. These records are exact duplicates of each other.
         :param backend: The backend to use for querying.
-        :param distance_scale: The distance at which similarity reaches zero, so that a distance `d` corresponds to
-            a similarity of `1 - d / distance_scale`. This is 1 for cosine distance. For the bit counts returned by
-            a Hamming backend over `n` bit signatures it is `n / 2`, which turns the count into estimated Jaccard.
+        :param distance_scale: The distance at which similarity reaches zero: 1 for cosine, `n_bits / 2` for Hamming.
         """
         self.items = items
         self.backend = backend
@@ -52,53 +45,26 @@ class Index:
         """
         Load the index from vectors and items.
 
+        Bit-packed uint8 vectors, such as MinHash signatures, always get a usearch Hamming index.
+
         :param vectors: The vectors of the items.
         :param items: The items in the index.
         :param backend_type: The type of backend to use.
         :param **kwargs: Additional arguments to pass to the backend.
         :return: The index.
         """
-        backend_class = get_backend_class(backend_type)
-        arguments = backend_class.argument_class(**kwargs)
-        backend = backend_class.from_vectors(vectors, **arguments.dict())
-
-        return cls(vectors, items, backend)
-
-    @classmethod
-    def from_binary_vectors_and_items(cls, vectors: np.ndarray, items: list[DictItem], **kwargs: Any) -> Index:
-        """
-        Load the index from bit-packed vectors and items, using Hamming distance.
-
-        Vicinity derives the number of dimensions from the shape of the array, but usearch counts dimensions in
-        bits for its binary metrics, so its backend cannot build a Hamming index from packed bytes directly. This
-        builds the usearch index with the right dimensionality and wraps it in the vicinity backend.
-
-        :param vectors: The bit-packed vectors of the items, as a uint8 array of shape (n_items, n_bits // 8).
-        :param items: The items in the index.
-        :param **kwargs: Additional arguments to pass to the usearch index.
-        :return: The index.
-        :raises ValueError: If the vectors are not bit-packed into uint8.
-        """
         if vectors.dtype != np.uint8:
-            raise ValueError(f"Binary vectors must be bit-packed into uint8, got dtype {vectors.dtype}")
+            backend_class = get_backend_class(backend_type)
+            arguments = backend_class.argument_class(**kwargs)
+            return cls(vectors, items, backend_class.from_vectors(vectors, **arguments.dict()))
 
+        # Vicinity takes the dimensionality from the array shape, but usearch counts binary dimensions in bits.
         num_bits = vectors.shape[1] * 8
-        arguments = UsearchArgs(
-            dim=num_bits,
-            metric=Metric.HAMMING,
-            **{"expansion_add": _BINARY_EXPANSION, "expansion_search": _BINARY_EXPANSION, **kwargs},
-        )
-        usearch_index = UsearchIndex(
-            ndim=num_bits,
-            metric="hamming",
-            dtype="b1x8",
-            connectivity=arguments.connectivity,
-            expansion_add=arguments.expansion_add,
-            expansion_search=arguments.expansion_search,
-        )
+        kwargs = {"expansion_add": _BINARY_EXPANSION, "expansion_search": _BINARY_EXPANSION, **kwargs}
+        usearch_args = UsearchArgs(dim=num_bits, metric=Metric.HAMMING, **kwargs)
+        usearch_index = UsearchIndex(ndim=num_bits, metric="hamming", dtype="b1x8", **kwargs)
         usearch_index.add(None, vectors)  # type: ignore[arg-type]  # None keys are allowed but not typed
-
-        return cls(vectors, items, UsearchBackend(usearch_index, arguments), distance_scale=num_bits / 2)
+        return cls(vectors, items, UsearchBackend(usearch_index, usearch_args), distance_scale=num_bits / 2)
 
     def query_threshold(self, vectors: np.ndarray, threshold: float) -> list[DocScores]:
         """

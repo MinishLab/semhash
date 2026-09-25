@@ -1,120 +1,26 @@
-{
-  "accuracy": [
-    {
-      "estimator": "datasketch",
-      "num_perm": 64,
-      "bytes_per_record": 256,
-      "mae": 0.026094843552167433,
-      "mae_above_half": 0.022053266917865393,
-      "bias": -0.0007413267121267578
-    },
-    {
-      "estimator": "datasketch",
-      "num_perm": 128,
-      "bytes_per_record": 512,
-      "mae": 0.01851330207056705,
-      "mae_above_half": 0.015247133286905464,
-      "bias": 0.0006232566212065754
-    },
-    {
-      "estimator": "datasketch",
-      "num_perm": 256,
-      "bytes_per_record": 1024,
-      "mae": 0.013480444587416176,
-      "mae_above_half": 0.011260718733709396,
-      "bias": 0.0003732566212065754
-    },
-    {
-      "estimator": "semhash",
-      "num_perm": 256,
-      "bytes_per_record": 32,
-      "mae": 0.037805293576957735,
-      "mae_above_half": 0.015549106698206564,
-      "bias": 0.0019982566212065757
-    },
-    {
-      "estimator": "semhash",
-      "num_perm": 512,
-      "bytes_per_record": 64,
-      "mae": 0.02571265369464127,
-      "mae_above_half": 0.011955144792342765,
-      "bias": -0.00030643087879342443
-    },
-    {
-      "estimator": "semhash",
-      "num_perm": 1024,
-      "bytes_per_record": 128,
-      "mae": 0.01745702587342388,
-      "mae_above_half": 0.008359856066840782,
-      "bias": 8.810037120657528e-05
-    }
-  ],
-  "scale": [
-    {
-      "implementation": "semhash",
-      "n": 20000,
-      "encode_seconds": 0.44557412492576987,
-      "index_seconds": 0.6447397919837385,
-      "dedup_seconds": 0.8689983750227839,
-      "kept": 19391,
-      "signature_bytes_per_record": 64,
-      "peak_rss_mb": 36.546875
-    },
-    {
-      "implementation": "datasketch",
-      "n": 20000,
-      "encode_seconds": 1.731450208928436,
-      "index_seconds": 0.24453424999956042,
-      "dedup_seconds": 0.10626012505963445,
-      "kept": 19395,
-      "signature_bytes_per_record": 512,
-      "peak_rss_mb": 103.09375
-    },
-    {
-      "implementation": "semhash",
-      "n": 100000,
-      "encode_seconds": 2.227963874931447,
-      "index_seconds": 3.1514034579740837,
-      "dedup_seconds": 3.8797350000822917,
-      "kept": 97360,
-      "signature_bytes_per_record": 64,
-      "peak_rss_mb": 237.015625
-    },
-    {
-      "implementation": "datasketch",
-      "n": 100000,
-      "encode_seconds": 8.892261791974306,
-      "index_seconds": 1.4709396669641137,
-      "dedup_seconds": 0.6775605420116335,
-      "kept": 97314,
-      "signature_bytes_per_record": 512,
-      "peak_rss_mb": 627.21875
-    }
-  ],
-  "recall": [
-    {
-      "implementation": "semhash",
-      "n": 20000,
-      "pairs": 2168,
-      "recall": 0.9065959409594095
-    },
-    {
-      "implementation": "datasketch",
-      "n": 20000,
-      "pairs": 2168,
-      "recall": 0.761070110701107
-    },
-    {
-      "implementation": "semhash",
-      "n": 100000,
-      "pairs": 11097,
-      "recall": 0.8812742182571867
-    },
-    {
-      "implementation": "datasketch",
-      "n": 100000,
-      "pairs": 11097,
-      "recall": 0.7564206542308732
-    }
-  ]
-}
+[
+  {
+    "implementation": "semhash",
+    "records": 20000,
+    "time_seconds": 2.2013530830154195,
+    "recall": 0.9068352059925093
+  },
+  {
+    "implementation": "datasketch",
+    "records": 20000,
+    "time_seconds": 2.1473122079623863,
+    "recall": 0.7579588014981273
+  },
+  {
+    "implementation": "semhash",
+    "records": 100000,
+    "time_seconds": 11.012997249956243,
+    "recall": 0.8742695398100804
+  },
+  {
+    "implementation": "datasketch",
+    "records": 100000,
+    "time_seconds": 11.028436250053346,
+    "recall": 0.7556610664718773
+  }
+]

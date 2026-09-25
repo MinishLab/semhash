@@ -12,7 +12,7 @@ from vicinity import Backend
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult
 from semhash.index import Index
-from semhash.minhash import MinHashEncoder, unpack_signatures
+from semhash.minhash import MinHashEncoder
 from semhash.records import (
     add_scores_to_records,
     group_records_by_key,
@@ -31,8 +31,7 @@ from semhash.utils import (
 
 Mode = Literal["semantic", "lexical"]
 
-# Cosine similarity between embeddings and estimated Jaccard similarity between MinHash signatures
-# are not on the same scale, so each mode needs its own default deduplication threshold.
+# Cosine and estimated Jaccard similarity are not on the same scale, so each mode has its own default threshold.
 _DEFAULT_THRESHOLD: dict[Mode, float] = {"semantic": 0.9, "lexical": 0.7}
 
 
@@ -52,23 +51,11 @@ class SemHash(Generic[Record]):
         self._was_string = was_string
         self._ranking_cache: FilterResult | None = None
 
-    @staticmethod
-    def _build_index(vectors: np.ndarray, items: list[list[dict[str, Any]]], model: Encoder, **kwargs: Any) -> Index:
-        """Build a Hamming index for bit-packed MinHash signatures, and a cosine index for embeddings."""
-        if isinstance(model, MinHashEncoder):
-            # The backend is fixed for binary signatures, since only usearch has a Hamming metric.
-            kwargs.pop("backend_type", None)
-            return Index.from_binary_vectors_and_items(vectors=vectors, items=items, **kwargs)
-        return Index.from_vectors_and_items(vectors=vectors, items=items, **kwargs)
-
-    @property
-    def mode(self) -> Mode:
-        """Whether this instance deduplicates semantically or lexically. Determined by the encoder."""
-        return "lexical" if isinstance(self.model, MinHashEncoder) else "semantic"
-
     def _resolve_threshold(self, threshold: float | None) -> float:
-        """Fall back to the default threshold for this instance's mode."""
-        return _DEFAULT_THRESHOLD[self.mode] if threshold is None else threshold
+        """Fall back to the default threshold for the mode, which the encoder determines."""
+        if threshold is not None:
+            return threshold
+        return _DEFAULT_THRESHOLD["lexical" if isinstance(self.model, MinHashEncoder) else "semantic"]
 
     @classmethod
     def from_records(
@@ -87,11 +74,9 @@ class SemHash(Generic[Record]):
 
         :param records: A list of records (strings or dictionaries).
         :param columns: Columns to featurize if records are dictionaries.
-        :param model: (Optional) An Encoder model. If None, the default model for the mode is used.
+        :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
         :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
-        :param mode: Whether to deduplicate on meaning ("semantic", the default) or on overlapping
-            n-grams ("lexical"). Lexical mode encodes records as MinHash signatures, so similarity
-            scores are estimated Jaccard rather than cosine and the default threshold is lower.
+        :param mode: Deduplicate on meaning ("semantic") or on overlapping n-grams with MinHash ("lexical").
         :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
         :return: A SemHash instance with a fitted vicinity index.
         :raises ValueError: If mode is not "semantic" or "lexical".
@@ -105,10 +90,7 @@ class SemHash(Generic[Record]):
 
         if mode == "lexical":
             if model is not None:
-                raise ValueError(
-                    "mode='lexical' uses a MinHashEncoder and cannot be combined with a custom model. "
-                    "Pass the encoder as `model` without a mode to use it directly."
-                )
+                raise ValueError("mode='lexical' cannot be combined with a model, pass a MinHashEncoder instead")
             model = MinHashEncoder()
         elif model is None:  # pragma: no cover
             # If no model is provided, load the default model
@@ -120,7 +102,7 @@ class SemHash(Generic[Record]):
         # Create embeddings for deduplicated records only
         embeddings = featurize(deduplicated_records, columns, model)
 
-        index = cls._build_index(embeddings, items, model, backend_type=ann_backend, **kwargs)
+        index = Index.from_vectors_and_items(vectors=embeddings, items=items, backend_type=ann_backend, **kwargs)
         return cls(index=index, model=model, columns=columns, was_string=was_string)
 
     @classmethod
@@ -185,7 +167,9 @@ class SemHash(Generic[Record]):
 
         deduplicated_embeddings = embeddings[keep_embedding_indices]
 
-        index = cls._build_index(deduplicated_embeddings, items, model, backend_type=ann_backend, **kwargs)
+        index = Index.from_vectors_and_items(
+            vectors=deduplicated_embeddings, items=items, backend_type=ann_backend, **kwargs
+        )
         return cls(index=index, model=model, columns=columns, was_string=was_string)
 
     def deduplicate(
@@ -201,8 +185,7 @@ class SemHash(Generic[Record]):
         to any item in the fitted dataset.
 
         :param records: A new set of records (e.g., test set) to deduplicate against the fitted dataset.
-        :param threshold: Similarity threshold for deduplication. Defaults to 0.9 in semantic mode and
-            0.7 in lexical mode.
+        :param threshold: Similarity threshold for deduplication. Defaults to 0.9, or 0.7 in lexical mode.
         :return: A deduplicated list of records.
         """
         threshold = self._resolve_threshold(threshold)
@@ -255,8 +238,7 @@ class SemHash(Generic[Record]):
         """
         Deduplicate within the same dataset. This can be used to remove duplicates from a single dataset.
 
-        :param threshold: Similarity threshold for deduplication. Defaults to 0.9 in semantic mode and
-            0.7 in lexical mode.
+        :param threshold: Similarity threshold for deduplication. Defaults to 0.9, or 0.7 in lexical mode.
         :return: A deduplicated list of records.
         """
         threshold = self._resolve_threshold(threshold)
@@ -561,9 +543,9 @@ class SemHash(Generic[Record]):
             return FilterResult(selected=[], filtered=[], scores_selected=[], scores_filtered=[])
 
         embeddings = featurize(records=candidates, columns=self.columns, model=self.model)
-        if self.mode == "lexical":
-            # Diversification needs a real vector space, which bit-packed signatures are not.
-            embeddings = unpack_signatures(embeddings)
+        if embeddings.dtype == np.uint8:
+            # Unpack binary signatures to +-1 vectors, whose cosine similarity matches the Hamming index.
+            embeddings = np.unpackbits(embeddings, axis=1).astype(np.float32) * 2 - 1
         result = diversify(
             embeddings=embeddings,
             scores=np.array(relevance),
