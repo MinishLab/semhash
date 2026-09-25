@@ -180,21 +180,27 @@ class SemHash(Generic[Record]):
 
         # Only embed and query the records that are left after removing exact duplicates
         results = []
+        embeddings = np.empty((0, self.index.vectors.shape[1]))
         if dict_records:
             embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
             results = self.index.query_threshold(embeddings, threshold=threshold)
 
         deduplicated_records = []
-        for record, similar_items in zip(dict_records, results):
-            if not similar_items:
+        for record, embedding, similar_items in zip(dict_records, embeddings, results):
+            # Rescore the neighbors with exact cosine similarity, like self_deduplicate does.
+            indices = [index for index, _ in similar_items]
+            candidates = self.index.vectors[indices]
+            norms = np.linalg.norm(candidates, axis=1) * np.linalg.norm(embedding)
+            scores = candidates @ embedding / np.where(norms == 0, 1.0, norms)
+            best = int(np.argmax(scores)) if indices else 0
+            if not indices or scores[best] < threshold:
                 # No duplicates found, keep this record
                 deduplicated_records.append(record)
             else:
-                index, score = max(similar_items, key=lambda match: match[1])
                 duplicate_records.append(
                     DuplicateRecord(
                         record=record,
-                        duplicates=[(self.index.items[index][0], score)],
+                        duplicates=[(self.index.items[indices[best]][0], float(scores[best]))],
                         exact=False,
                     )
                 )

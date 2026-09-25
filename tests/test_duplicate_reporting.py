@@ -92,3 +92,10 @@ def test_large_exact_groups_have_linear_reporting(angular_model: Encoder) -> Non
         assert peak < 8 * 1024 * 1024
     finally:
         tracemalloc.stop()
+
+
+def test_zero_vectors_are_not_near_duplicates(model: Encoder) -> None:
+    """Texts that embed to zero vectors are never near duplicates, in self and cross deduplication."""
+    semhash = SemHash.from_records(["", " ", "hello world"], model=model)
+    assert semhash.self_deduplicate().selected == ["", " ", "hello world"]
+    assert semhash.deduplicate(["  ", "hello world"]).selected == ["  "]
