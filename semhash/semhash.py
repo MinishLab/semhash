@@ -177,16 +177,11 @@ class SemHash(Generic[Record]):
             duplicate_record = DuplicateRecord(record=record, duplicates=duplicated_with_score, exact=True)
             duplicate_records.append(duplicate_record)
 
-        # If no records are left after removing exact duplicates, return early
-        if not dict_records:
-            return DeduplicationResult(
-                selected=[], filtered=duplicate_records, threshold=threshold, columns=self.columns
-            )
-
-        # Compute embeddings for the new records
-        embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
-        # Query the fitted index
-        results = self.index.query_threshold(embeddings, threshold=threshold)
+        # Only embed and query the records that are left after removing exact duplicates
+        results = []
+        if dict_records:
+            embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
+            results = self.index.query_threshold(embeddings, threshold=threshold)
 
         deduplicated_records = []
         for record, similar_items in zip(dict_records, results):

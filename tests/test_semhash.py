@@ -138,7 +138,9 @@ def test_deduplicate_with_only_exact_duplicates(model: Encoder) -> None:
 
     deduplicated = semhash.deduplicate(texts2)
     assert deduplicated.selected == []
-    assert [len(d.duplicates) for d in deduplicated.filtered] == [1] * 3
+    # Records are mapped back to strings, also when every record is an exact duplicate.
+    assert [d.record for d in deduplicated.filtered] == texts2
+    assert [d.duplicates for d in deduplicated.filtered] == [[("It's dangerous to go alone!", 1.0)]] * 3
 
 
 def test_self_find_representative(model: Encoder, train_texts: list[str]) -> None:
