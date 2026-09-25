@@ -1,3 +1,6 @@
+from collections.abc import Sequence
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -234,30 +237,26 @@ def test_self_filter_outliers(model: Encoder, train_texts: list[str]) -> None:
         semhash.self_filter_outliers(outlier_percentage=1.5)
 
 
-def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
+def test__diversify() -> None:
     """Test the _diversify method."""
-    from semhash import semhash
-
     semhash_instance = SemHash(index=None, model=None, columns=["text"], was_string=True)
     # Prepare a fake ranking with three records
     records = ["a", "b", "c"]
     scores = [3.0, 2.0, 1.0]
     ranking = FilterResult(selected=records, filtered=[], scores_selected=scores, scores_filtered=[])
-    # Create dummy embeddings for the records
+    # Dummy embeddings for the records, in ranked order
     embeddings = np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]])
-    # Monkeypatch featurize to return the dummy embeddings
-    monkeypatch.setattr(semhash, "featurize", lambda records, columns, model: embeddings)
 
     # Test diversity=0.0: pure relevance, should pick top 2 by score
-    result_rel = semhash_instance._diversify(ranking, candidate_limit=3, selection_size=2, diversity=0.0)
+    result_rel = semhash_instance._diversify(ranking, embeddings, candidate_limit=3, selection_size=2, diversity=0.0)
     assert result_rel.selected == ["a", "b"]
 
     # Test diversity=1.0: pure diversity, should first pick 'a', then pick most dissimilar: 'c'
-    result_div = semhash_instance._diversify(ranking, candidate_limit=3, selection_size=2, diversity=1.0)
+    result_div = semhash_instance._diversify(ranking, embeddings, candidate_limit=3, selection_size=2, diversity=1.0)
     assert result_div.selected == ["a", "c"]
 
     # Test empty candidates (candidate_limit=0)
-    result_empty = semhash_instance._diversify(ranking, candidate_limit=0, selection_size=2, diversity=0.5)
+    result_empty = semhash_instance._diversify(ranking, embeddings, candidate_limit=0, selection_size=2, diversity=0.5)
     assert result_empty.selected == []
     assert result_empty.filtered == []
     assert result_empty.scores_selected == []
@@ -378,3 +377,21 @@ def test_deduplicate_edge_cases(model: Encoder) -> None:
     # Type mismatch: mixed dicts
     with pytest.raises(ValueError, match="Records must be all dictionaries"):
         semhash_dict.deduplicate([{"col": "a"}, "b"], threshold=0.95)
+
+
+def test_representatives_reuse_embeddings(model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
+    """Representative selection reuses the ranking embeddings instead of encoding candidates again."""
+
+    class CountingEncoder:
+        calls = 0
+
+        def encode(self, inputs: Sequence[Any], **kwargs: Any) -> np.ndarray:
+            CountingEncoder.calls += 1
+            return model.encode(inputs, **kwargs)
+
+    semhash = SemHash.from_records(train_texts, model=CountingEncoder())
+    CountingEncoder.calls = 0
+    semhash.self_find_representative(selection_size=3)
+    assert CountingEncoder.calls == 0
+    semhash.find_representative(test_texts, selection_size=3)
+    assert CountingEncoder.calls == 1

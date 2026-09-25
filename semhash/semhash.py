@@ -9,6 +9,7 @@ from frozendict import frozendict
 from model2vec import StaticModel
 from pyversity import Strategy, diversify
 from vicinity import Backend
+from vicinity.datatypes import SingleQueryResult
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult
 from semhash.index import Index
@@ -43,7 +44,7 @@ class SemHash(Generic[Record]):
         self.model = model
         self.columns = columns
         self._was_string = was_string
-        self._ranking_cache: FilterResult | None = None
+        self._ranking_cache: tuple[FilterResult, np.ndarray] | None = None
 
     @classmethod
     def from_records(
@@ -331,10 +332,10 @@ class SemHash(Generic[Record]):
         :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
         :return: A FilterResult with the diversified candidates.
         """
-        ranking = self._rank_by_average_similarity(records)
+        ranking, embeddings = self._rank_by_average_similarity(records)
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
-        return self._diversify(ranking, candidate_limit, selection_size, diversity, strategy)
+        return self._diversify(ranking, embeddings, candidate_limit, selection_size, diversity, strategy)
 
     def self_find_representative(
         self,
@@ -357,10 +358,10 @@ class SemHash(Generic[Record]):
         :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
         :return: A FilterResult with the diversified representatives.
         """
-        ranking = self._self_rank_by_average_similarity()
+        ranking, embeddings = self._self_rank_by_average_similarity()
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
-        return self._diversify(ranking, candidate_limit, selection_size, diversity, strategy)
+        return self._diversify(ranking, embeddings, candidate_limit, selection_size, diversity, strategy)
 
     def filter_outliers(
         self,
@@ -380,7 +381,7 @@ class SemHash(Generic[Record]):
         """
         if outlier_percentage < 0.0 or outlier_percentage > 1.0:
             raise ValueError("outlier_percentage must be between 0 and 1")
-        ranking = self._rank_by_average_similarity(records)
+        ranking, _ = self._rank_by_average_similarity(records)
         outlier_count = ceil(len(ranking.selected) * outlier_percentage)
         if outlier_count == 0:
             # If the outlier count is 0, return no outliers
@@ -419,7 +420,7 @@ class SemHash(Generic[Record]):
         """
         if outlier_percentage < 0.0 or outlier_percentage > 1.0:
             raise ValueError("outlier_percentage must be between 0 and 1")
-        ranking = self._self_rank_by_average_similarity()
+        ranking, _ = self._self_rank_by_average_similarity()
         outlier_count = ceil(len(ranking.selected) * outlier_percentage)
         if outlier_count == 0:
             # If the outlier count is 0, return no outliers
@@ -445,66 +446,61 @@ class SemHash(Generic[Record]):
     def _rank_by_average_similarity(
         self,
         records: Sequence[Record],
-    ) -> FilterResult:
+    ) -> tuple[FilterResult, np.ndarray]:
         """
         Rank a given set of records based on the average cosine similarity of the neighbors in the fitted index.
 
         :param records: A sequence of records.
-        :return: A FilterResult containing the ranking (records sorted and their average similarity scores).
+        :return: A FilterResult containing the ranking, and the embeddings of the records in ranked order.
         """
         dict_records = self._validate_if_strings(records)
         embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
         results = self.index.query_top_k(embeddings, k=100, vectors_are_in_index=False)
-
-        # Compute the average similarity for each record.
-        sorted_scores = sorted(
-            ((record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        selected, scores_selected = zip(*sorted_scores)
-
-        return FilterResult(
-            selected=list(selected),
-            filtered=[],
-            scores_selected=list(scores_selected),
-            scores_filtered=[],
-        )
+        return self._rank(dict_records, embeddings, results)
 
     def _self_rank_by_average_similarity(
         self,
-    ) -> FilterResult:
+    ) -> tuple[FilterResult, np.ndarray]:
         """
         Rank the records stored in the fitted index based on the average cosine similarity of the neighbors.
 
-        :return: A FilterResult containing the ranking.
+        :return: A FilterResult containing the ranking, and the embeddings of the records in ranked order.
         """
         if self._ranking_cache is not None:
             return self._ranking_cache
 
         dict_records = [record[0] for record in self.index.items]
         results = self.index.query_top_k(self.index.vectors, k=100, vectors_are_in_index=True)
+        self._ranking_cache = self._rank(dict_records, self.index.vectors, results)
+        return self._ranking_cache
 
-        # Compute the average similarity for each record.
-        sorted_scores = sorted(
-            ((record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        selected, scores_selected = zip(*sorted_scores)
+    @staticmethod
+    def _rank(
+        records: list[dict[str, Any]], embeddings: np.ndarray, results: list[SingleQueryResult]
+    ) -> tuple[FilterResult, np.ndarray]:
+        """
+        Sort records by the average similarity of their neighbors, keeping their embeddings aligned.
 
+        :param records: The records to rank.
+        :param embeddings: The embeddings of the records.
+        :param results: The nearest neighbors of each record.
+        :return: A FilterResult containing the ranking, and the embeddings of the records in ranked order.
+        """
+        scores = [np.mean(sims) for _, sims in results]
+        # Stable descending sort, so ties keep their input order.
+        order = sorted(range(len(records)), key=lambda i: scores[i], reverse=True)
         ranking = FilterResult(
-            selected=list(selected),
+            selected=[records[i] for i in order],
             filtered=[],
-            scores_selected=list(scores_selected),
+            scores_selected=[scores[i] for i in order],
             scores_filtered=[],
         )
-        self._ranking_cache = ranking
-        return ranking
+        return ranking, embeddings[order]
 
     def _diversify(
         self,
         ranked_results: FilterResult,
+        ranked_embeddings: np.ndarray,
         candidate_limit: int,
         selection_size: int,
         diversity: float,
@@ -517,9 +513,8 @@ class SemHash(Generic[Record]):
         if not candidates:
             return FilterResult(selected=[], filtered=[], scores_selected=[], scores_filtered=[])
 
-        embeddings = featurize(records=candidates, columns=self.columns, model=self.model)
         result = diversify(
-            embeddings=embeddings,
+            embeddings=ranked_embeddings[:candidate_limit],
             scores=np.array(relevance),
             k=selection_size,
             strategy=strategy,
