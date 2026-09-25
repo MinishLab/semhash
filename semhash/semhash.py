@@ -223,7 +223,7 @@ class SemHash(Generic[Record]):
         groups: list[list[Any]] = self.index.items
         if self._was_string:
             groups = [[dict_to_string(record, self.columns) for record in group] for group in groups]
-        return DeduplicationResult._from_groups(groups, results, threshold, self.columns)
+        return DeduplicationResult._from_groups(groups, results, self.index.vectors, threshold, self.columns)
 
     def _validate_if_strings(self, records: Sequence[dict[str, Any] | str]) -> list[dict[str, Any]]:
         """

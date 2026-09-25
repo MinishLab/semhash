@@ -6,8 +6,10 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Generic
 
+import numpy as np
 from frozendict import frozendict
 
+from semhash.index import MAX_NEIGHBORS
 from semhash.utils import DuplicateList, Record, to_frozendict
 
 
@@ -70,39 +72,63 @@ class DeduplicationResult(Generic[Record]):
 
     def __post_init__(self) -> None:
         """Initialize the cache used for rethresholding."""
-        self._self_deduplication: tuple[list[list[Record]], list[list[tuple[int, float]]]] | None = None
+        self._self_deduplication: tuple[list[list[Record]], list[list[tuple[int, float]]], np.ndarray] | None = None
 
     @classmethod
     def _from_groups(
         cls,
         groups: list[list[Record]],
         results: list[list[tuple[int, float]]],
+        vectors: np.ndarray,
         threshold: float,
         columns: Sequence[str] | None,
     ) -> DeduplicationResult[Record]:
         """Assign each record to a directly matching kept canonical, preserving input group order."""
         result = cls(threshold=threshold, columns=columns)
-        selected_indices: set[int] = set()
+        norms = np.linalg.norm(vectors, axis=1)
+        # Normalized vectors of selected records, in selection order, for comparing against all of them at once.
+        selected_vectors = np.empty(vectors.shape, dtype=np.float32)
+        selected_indices: list[int] = []
+        canonical_indices: dict[int, int] = {}
+        # Canonicals proposed by earlier neighbors, so a match missed by one query is still found through the other.
+        proposals: defaultdict[int, set[int]] = defaultdict(set)
+
+        def closest(i: int, candidates: list[int], candidate_vectors: np.ndarray) -> tuple[int, float] | None:
+            if not candidates:
+                return None
+            scores = candidate_vectors @ (vectors[i] / norms[i])
+            best = int(np.argmax(scores))
+            return (candidates[best], float(scores[best])) if scores[best] >= threshold else None
+
         for i, group in enumerate(groups):
-            best_match = max(
-                ((j, score) for j, score in results[i] if j in selected_indices and score >= threshold),
-                key=lambda match: match[1],
-                default=None,
+            matches = [j for j, score in results[i] if score >= threshold]
+            # Neighbors propose their canonical, whose similarity is checked directly to avoid transitive matches.
+            candidates = list(
+                proposals.pop(i, set()).union(canonical_indices[j] for j in matches if j in canonical_indices)
             )
+            best_match = closest(i, candidates, vectors[candidates] / norms[candidates, None])
+            if best_match is None and len(matches) >= MAX_NEIGHBORS:
+                # The neighbors may be truncated, so compare against every selected record directly.
+                best_match = closest(i, selected_indices, selected_vectors[: len(selected_indices)])
             if best_match is None:
-                selected_indices.add(i)
+                canonical_index, score = i, 1.0
+                selected_vectors[len(selected_indices)] = vectors[i] / norms[i]
+                selected_indices.append(i)
                 result.selected.append(group[0])
-                canonical_record, score = group[0], 1.0
                 filtered_records = group[1:]
             else:
-                index, score = best_match
-                canonical_record = groups[index][0]
+                canonical_index, score = best_match
                 filtered_records = group
+            canonical_indices[i] = canonical_index
+            canonical_record = groups[canonical_index][0]
+            for j in matches:
+                if j > i:
+                    proposals[j].add(canonical_index)
             result.filtered.extend(
                 DuplicateRecord(record=record, exact=best_match is None, duplicates=[(canonical_record, score)])
                 for record in filtered_records
             )
-        result._self_deduplication = (groups, results)
+        result._self_deduplication = (groups, results, vectors)
         return result
 
     @property
@@ -138,8 +164,8 @@ class DeduplicationResult(Generic[Record]):
         self.__dict__.pop("selected_with_duplicates", None)
         if (state := getattr(self, "_self_deduplication", None)) is not None:
             # Replay selection over cached group matches; filtered records must not keep each other filtered.
-            groups, results = state
-            result = self._from_groups(groups, results, threshold, self.columns)
+            groups, results, vectors = state
+            result = self._from_groups(groups, results, vectors, threshold, self.columns)
             self.selected, self.filtered = result.selected, result.filtered
         else:
             filtered = []

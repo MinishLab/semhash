@@ -8,6 +8,7 @@ from vicinity.backends import AbstractBackend, get_backend_class
 from vicinity.datatypes import SingleQueryResult
 
 DictItem = list[dict[str, str]]
+MAX_NEIGHBORS = 100
 
 
 class Index:
@@ -55,7 +56,7 @@ class Index:
         """
         return [
             [(int(index), 1 - distance) for index, distance in zip(*result)]
-            for result in self.backend.threshold(vectors, threshold=1 - threshold, max_k=100)
+            for result in self.backend.threshold(vectors, threshold=1 - threshold, max_k=MAX_NEIGHBORS)
         ]
 
     def query_top_k(self, vectors: np.ndarray, k: int, vectors_are_in_index: bool) -> list[SingleQueryResult]:
