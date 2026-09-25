@@ -3,10 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
-from usearch.index import Index as UsearchIndex
 from vicinity import Backend
 from vicinity.backends import AbstractBackend, get_backend_class
-from vicinity.backends.usearch import UsearchArgs, UsearchBackend
 from vicinity.datatypes import SingleQueryResult
 from vicinity.utils import Metric
 
@@ -53,18 +51,19 @@ class Index:
         :param **kwargs: Additional arguments to pass to the backend.
         :return: The index.
         """
-        if vectors.dtype != np.uint8:
-            backend_class = get_backend_class(backend_type)
-            arguments = backend_class.argument_class(**kwargs)
-            return cls(vectors, items, backend_class.from_vectors(vectors, **arguments.dict()))
+        distance_scale = 1.0
+        if vectors.dtype == np.uint8:
+            # Only usearch supports Hamming distance. Unrelated signatures differ in half of their bits.
+            backend_type = Backend.USEARCH
+            kwargs = {"expansion_add": _BINARY_EXPANSION, "expansion_search": _BINARY_EXPANSION, **kwargs}
+            kwargs["metric"] = Metric.HAMMING
+            distance_scale = vectors.shape[1] * 8 / 2
 
-        # Vicinity takes the dimensionality from the array shape, but usearch counts binary dimensions in bits.
-        num_bits = vectors.shape[1] * 8
-        kwargs = {"expansion_add": _BINARY_EXPANSION, "expansion_search": _BINARY_EXPANSION, **kwargs}
-        usearch_args = UsearchArgs(dim=num_bits, metric=Metric.HAMMING, **kwargs)
-        usearch_index = UsearchIndex(ndim=num_bits, metric="hamming", dtype="b1x8", **kwargs)
-        usearch_index.add(None, vectors)  # type: ignore[arg-type]  # None keys are allowed but not typed
-        return cls(vectors, items, UsearchBackend(usearch_index, usearch_args), distance_scale=num_bits / 2)
+        backend_class = get_backend_class(backend_type)
+        arguments = backend_class.argument_class(**kwargs)
+        backend = backend_class.from_vectors(vectors, **arguments.dict())
+
+        return cls(vectors, items, backend, distance_scale)
 
     def query_threshold(self, vectors: np.ndarray, threshold: float) -> list[DocScores]:
         """

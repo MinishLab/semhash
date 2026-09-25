@@ -23,7 +23,7 @@ classifiers = [
 
 dependencies = [
     "model2vec>=0.3.4",
-    "vicinity[usearch]>=0.4.3",
+    "vicinity[usearch]>=0.4.5",
     "frozendict",
     "pyversity",
 ]
@@ -106,3 +106,5 @@ version = {attr = "semhash.version.__version__"}
 
 [tool.uv]
 exclude-newer = "1 week"
+# vicinity is our own package, so its releases are used right away.
+exclude-newer-package = { vicinity = false }

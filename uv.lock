@@ -8,8 +8,11 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-26T18:41:39.144666Z"
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P1W"
+
+[options.exclude-newer-package]
+vicinity = false
 
 [[package]]
 name = "asttokens"
@@ -1011,7 +1014,7 @@ requires-dist = [
     { name = "pytest-coverage", marker = "extra == 'dev'" },
     { name = "pyversity" },
     { name = "ruff", marker = "extra == 'dev'" },
-    { name = "vicinity", extras = ["usearch"], specifier = ">=0.4.3" },
+    { name = "vicinity", extras = ["usearch"], specifier = ">=0.4.5" },
 ]
 provides-extras = ["dev"]
 
@@ -1251,16 +1254,16 @@ wheels = [
 
 [[package]]
 name = "vicinity"
-version = "0.4.3"
+version = "0.4.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "orjson" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/24/c8/dfdc955989f9be22f9ebbe998c7acf47b89b46ed326c9d13583dc7975e42/vicinity-0.4.3.tar.gz", hash = "sha256:4e302b2f9e31416fe578c236bfc61b8931335d2b6db773da5012e945e31dc5e1", size = 831636, upload-time = "2025-10-04T13:23:31.333Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/45/a0/856b485b38061bd3858b2d372b059bb48fb9d68b1cbda6879969dab91a19/vicinity-0.4.5.tar.gz", hash = "sha256:d90f82d0ca430ff815ea43daeb100d6cf53a1afba1ca958d6c9a710bc3d1a779", size = 814309, upload-time = "2026-09-25T09:51:46.396Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/22/c20b4393c2dcde671062b481f9ffa0f61dae2dca2cea221d742204dce872/vicinity-0.4.3-py3-none-any.whl", hash = "sha256:05530088e49bf91d79c41cd9db998181fa7c3714fc738384be78e4840e2a3161", size = 28692, upload-time = "2025-10-04T13:23:29.513Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/56/69c9dab5202cc8600692bb1ab1b96778a8a5d666572a63c3ffe3c756e95b/vicinity-0.4.5-py3-none-any.whl", hash = "sha256:058a7a49574db894a981084428ec2dacbd483df99acd4544660e262721265ae3", size = 29067, upload-time = "2026-09-25T09:51:45.11Z" },
 ]
 
 [package.optional-dependencies]
