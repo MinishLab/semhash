@@ -370,7 +370,10 @@ class SemHash(Generic[Record]):
         :param records: A sequence of records to find outliers in.
         :param outlier_percentage: The percentage (between 0 and 1) of records to consider outliers.
         :return: A FilterResult where 'selected' contains the inliers and 'filtered' contains the outliers.
+        :raises ValueError: If outlier_percentage is not between 0 and 1.
         """
+        if outlier_percentage < 0.0 or outlier_percentage > 1.0:
+            raise ValueError("outlier_percentage must be between 0 and 1")
         return self._split_outliers(self._rank_by_average_similarity(records), outlier_percentage)
 
     def self_filter_outliers(
@@ -385,7 +388,10 @@ class SemHash(Generic[Record]):
 
         :param outlier_percentage: The percentage (between 0 and 1) of records to consider as outliers.
         :return: A FilterResult where 'selected' contains the inliers and 'filtered' contains the outliers.
+        :raises ValueError: If outlier_percentage is not between 0 and 1.
         """
+        if outlier_percentage < 0.0 or outlier_percentage > 1.0:
+            raise ValueError("outlier_percentage must be between 0 and 1")
         ranking = self._self_rank_by_average_similarity()
         # Exact copies share the score of their group, so every fitted record is returned.
         groups = {id(group[0]): group for group in self.index.items}
@@ -410,10 +416,7 @@ class SemHash(Generic[Record]):
         :param ranking: Records sorted by descending score.
         :param outlier_percentage: The percentage (between 0 and 1) of records to consider outliers.
         :return: A FilterResult where 'selected' contains the inliers and 'filtered' contains the outliers.
-        :raises ValueError: If outlier_percentage is not between 0 and 1.
         """
-        if outlier_percentage < 0.0 or outlier_percentage > 1.0:
-            raise ValueError("outlier_percentage must be between 0 and 1")
         inlier_count = len(ranking.selected) - ceil(len(ranking.selected) * outlier_percentage)
         return self._to_output(
             FilterResult(
