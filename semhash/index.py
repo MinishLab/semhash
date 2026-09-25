@@ -59,12 +59,10 @@ class Index:
         for result in self.backend.threshold(vectors, threshold=1 - threshold, max_k=100):
             intermediate = []
             for index, distance in zip(*result):
-                # Every item in the index contains one or more records.
-                # These are all exact duplicates, so they get the same score.
-                for record in self.items[index]:
-                    # The score is the cosine similarity.
-                    # The backend returns distances, so we need to convert.
-                    intermediate.append((record, 1 - distance))
+                # Every item in the index contains one or more records that are exact duplicates of each other.
+                # Only the first is returned, since listing every copy grows with the size of the group.
+                # The score is the cosine similarity. The backend returns distances, so we need to convert.
+                intermediate.append((self.items[index][0], 1 - distance))
             out.append(intermediate)
 
         return out

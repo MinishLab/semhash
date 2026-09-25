@@ -177,16 +177,11 @@ class SemHash(Generic[Record]):
             duplicate_record = DuplicateRecord(record=record, duplicates=duplicated_with_score, exact=True)
             duplicate_records.append(duplicate_record)
 
-        # If no records are left after removing exact duplicates, return early
-        if not dict_records:
-            return DeduplicationResult(
-                selected=[], filtered=duplicate_records, threshold=threshold, columns=self.columns
-            )
-
-        # Compute embeddings for the new records
-        embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
-        # Query the fitted index
-        results = self.index.query_threshold(embeddings, threshold=threshold)
+        # Only embed and query the records that are left after removing exact duplicates
+        results = []
+        if dict_records:
+            embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
+            results = self.index.query_threshold(embeddings, threshold=threshold)
 
         deduplicated_records = []
         for record, similar_items in zip(dict_records, results):
@@ -231,22 +226,12 @@ class SemHash(Generic[Record]):
         deduplicated_records = []
         seen_items: set[frozendict[str, str]] = set()
         for item, similar_items in zip(self.index.items, results):
-            # Items is a list of items which are exact duplicates of each other
-            # So if the an item has more than one record, it is an exact duplicate
-            # Crucially, we should count each instance separately.
+            # Items is a list of items which are exact duplicates of each other.
+            # The first record is kept, and every other copy is an exact duplicate of it. Each copy only lists
+            # the kept record, since listing every other copy grows quadratically with the size of the group.
             record, *duplicates = item
-            # We need to compare all duplicates to all _items_.
-            # The first item in a list of duplicate is not duplicated, because otherwise
-            # we would remove the whole cluster. But it is a duplicate for the other items.
-
-            # Iterate from index 1.
-            for index, curr_record in enumerate(duplicates, 1):
-                # The use of indexing is intentional here, we want to check if the object is the same
-                # not if they have the same values. If we did != or is we would probably ignore lots
-                # of items.
-                items_to_keep = item[:index] + item[index + 1 :]
-                items_with_score = add_scores_to_records(items_to_keep)
-                duplicate_records.append(DuplicateRecord(record=curr_record, duplicates=items_with_score, exact=True))
+            for curr_record in duplicates:
+                duplicate_records.append(DuplicateRecord(record=curr_record, duplicates=[(record, 1.0)], exact=True))
 
             # If we don't see any similar_items, we know the record is not a duplicate.
             # In rare cases, the item itself might not be returned by the index.

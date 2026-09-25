@@ -66,8 +66,8 @@ def remove_exact_duplicates(
     seen: defaultdict[frozendict[str, Any], list[dict[str, Any]]] = defaultdict(list)
     if reference_records is not None:
         for record_set in reference_records:
-            key = to_frozendict(record_set[0], column_set)
-            seen[key] = list(record_set)
+            # Only the first record of each group is listed as the duplicate, like in self-deduplication.
+            seen[to_frozendict(record_set[0], column_set)] = [record_set[0]]
 
     for record in records:
         frozen_record = to_frozendict(record, column_set)

@@ -95,6 +95,9 @@ ignore_missing_imports = true
 packages = ["semhash"]
 license-files = []
 
+[tool.setuptools.package-data]
+semhash = ["py.typed"]
+
 [tool.setuptools_scm]
 # can be empty if no extra settings are needed, presence enables setuptools_scm
 

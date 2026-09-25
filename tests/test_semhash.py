@@ -133,9 +133,26 @@ def test_deduplicate_with_only_exact_duplicates(model: Encoder) -> None:
     semhash = SemHash.from_records(texts1, model=model)
     deduplicated = semhash.self_deduplicate()
     assert deduplicated.selected == ["It's dangerous to go alone!"]
+    # Each copy lists only the kept record, so the output grows linearly with the number of copies.
+    assert [d.duplicates for d in deduplicated.filtered] == [[("It's dangerous to go alone!", 1.0)]] * 2
 
     deduplicated = semhash.deduplicate(texts2)
     assert deduplicated.selected == []
+    # Records are mapped back to strings, also when every record is an exact duplicate.
+    assert [d.record for d in deduplicated.filtered] == texts2
+    assert [d.duplicates for d in deduplicated.filtered] == [[("It's dangerous to go alone!", 1.0)]] * 3
+
+
+def test_rethreshold_keeps_exact_duplicate_group(model: Encoder) -> None:
+    """A near-duplicate with exact copies is not listed as a duplicate of its own copies, so rethresholding keeps it."""
+    records = [
+        {"text": "It's dangerous to go alone!", "id": 1},
+        {"text": "It's dangerous to go alone! Take this.", "id": 2},
+        {"text": "It's dangerous to go alone! Take this.", "id": 3},
+    ]
+    deduplicated = SemHash.from_records(records, columns=["text"], model=model).self_deduplicate(threshold=0.5)
+    deduplicated.rethreshold(0.99)
+    assert [record["id"] for record in deduplicated.selected] == [1, 2]
 
 
 def test_self_find_representative(model: Encoder, train_texts: list[str]) -> None:
