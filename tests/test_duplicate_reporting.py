@@ -63,14 +63,15 @@ def test_self_canonicals_and_rethreshold(
 
 
 def test_dense_cluster_beyond_neighbor_limit(angular_model: Encoder) -> None:
-    """A near-duplicate cluster larger than the ANN neighbor limit keeps a single record."""
+    """A near-duplicate cluster larger than the ANN neighbor limit keeps a single record, next to a zero vector."""
     rng = np.random.default_rng(0)
-    embeddings = rng.normal(size=16) + rng.normal(scale=0.05, size=(2000, 16))
-    semhash = SemHash.from_embeddings(embeddings, [str(i) for i in range(2000)], model=angular_model)
+    cluster = rng.normal(size=16) + rng.normal(scale=0.05, size=(2000, 16))
+    embeddings = np.vstack([np.zeros(16), cluster])
+    semhash = SemHash.from_embeddings(embeddings, [str(i) for i in range(2001)], model=angular_model)
     result = semhash.self_deduplicate(0.9)
-    assert result.selected == ["0"]
+    assert result.selected == ["0", "1"]
     result.rethreshold(0.95)
-    assert result.selected == ["0"]
+    assert result.selected == ["0", "1"]
 
 
 def test_large_exact_groups_have_linear_reporting(angular_model: Encoder) -> None:

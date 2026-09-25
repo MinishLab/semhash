@@ -86,6 +86,8 @@ class DeduplicationResult(Generic[Record]):
         """Assign each record to a directly matching kept canonical, preserving input group order."""
         result = cls(threshold=threshold, columns=columns)
         norms = np.linalg.norm(vectors, axis=1)
+        # Zero vectors (e.g. empty text) are similar to nothing, instead of producing NaN scores.
+        norms[norms == 0] = 1.0
         # Normalized vectors of selected records, in selection order, for comparing against all of them at once.
         selected_vectors = np.empty(vectors.shape, dtype=np.float32)
         selected_indices: list[int] = []
