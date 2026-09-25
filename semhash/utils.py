@@ -79,7 +79,7 @@ def to_frozendict(record: dict[str, Any], columns: Sequence[str] | set[str]) -> 
     :raises ValueError: If a column is missing from the record.
     """
     try:
-        return frozendict({k: make_hashable(record[k]) for k in columns})
+        return frozendict({k: make_hashable(coerce_value(record[k])) for k in columns})
     except KeyError as e:
         missing = e.args[0]
         raise ValueError(f"Missing column '{missing}' in record {record}") from e
@@ -132,7 +132,7 @@ def featurize(
     embeddings_per_col = []
     for col in columns:
         try:
-            col_texts = [r[col] for r in records]
+            col_texts = [coerce_value(r[col]) for r in records]
         except KeyError as e:
             raise ValueError(f"Missing column '{col}' in one or more records") from e
         try:

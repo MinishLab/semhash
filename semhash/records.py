@@ -5,7 +5,7 @@ from typing import Any
 from frozendict import frozendict
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord
-from semhash.utils import Record, coerce_value, to_frozendict
+from semhash.utils import Record, to_frozendict
 
 
 def group_records_by_key(
@@ -115,19 +115,12 @@ def prepare_records(
             raise ValueError("All records must be dicts when the first record is a dict.")
         assert columns is not None
 
-        # Coerce values: stringify primitives, keep complex types raw (for images, etc.)
-        dict_records_typed: list[dict[str, Any]] = list(records)
-        dict_records = []
-        for record in dict_records_typed:
-            # Start with a copy of the full record to preserve non-embedding fields
-            coerced: dict[str, Any] = dict(record)
-            # Then coerce only the embedding columns
+        # Records are returned unchanged; values are only coerced when embedding and hashing them.
+        dict_records = list(records)  # type: ignore[arg-type]
+        for record in dict_records:
             for column in columns:
-                val = record.get(column)
-                if val is None:
+                if record.get(column) is None:
                     raise ValueError(f"Column '{column}' has None value in record {record}")
-                coerced[column] = coerce_value(val)
-            dict_records.append(coerced)
         was_string = False
 
     return dict_records, columns, was_string
@@ -135,16 +128,13 @@ def prepare_records(
 
 def dict_to_string(record: dict[str, str], columns: Sequence[str]) -> str:
     r"""
-    Turn a record into a single string.
-
-    Uses self.columns to determine the order of the text segments.
-    Each text is cleaned by replacing '\t' with ' '. The texts are then joined by '\t'.
+    Turn a record into a single string, joining the columns with '\t'.
 
     :param record: A record to unpack.
     :param columns: Columns to unpack.
     :return: A single string representation of the record.
     """
-    return "\t".join(record.get(c, "").replace("\t", " ") for c in columns)
+    return "\t".join(str(record.get(c, "")) for c in columns)
 
 
 def map_deduplication_result_to_strings(result: DeduplicationResult, columns: Sequence[str]) -> DeduplicationResult:
