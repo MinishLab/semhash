@@ -76,33 +76,33 @@ class DeduplicationResult(Generic[Record]):
     def _from_groups(
         cls,
         groups: list[list[Record]],
-        neighbors: list[list[tuple[int, float]]],
+        results: list[list[tuple[int, float]]],
         threshold: float,
         columns: Sequence[str] | None,
     ) -> DeduplicationResult[Record]:
         """Assign each record to a directly matching kept canonical, preserving input group order."""
         result = cls(threshold=threshold, columns=columns)
-        kept: set[int] = set()
+        selected_indices: set[int] = set()
         for i, group in enumerate(groups):
-            owner = max(
-                ((j, score) for j, score in neighbors[i] if j in kept and score >= threshold),
+            best_match = max(
+                ((j, score) for j, score in results[i] if j in selected_indices and score >= threshold),
                 key=lambda match: match[1],
                 default=None,
             )
-            if owner is None:
-                kept.add(i)
+            if best_match is None:
+                selected_indices.add(i)
                 result.selected.append(group[0])
-                canonical, score = group[0], 1.0
-                removed = group[1:]
+                canonical_record, score = group[0], 1.0
+                filtered_records = group[1:]
             else:
-                owner_index, score = owner
-                canonical = groups[owner_index][0]
-                removed = group
+                index, score = best_match
+                canonical_record = groups[index][0]
+                filtered_records = group
             result.filtered.extend(
-                DuplicateRecord(record=record, exact=owner is None, duplicates=[(canonical, score)])
-                for record in removed
+                DuplicateRecord(record=record, exact=best_match is None, duplicates=[(canonical_record, score)])
+                for record in filtered_records
             )
-        result._self_deduplication = (groups, neighbors)
+        result._self_deduplication = (groups, results)
         return result
 
     @property
@@ -138,8 +138,8 @@ class DeduplicationResult(Generic[Record]):
         self.__dict__.pop("selected_with_duplicates", None)
         if (state := getattr(self, "_self_deduplication", None)) is not None:
             # Replay selection over cached group matches; filtered records must not keep each other filtered.
-            groups, neighbors = state
-            result = self._from_groups(groups, neighbors, threshold, self.columns)
+            groups, results = state
+            result = self._from_groups(groups, results, threshold, self.columns)
             self.selected, self.filtered = result.selected, result.filtered
         else:
             filtered = []

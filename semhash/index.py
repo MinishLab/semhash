@@ -7,8 +7,6 @@ from vicinity import Backend
 from vicinity.backends import AbstractBackend, get_backend_class
 from vicinity.datatypes import SingleQueryResult
 
-DocScore = tuple[dict[str, str], float]
-DocScores = list[DocScore]
 DictItem = list[dict[str, str]]
 
 
@@ -47,25 +45,18 @@ class Index:
 
         return cls(vectors, items, backend)
 
-    def query_threshold(self, vectors: np.ndarray, threshold: float) -> list[DocScores]:
+    def query_threshold(self, vectors: np.ndarray, threshold: float) -> list[list[tuple[int, float]]]:
         """
         Query the index with a threshold.
 
         :param vectors: The vectors to query.
         :param threshold: The similarity threshold.
-        :return: The query results.
+        :return: Group indices and cosine similarity scores for each query.
         """
-        out: list[DocScores] = []
-        for result in self.backend.threshold(vectors, threshold=1 - threshold, max_k=100):
-            intermediate = []
-            for index, distance in zip(*result):
-                # Every item in the index contains one or more records that are exact duplicates of each other.
-                # Only the first is returned, since listing every copy grows with the size of the group.
-                # The score is the cosine similarity. The backend returns distances, so we need to convert.
-                intermediate.append((self.items[index][0], 1 - distance))
-            out.append(intermediate)
-
-        return out
+        return [
+            [(int(index), 1 - distance) for index, distance in zip(*result)]
+            for result in self.backend.threshold(vectors, threshold=1 - threshold, max_k=100)
+        ]
 
     def query_top_k(self, vectors: np.ndarray, k: int, vectors_are_in_index: bool) -> list[SingleQueryResult]:
         """

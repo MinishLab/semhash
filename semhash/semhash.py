@@ -190,10 +190,11 @@ class SemHash(Generic[Record]):
                 # No duplicates found, keep this record
                 deduplicated_records.append(record)
             else:
+                index, score = max(similar_items, key=lambda match: match[1])
                 duplicate_records.append(
                     DuplicateRecord(
                         record=record,
-                        duplicates=[max(similar_items, key=lambda match: match[1])],
+                        duplicates=[(self.index.items[index][0], score)],
                         exact=False,
                     )
                 )
@@ -219,12 +220,10 @@ class SemHash(Generic[Record]):
         :return: A deduplicated list of records.
         """
         results = self.index.query_threshold(self.index.vectors, threshold=threshold)
-        indices = {id(item[0]): i for i, item in enumerate(self.index.items)}
-        neighbors = [[(indices[id(record)], score) for record, score in matches] for matches in results]
         groups: list[list[Any]] = self.index.items
         if self._was_string:
             groups = [[dict_to_string(record, self.columns) for record in group] for group in groups]
-        return DeduplicationResult._from_groups(groups, neighbors, threshold, self.columns)
+        return DeduplicationResult._from_groups(groups, results, threshold, self.columns)
 
     def _validate_if_strings(self, records: Sequence[dict[str, Any] | str]) -> list[dict[str, Any]]:
         """
