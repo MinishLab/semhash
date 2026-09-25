@@ -162,8 +162,8 @@ def test_selected_with_duplicates_unhashable_values() -> None:
     assert items == [SelectedWithDuplicates(record=selected, duplicates=[(filtered, 1.0)])]
 
 
-def test_selected_with_duplicates_removes_internal_duplicates() -> None:
-    """Test that selected_with_duplicates removes internal duplicates that have the same hash."""
+def test_selected_with_duplicates_preserves_occurrences() -> None:
+    """Identical record values must not erase distinct filtered occurrences."""
     selected = {"id": 0, "text": "hello"}
     filtered = {"id": 1, "text": "hello"}
 
@@ -184,9 +184,7 @@ def test_selected_with_duplicates_removes_internal_duplicates() -> None:
     duplicate_list = items[0].duplicates
     # Should keep the kept record unchanged
     assert selected_record == selected
-    # The duplicate row must appear only once
-    assert len(duplicate_list) == 1
-    assert duplicate_list[0][0] == filtered
+    assert duplicate_list == [(filtered, 0.95), (filtered, 0.90)]
 
 
 def test_selected_with_duplicates_caching() -> None:

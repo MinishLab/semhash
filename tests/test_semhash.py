@@ -144,7 +144,7 @@ def test_deduplicate_with_only_exact_duplicates(model: Encoder) -> None:
 
 
 def test_rethreshold_keeps_exact_duplicate_group(model: Encoder) -> None:
-    """A near-duplicate with exact copies is not listed as a duplicate of its own copies, so rethresholding keeps it."""
+    """Exact copies must not prevent their representative from being restored by rethresholding."""
     records = [
         {"text": "It's dangerous to go alone!", "id": 1},
         {"text": "It's dangerous to go alone! Take this.", "id": 2},

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass, field
@@ -20,8 +19,8 @@ class DuplicateRecord(Generic[Record]):
     Attributes
     ----------
         record: The original record being deduplicated.
-        exact: Whether the record was identified as an exact match.
-        duplicates: List of tuples consisting of duplicate records and their associated scores.
+        exact: Whether the record matches its canonical exactly on the deduplication columns.
+        duplicates: The canonical record and its similarity score, stored as a one-element list.
 
     """
 
@@ -69,6 +68,43 @@ class DeduplicationResult(Generic[Record]):
     threshold: float = field(default=0.9)
     columns: Sequence[str] | None = field(default=None)
 
+    def __post_init__(self) -> None:
+        """Retain compact self-deduplication context without changing dataclass construction or serialization."""
+        self._self_deduplication: tuple[list[list[Record]], list[list[tuple[int, float]]]] | None = None
+
+    @classmethod
+    def _from_groups(
+        cls,
+        groups: list[list[Record]],
+        neighbors: list[list[tuple[int, float]]],
+        threshold: float,
+        columns: Sequence[str] | None,
+    ) -> DeduplicationResult[Record]:
+        """Assign each record to a directly matching kept canonical, preserving input group order."""
+        result = cls(threshold=threshold, columns=columns)
+        kept: set[int] = set()
+        for i, group in enumerate(groups):
+            owner = max(
+                ((j, score) for j, score in neighbors[i] if j in kept and score >= threshold),
+                key=lambda match: match[1],
+                default=None,
+            )
+            if owner is None:
+                kept.add(i)
+                result.selected.append(group[0])
+                canonical, score = group[0], 1.0
+                removed = group[1:]
+            else:
+                owner_index, score = owner
+                canonical = groups[owner_index][0]
+                removed = group
+            result.filtered.extend(
+                DuplicateRecord(record=record, exact=owner is None, duplicates=[(canonical, score)])
+                for record in removed
+            )
+        result._self_deduplication = (groups, neighbors)
+        return result
+
     @property
     def duplicate_ratio(self) -> float:
         """Return the percentage of records dropped."""
@@ -100,12 +136,20 @@ class DeduplicationResult(Generic[Record]):
             raise ValueError("Threshold is smaller than the given value.")
         # Invalidate cached property before modifying data
         self.__dict__.pop("selected_with_duplicates", None)
-        # Rethreshold duplicates and move records without duplicates to selected
-        for dup in list(self.filtered):
-            dup._rethreshold(threshold)
-            if not dup.duplicates:
-                self.filtered.remove(dup)
-                self.selected.append(dup.record)
+        if (state := getattr(self, "_self_deduplication", None)) is not None:
+            # Replay selection over cached group matches; filtered records must not keep each other filtered.
+            groups, neighbors = state
+            result = self._from_groups(groups, neighbors, threshold, self.columns)
+            self.selected, self.filtered = result.selected, result.filtered
+        else:
+            filtered = []
+            for dup in self.filtered:
+                dup._rethreshold(threshold)
+                if not dup.duplicates:
+                    self.selected.append(dup.record)
+                else:
+                    filtered.append(dup)
+            self.filtered = filtered
         self.threshold = threshold
 
     @cached_property
@@ -132,19 +176,8 @@ class DeduplicationResult(Generic[Record]):
 
         result: list[SelectedWithDuplicates[Record]] = []
         for selected in self.selected:
-            # Get the list of duplicates for the selected record
-            raw_list = buckets.get(_to_hashable(selected), [])
-            # Ensure we don't have duplicates in the list
-            # Use full-record canonical JSON for dicts so that unhashable values are handled correctly
-            deduped = {
-                (
-                    json.dumps(rec, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-                    if isinstance(rec, dict)
-                    else rec
-                ): (rec, score)
-                for rec, score in raw_list
-            }
-            result.append(SelectedWithDuplicates(record=selected, duplicates=list(deduped.values())))
+            # Preserve occurrences, even when multiple input records have identical values.
+            result.append(SelectedWithDuplicates(record=selected, duplicates=buckets.get(_to_hashable(selected), [])))
 
         return result
 
