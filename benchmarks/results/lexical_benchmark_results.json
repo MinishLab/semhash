@@ -2,25 +2,25 @@
   {
     "implementation": "semhash",
     "records": 20000,
-    "time_seconds": 2.2013530830154195,
-    "recall": 0.9068352059925093
+    "time_seconds": 1.7615802920190617,
+    "recall": 0.9082397003745318
   },
   {
     "implementation": "datasketch",
     "records": 20000,
-    "time_seconds": 2.1473122079623863,
+    "time_seconds": 2.0804091249592602,
     "recall": 0.7579588014981273
   },
   {
     "implementation": "semhash",
     "records": 100000,
-    "time_seconds": 11.012997249956243,
-    "recall": 0.8742695398100804
+    "time_seconds": 9.319736207951792,
+    "recall": 0.8784696859021184
   },
   {
     "implementation": "datasketch",
     "records": 100000,
-    "time_seconds": 11.028436250053346,
+    "time_seconds": 11.251972749945708,
     "recall": 0.7556610664718773
   }
 ]

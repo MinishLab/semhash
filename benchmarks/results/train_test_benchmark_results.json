@@ -3,170 +3,323 @@
     "dataset": "bbc",
     "train_size": 1225,
     "test_size": 1000,
-    "deduplicated_test_size": 870,
-    "percent_removed": 13.0,
-    "build_time_seconds": 0.5598082079086453,
-    "deduplication_time_seconds": 0.1528247919632122,
-    "time_seconds": 0.7126329998718575
+    "semantic": {
+      "deduplicated_test_size": 871,
+      "percent_removed": 12.9,
+      "build_time_seconds": 0.16362050001043826,
+      "deduplication_time_seconds": 0.11201387492474169,
+      "time_seconds": 0.27563437493517995
+    },
+    "lexical": {
+      "deduplicated_test_size": 928,
+      "percent_removed": 7.199999999999996,
+      "build_time_seconds": 0.26386275002732873,
+      "deduplication_time_seconds": 0.20317704195622355,
+      "time_seconds": 0.4670397919835523
+    }
   },
   {
     "dataset": "senteval_cr",
     "train_size": 3012,
     "test_size": 753,
-    "deduplicated_test_size": 750,
-    "percent_removed": 0.3984063745019917,
-    "build_time_seconds": 0.10847400000784546,
-    "deduplication_time_seconds": 0.019297500024549663,
-    "time_seconds": 0.12777150003239512
+    "semantic": {
+      "deduplicated_test_size": 750,
+      "percent_removed": 0.3984063745019917,
+      "build_time_seconds": 0.07297950005158782,
+      "deduplication_time_seconds": 0.021186708007007837,
+      "time_seconds": 0.09416620805859566
+    },
+    "lexical": {
+      "deduplicated_test_size": 753,
+      "percent_removed": 0.0,
+      "build_time_seconds": 0.11490070901345462,
+      "deduplication_time_seconds": 0.047468333039432764,
+      "time_seconds": 0.16236904205288738
+    }
   },
   {
     "dataset": "tweet_sentiment_extraction",
     "train_size": 27481,
     "test_size": 3534,
-    "deduplicated_test_size": 3412,
-    "percent_removed": 3.452178834182229,
-    "build_time_seconds": 1.3568968329345807,
-    "deduplication_time_seconds": 0.17268049996346235,
-    "time_seconds": 1.529577332898043
+    "semantic": {
+      "deduplicated_test_size": 3411,
+      "percent_removed": 3.4804753820034007,
+      "build_time_seconds": 1.3899481249973178,
+      "deduplication_time_seconds": 0.1745567909674719,
+      "time_seconds": 1.5645049159647897
+    },
+    "lexical": {
+      "deduplicated_test_size": 3520,
+      "percent_removed": 0.3961516694963252,
+      "build_time_seconds": 1.5838329159887508,
+      "deduplication_time_seconds": 0.17313245800323784,
+      "time_seconds": 1.7569653739919886
+    }
   },
   {
     "dataset": "emotion",
     "train_size": 16000,
     "test_size": 2000,
-    "deduplicated_test_size": 1926,
-    "percent_removed": 3.7000000000000033,
-    "build_time_seconds": 0.5511152499821037,
-    "deduplication_time_seconds": 0.10135454102419317,
-    "time_seconds": 0.6524697910062969
+    "semantic": {
+      "deduplicated_test_size": 1926,
+      "percent_removed": 3.7000000000000033,
+      "build_time_seconds": 0.5430374160641804,
+      "deduplication_time_seconds": 0.0866303340299055,
+      "time_seconds": 0.6296677500940859
+    },
+    "lexical": {
+      "deduplicated_test_size": 1986,
+      "percent_removed": 0.7000000000000006,
+      "build_time_seconds": 0.6802425000350922,
+      "deduplication_time_seconds": 0.12654774996917695,
+      "time_seconds": 0.8067902500042692
+    }
   },
   {
     "dataset": "amazon_counterfactual",
     "train_size": 5000,
     "test_size": 5000,
-    "deduplicated_test_size": 4990,
-    "percent_removed": 0.20000000000000018,
-    "build_time_seconds": 0.2848535830853507,
-    "deduplication_time_seconds": 0.22846354101784527,
-    "time_seconds": 0.513317124103196
+    "semantic": {
+      "deduplicated_test_size": 4990,
+      "percent_removed": 0.20000000000000018,
+      "build_time_seconds": 0.19540891598444432,
+      "deduplication_time_seconds": 0.18386087496764958,
+      "time_seconds": 0.3792697909520939
+    },
+    "lexical": {
+      "deduplicated_test_size": 4996,
+      "percent_removed": 0.08000000000000229,
+      "build_time_seconds": 0.1949167080456391,
+      "deduplication_time_seconds": 0.18821383407339454,
+      "time_seconds": 0.38313054211903363
+    }
   },
   {
     "dataset": "ag_news",
     "train_size": 120000,
     "test_size": 7600,
-    "deduplicated_test_size": 6198,
-    "percent_removed": 18.447368421052634,
-    "build_time_seconds": 3.0319770000642166,
-    "deduplication_time_seconds": 0.7034984159981832,
-    "time_seconds": 3.7354754160623997
+    "semantic": {
+      "deduplicated_test_size": 6198,
+      "percent_removed": 18.447368421052634,
+      "build_time_seconds": 4.057168625062332,
+      "deduplication_time_seconds": 0.6493567080469802,
+      "time_seconds": 4.706525333109312
+    },
+    "lexical": {
+      "deduplicated_test_size": 7249,
+      "percent_removed": 4.618421052631582,
+      "build_time_seconds": 8.689612915972248,
+      "deduplication_time_seconds": 0.6686148750595748,
+      "time_seconds": 9.358227791031823
+    }
   },
   {
     "dataset": "enron_spam",
     "train_size": 31716,
     "test_size": 2000,
-    "deduplicated_test_size": 1060,
-    "percent_removed": 47.0,
-    "build_time_seconds": 1.3818323339801282,
-    "deduplication_time_seconds": 0.553584959008731,
-    "time_seconds": 1.9354172929888591
+    "semantic": {
+      "deduplicated_test_size": 1060,
+      "percent_removed": 47.0,
+      "build_time_seconds": 1.3919497500173748,
+      "deduplication_time_seconds": 0.40921591699589044,
+      "time_seconds": 1.8011656670132652
+    },
+    "lexical": {
+      "deduplicated_test_size": 1288,
+      "percent_removed": 35.6,
+      "build_time_seconds": 5.172192875063047,
+      "deduplication_time_seconds": 0.29968341591302305,
+      "time_seconds": 5.47187629097607
+    }
   },
   {
     "dataset": "subj",
     "train_size": 8000,
     "test_size": 2000,
-    "deduplicated_test_size": 1999,
-    "percent_removed": 0.04999999999999449,
-    "build_time_seconds": 0.5059439589967951,
-    "deduplication_time_seconds": 0.11624520795885473,
-    "time_seconds": 0.6221891669556499
+    "semantic": {
+      "deduplicated_test_size": 1999,
+      "percent_removed": 0.04999999999999449,
+      "build_time_seconds": 0.42882616608403623,
+      "deduplication_time_seconds": 0.09145408298354596,
+      "time_seconds": 0.5202802490675822
+    },
+    "lexical": {
+      "deduplicated_test_size": 2000,
+      "percent_removed": 0.0,
+      "build_time_seconds": 0.34281633305363357,
+      "deduplication_time_seconds": 0.08905679103918374,
+      "time_seconds": 0.4318731240928173
+    }
   },
   {
     "dataset": "sst5",
     "train_size": 8544,
     "test_size": 2210,
-    "deduplicated_test_size": 2205,
-    "percent_removed": 0.2262443438914019,
-    "build_time_seconds": 0.4805819580797106,
-    "deduplication_time_seconds": 0.11375170899555087,
-    "time_seconds": 0.5943336670752615
+    "semantic": {
+      "deduplicated_test_size": 2205,
+      "percent_removed": 0.2262443438914019,
+      "build_time_seconds": 0.3751663339789957,
+      "deduplication_time_seconds": 0.09236041596159339,
+      "time_seconds": 0.46752674994058907
+    },
+    "lexical": {
+      "deduplicated_test_size": 2208,
+      "percent_removed": 0.09049773755656076,
+      "build_time_seconds": 0.3345478749834001,
+      "deduplication_time_seconds": 0.12349537503905594,
+      "time_seconds": 0.45804325002245605
+    }
   },
   {
     "dataset": "20_newgroups",
     "train_size": 11314,
     "test_size": 7532,
-    "deduplicated_test_size": 7098,
-    "percent_removed": 5.762081784386619,
-    "build_time_seconds": 0.610724583035335,
-    "deduplication_time_seconds": 1.6346445409581065,
-    "time_seconds": 2.2453691239934415
+    "semantic": {
+      "deduplicated_test_size": 7099,
+      "percent_removed": 5.7488050982474785,
+      "build_time_seconds": 0.5329254580428824,
+      "deduplication_time_seconds": 1.0790565829956904,
+      "time_seconds": 1.6119820410385728
+    },
+    "lexical": {
+      "deduplicated_test_size": 7265,
+      "percent_removed": 3.544875199150288,
+      "build_time_seconds": 1.6076408330118284,
+      "deduplication_time_seconds": 0.8742036250187084,
+      "time_seconds": 2.4818444580305368
+    }
   },
   {
     "dataset": "hatespeech_offensive",
     "train_size": 22783,
     "test_size": 2000,
-    "deduplicated_test_size": 1925,
-    "percent_removed": 3.749999999999998,
-    "build_time_seconds": 0.6471997499465942,
-    "deduplication_time_seconds": 0.12372829194646329,
-    "time_seconds": 0.7709280418930575
+    "semantic": {
+      "deduplicated_test_size": 1926,
+      "percent_removed": 3.7000000000000033,
+      "build_time_seconds": 0.6988461249275133,
+      "deduplication_time_seconds": 0.10372200002893806,
+      "time_seconds": 0.8025681249564514
+    },
+    "lexical": {
+      "deduplicated_test_size": 1985,
+      "percent_removed": 0.7499999999999951,
+      "build_time_seconds": 1.154089874937199,
+      "deduplication_time_seconds": 0.12010800000280142,
+      "time_seconds": 1.2741978749400005
+    }
   },
   {
     "dataset": "ade",
     "train_size": 17637,
     "test_size": 5879,
-    "deduplicated_test_size": 4952,
-    "percent_removed": 15.76798775301922,
-    "build_time_seconds": 0.5221591669833288,
-    "deduplication_time_seconds": 0.28758599993307143,
-    "time_seconds": 0.8097451669164002
+    "semantic": {
+      "deduplicated_test_size": 4952,
+      "percent_removed": 15.76798775301922,
+      "build_time_seconds": 0.5206643749261275,
+      "deduplication_time_seconds": 0.23251587501727045,
+      "time_seconds": 0.7531802499433979
+    },
+    "lexical": {
+      "deduplicated_test_size": 5041,
+      "percent_removed": 14.254124851165162,
+      "build_time_seconds": 0.7336840420030057,
+      "deduplication_time_seconds": 0.22658054099883884,
+      "time_seconds": 0.9602645830018446
+    }
   },
   {
     "dataset": "imdb",
     "train_size": 25000,
     "test_size": 25000,
-    "deduplicated_test_size": 24795,
-    "percent_removed": 0.8199999999999985,
-    "build_time_seconds": 1.460668999934569,
-    "deduplication_time_seconds": 1.3489695829339325,
-    "time_seconds": 2.8096385828685015
+    "semantic": {
+      "deduplicated_test_size": 24796,
+      "percent_removed": 0.8159999999999945,
+      "build_time_seconds": 1.3054587920196354,
+      "deduplication_time_seconds": 1.2315894169732928,
+      "time_seconds": 2.5370482089929283
+    },
+    "lexical": {
+      "deduplicated_test_size": 24875,
+      "percent_removed": 0.5000000000000004,
+      "build_time_seconds": 3.860157791990787,
+      "deduplication_time_seconds": 3.5671198340132833,
+      "time_seconds": 7.42727762600407
+    }
   },
   {
     "dataset": "massive_scenario",
     "train_size": 11514,
     "test_size": 2974,
-    "deduplicated_test_size": 2190,
-    "percent_removed": 26.36180228648285,
-    "build_time_seconds": 0.35503324994351715,
-    "deduplication_time_seconds": 0.10878237499855459,
-    "time_seconds": 0.46381562494207174
+    "semantic": {
+      "deduplicated_test_size": 2187,
+      "percent_removed": 26.46267652992602,
+      "build_time_seconds": 0.34730674989987165,
+      "deduplication_time_seconds": 0.08333599998150021,
+      "time_seconds": 0.43064274988137186
+    },
+    "lexical": {
+      "deduplicated_test_size": 2813,
+      "percent_removed": 5.413584398117011,
+      "build_time_seconds": 0.39994358306284994,
+      "deduplication_time_seconds": 0.12020041700452566,
+      "time_seconds": 0.5201440000673756
+    }
   },
   {
     "dataset": "student",
     "train_size": 117519,
     "test_size": 5000,
-    "deduplicated_test_size": 2393,
-    "percent_removed": 52.14,
-    "build_time_seconds": 2.9044899590080604,
-    "deduplication_time_seconds": 0.8721794589655474,
-    "time_seconds": 3.776669417973608
+    "semantic": {
+      "deduplicated_test_size": 2396,
+      "percent_removed": 52.07999999999999,
+      "build_time_seconds": 3.274749082978815,
+      "deduplication_time_seconds": 0.5564207909628749,
+      "time_seconds": 3.8311698739416897
+    },
+    "lexical": {
+      "deduplicated_test_size": 4843,
+      "percent_removed": 3.1399999999999983,
+      "build_time_seconds": 7.557993124937639,
+      "deduplication_time_seconds": 0.43159149994608015,
+      "time_seconds": 7.989584624883719
+    }
   },
   {
     "dataset": "squad_v2",
     "train_size": 130319,
     "test_size": 11873,
-    "deduplicated_test_size": 11863,
-    "percent_removed": 0.08422471153036737,
-    "build_time_seconds": 6.078755749971606,
-    "deduplication_time_seconds": 1.0497459589969367,
-    "time_seconds": 7.1285017089685425
+    "semantic": {
+      "deduplicated_test_size": 11863,
+      "percent_removed": 0.08422471153036737,
+      "build_time_seconds": 6.4523135419003665,
+      "deduplication_time_seconds": 1.2272483750712126,
+      "time_seconds": 7.679561916971579
+    },
+    "lexical": {
+      "deduplicated_test_size": 11873,
+      "percent_removed": 0.0,
+      "build_time_seconds": 14.550828707986511,
+      "deduplication_time_seconds": 1.963560833944939,
+      "time_seconds": 16.51438954193145
+    }
   },
   {
     "dataset": "wikitext",
     "train_size": 1801350,
     "test_size": 4358,
-    "deduplicated_test_size": 2139,
-    "percent_removed": 50.91785222579165,
-    "build_time_seconds": 39.38258587510791,
-    "deduplication_time_seconds": 0.9325925830053166,
-    "time_seconds": 40.31517845811322
+    "semantic": {
+      "deduplicated_test_size": 2134,
+      "percent_removed": 51.032583754015604,
+      "build_time_seconds": 53.56089891702868,
+      "deduplication_time_seconds": 1.4566561250248924,
+      "time_seconds": 55.01755504205357
+    },
+    "lexical": {
+      "deduplicated_test_size": 2335,
+      "percent_removed": 46.42037631941257,
+      "build_time_seconds": 138.15894137497526,
+      "deduplication_time_seconds": 1.5993817079579458,
+      "time_seconds": 139.7583230829332
+    }
   }
 ]
