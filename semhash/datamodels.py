@@ -21,8 +21,8 @@ class DuplicateRecord(Generic[Record]):
     Attributes
     ----------
         record: The original record being deduplicated.
-        exact: Whether the record matches its canonical exactly on the deduplication columns.
-        duplicates: The canonical record and its similarity score, stored as a one-element list.
+        exact: Whether the record was identified as an exact match.
+        duplicates: The canonical record and its similarity score.
 
     """
 
@@ -92,8 +92,6 @@ class DeduplicationResult(Generic[Record]):
         selected_vectors = np.empty(vectors.shape, dtype=np.float32)
         selected_indices: list[int] = []
         canonical_indices: dict[int, int] = {}
-        # Canonicals proposed by earlier neighbors, so a match missed by one query is still found through the other.
-        proposals: defaultdict[int, set[int]] = defaultdict(set)
 
         def closest(i: int, candidates: list[int], candidate_vectors: np.ndarray) -> tuple[int, float] | None:
             if not candidates:
@@ -104,10 +102,8 @@ class DeduplicationResult(Generic[Record]):
 
         for i, group in enumerate(groups):
             matches = [j for j, score in results[i] if score >= threshold]
-            # Neighbors propose their canonical, whose similarity is checked directly to avoid transitive matches.
-            candidates = list(
-                proposals.pop(i, set()).union(canonical_indices[j] for j in matches if j in canonical_indices)
-            )
+            # Check the canonicals of matching neighbors directly, to avoid transitive matches.
+            candidates = list({canonical_indices[j] for j in matches if j in canonical_indices})
             best_match = closest(i, candidates, vectors[candidates] / norms[candidates, None])
             if best_match is None and len(matches) >= MAX_NEIGHBORS:
                 # The neighbors may be truncated, so compare against every selected record directly.
@@ -123,9 +119,6 @@ class DeduplicationResult(Generic[Record]):
                 filtered_records = group
             canonical_indices[i] = canonical_index
             canonical_record = groups[canonical_index][0]
-            for j in matches:
-                if j > i:
-                    proposals[j].add(canonical_index)
             result.filtered.extend(
                 DuplicateRecord(record=record, exact=best_match is None, duplicates=[(canonical_record, score)])
                 for record in filtered_records
@@ -164,7 +157,7 @@ class DeduplicationResult(Generic[Record]):
             raise ValueError("Threshold is smaller than the given value.")
         # Invalidate cached property before modifying data
         self.__dict__.pop("selected_with_duplicates", None)
-        if (state := getattr(self, "_self_deduplication", None)) is not None:
+        if (state := self._self_deduplication) is not None:
             # Replay selection over cached group matches; filtered records must not keep each other filtered.
             groups, results, vectors = state
             result = self._from_groups(groups, results, vectors, threshold, self.columns)
