@@ -14,6 +14,7 @@ from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResul
 from semhash.index import Index
 from semhash.records import (
     add_scores_to_records,
+    dict_to_string,
     group_records_by_key,
     map_deduplication_result_to_strings,
     prepare_records,
@@ -25,6 +26,7 @@ from semhash.utils import (
     coerce_value,
     compute_candidate_limit,
     featurize,
+    normalize,
     to_frozendict,
 )
 
@@ -178,21 +180,23 @@ class SemHash(Generic[Record]):
             duplicate_records.append(duplicate_record)
 
         # Only embed and query the records that are left after removing exact duplicates
-        results = []
+        deduplicated_records = []
         if dict_records:
             embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
             results = self.index.query_threshold(embeddings, threshold=threshold)
-
-        deduplicated_records = []
-        for record, similar_items in zip(dict_records, results):
-            if not similar_items:
-                # No duplicates found, keep this record
-                deduplicated_records.append(record)
-            else:
+            for record, embedding, neighbors in zip(dict_records, embeddings, results):
+                # Rescore the neighbors with exact cosine similarity, like self_deduplicate does.
+                indices = [index for index, _ in neighbors]
+                scores = normalize(self.index.vectors[indices]) @ normalize(embedding)
+                if not indices or scores.max() < threshold:
+                    # No duplicates found, keep this record
+                    deduplicated_records.append(record)
+                    continue
+                best = int(np.argmax(scores))
                 duplicate_records.append(
                     DuplicateRecord(
                         record=record,
-                        duplicates=[(item, score) for item, score in similar_items],
+                        duplicates=[(self.index.items[indices[best]][0], float(scores[best]))],
                         exact=False,
                     )
                 )
@@ -217,54 +221,14 @@ class SemHash(Generic[Record]):
         :param threshold: Similarity threshold for deduplication.
         :return: A deduplicated list of records.
         """
-        # Query the fitted index
-        results = self.index.query_threshold(self.index.vectors, threshold=threshold)
-        column_set = set(self.columns)
-
-        duplicate_records = []
-
-        deduplicated_records = []
-        seen_items: set[frozendict[str, str]] = set()
-        for item, similar_items in zip(self.index.items, results):
-            # Items is a list of items which are exact duplicates of each other.
-            # The first record is kept, and every other copy is an exact duplicate of it. Each copy only lists
-            # the kept record, since listing every other copy grows quadratically with the size of the group.
-            record, *duplicates = item
-            for curr_record in duplicates:
-                duplicate_records.append(DuplicateRecord(record=curr_record, duplicates=[(record, 1.0)], exact=True))
-
-            # If we don't see any similar_items, we know the record is not a duplicate.
-            # In rare cases, the item itself might not be returned by the index.
-            if not similar_items:  # pragma: no cover
-                deduplicated_records.append(record)
-                continue
-            items, _ = zip(*similar_items)
-            frozen_items = [to_frozendict(item, column_set) for item in items]
-            # similar_items includes 'record' itself
-            # If we've seen any of these items before, this is a duplicate cluster.
-            if any(item in seen_items for item in frozen_items):
-                duplicate_records.append(
-                    DuplicateRecord(
-                        record=record,
-                        duplicates=[(item, score) for item, score in similar_items if item != record],
-                        exact=False,
-                    )
-                )
-                continue
-            # This is the first time we see this cluster of similar items
-            deduplicated_records.append(record)
-            # Mark all items in this cluster as seen
-            seen_items.update(frozen_items)
-
-        result = DeduplicationResult(
-            selected=deduplicated_records, filtered=duplicate_records, threshold=threshold, columns=self.columns
-        )
-
+        neighbors = self.index.query_threshold(self.index.vectors, threshold=threshold)
+        groups: list[list[Any]] = self.index.items
         if self._was_string:
-            # Convert records back to strings if the records were originally strings
-            return map_deduplication_result_to_strings(result, columns=self.columns)
-
-        return result
+            # Convert before selection, so the result holds strings when rethreshold reruns it.
+            groups = [[dict_to_string(record, self.columns) for record in group] for group in groups]
+        return DeduplicationResult._from_groups(
+            groups=groups, neighbors=neighbors, vectors=self.index.vectors, threshold=threshold, columns=self.columns
+        )
 
     def _validate_if_strings(self, records: Sequence[dict[str, Any] | str]) -> list[dict[str, Any]]:
         """
