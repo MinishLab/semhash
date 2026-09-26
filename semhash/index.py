@@ -7,8 +7,9 @@ from vicinity import Backend
 from vicinity.backends import AbstractBackend, get_backend_class
 from vicinity.datatypes import SingleQueryResult
 
+from semhash.utils import MAX_NEIGHBORS, Neighbors
+
 DictItem = list[dict[str, str]]
-MAX_NEIGHBORS = 100
 
 
 class Index:
@@ -46,7 +47,7 @@ class Index:
 
         return cls(vectors, items, backend)
 
-    def query_threshold(self, vectors: np.ndarray, threshold: float) -> list[list[tuple[int, float]]]:
+    def query_threshold(self, vectors: np.ndarray, threshold: float) -> list[Neighbors]:
         """
         Query the index with a threshold.
 

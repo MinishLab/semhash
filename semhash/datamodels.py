@@ -9,8 +9,7 @@ from typing import Generic
 import numpy as np
 from frozendict import frozendict
 
-from semhash.index import MAX_NEIGHBORS
-from semhash.utils import DuplicateList, Record, to_frozendict
+from semhash.utils import DuplicateList, Neighbors, Record, select_canonicals, to_frozendict
 
 
 @dataclass
@@ -22,7 +21,7 @@ class DuplicateRecord(Generic[Record]):
     ----------
         record: The original record being deduplicated.
         exact: Whether the record was identified as an exact match.
-        duplicates: The canonical record and its similarity score.
+        duplicates: The record it duplicates and their similarity score.
 
     """
 
@@ -70,60 +69,34 @@ class DeduplicationResult(Generic[Record]):
     threshold: float = field(default=0.9)
     columns: Sequence[str] | None = field(default=None)
 
-    def __post_init__(self) -> None:
-        """Initialize the cache used for rethresholding."""
-        self._self_deduplication: tuple[list[list[Record]], list[list[tuple[int, float]]], np.ndarray] | None = None
+    # Self-deduplication inputs, kept so rethreshold can replay the selection.
+    _replay_state: tuple[list[list[Record]], list[Neighbors], np.ndarray] | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
 
     @classmethod
     def _from_groups(
         cls,
         groups: list[list[Record]],
-        results: list[list[tuple[int, float]]],
+        neighbors: list[Neighbors],
         vectors: np.ndarray,
         threshold: float,
         columns: Sequence[str] | None,
     ) -> DeduplicationResult[Record]:
-        """Assign each record to a directly matching kept canonical, preserving input group order."""
+        """Build a self-deduplication result where every filtered record points to a directly matching selected record."""
         result = cls(threshold=threshold, columns=columns)
-        norms = np.linalg.norm(vectors, axis=1)
-        # Zero vectors (e.g. empty text) are similar to nothing, instead of producing NaN scores.
-        norms[norms == 0] = 1.0
-        # Normalized vectors of selected records, in selection order, for comparing against all of them at once.
-        selected_vectors = np.empty(vectors.shape, dtype=np.float32)
-        selected_indices: list[int] = []
-        canonical_indices: dict[int, int] = {}
-
-        def closest(i: int, candidates: list[int], candidate_vectors: np.ndarray) -> tuple[int, float] | None:
-            if not candidates:
-                return None
-            scores = candidate_vectors @ (vectors[i] / norms[i])
-            best = int(np.argmax(scores))
-            return (candidates[best], float(scores[best])) if scores[best] >= threshold else None
-
-        for i, group in enumerate(groups):
-            matches = [j for j, score in results[i] if score >= threshold]
-            # Check the canonicals of matching neighbors directly, to avoid transitive matches.
-            candidates = list({canonical_indices[j] for j in matches if j in canonical_indices})
-            best_match = closest(i, candidates, vectors[candidates] / norms[candidates, None])
-            if best_match is None and len(matches) >= MAX_NEIGHBORS:
-                # The neighbors may be truncated, so compare against every selected record directly.
-                best_match = closest(i, selected_indices, selected_vectors[: len(selected_indices)])
-            if best_match is None:
-                canonical_index, score = i, 1.0
-                selected_vectors[len(selected_indices)] = vectors[i] / norms[i]
-                selected_indices.append(i)
+        canonicals = select_canonicals(vectors=vectors, neighbors=neighbors, threshold=threshold)
+        for i, (group, (canonical, score)) in enumerate(zip(groups, canonicals)):
+            is_selected = canonical == i
+            if is_selected:
                 result.selected.append(group[0])
-                filtered_records = group[1:]
-            else:
-                canonical_index, score = best_match
-                filtered_records = group
-            canonical_indices[i] = canonical_index
-            canonical_record = groups[canonical_index][0]
+            # The rest of a selected group are exact copies of its first record.
+            filtered_records = group[1:] if is_selected else group
             result.filtered.extend(
-                DuplicateRecord(record=record, exact=best_match is None, duplicates=[(canonical_record, score)])
+                DuplicateRecord(record=record, exact=is_selected, duplicates=[(groups[canonical][0], score)])
                 for record in filtered_records
             )
-        result._self_deduplication = (groups, results, vectors)
+        result._replay_state = (groups, neighbors, vectors)
         return result
 
     @property
@@ -157,10 +130,12 @@ class DeduplicationResult(Generic[Record]):
             raise ValueError("Threshold is smaller than the given value.")
         # Invalidate cached property before modifying data
         self.__dict__.pop("selected_with_duplicates", None)
-        if (state := self._self_deduplication) is not None:
-            # Replay selection over cached group matches; filtered records must not keep each other filtered.
-            groups, results, vectors = state
-            result = self._from_groups(groups, results, vectors, threshold, self.columns)
+        if (state := self._replay_state) is not None:
+            # Replay the selection, since a record that is no longer filtered can become the canonical of later records.
+            groups, neighbors, vectors = state
+            result = self._from_groups(
+                groups=groups, neighbors=neighbors, vectors=vectors, threshold=threshold, columns=self.columns
+            )
             self.selected, self.filtered = result.selected, result.filtered
         else:
             filtered = []

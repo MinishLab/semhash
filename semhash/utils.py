@@ -8,6 +8,9 @@ from frozendict import frozendict
 # Type definitions
 Record = TypeVar("Record", str, dict[str, Any])
 DuplicateList: TypeAlias = list[tuple[Record, float]]
+Neighbors: TypeAlias = list[tuple[int, float]]
+
+MAX_NEIGHBORS = 100
 
 
 class Encoder(Protocol):
@@ -147,3 +150,47 @@ def featurize(
         embeddings_per_col.append(np.asarray(col_emb))
 
     return np.concatenate(embeddings_per_col, axis=1)
+
+
+def normalize(vectors: np.ndarray) -> np.ndarray:
+    """Scale vectors to unit length, leaving zero vectors (e.g. empty text) at zero so they are similar to nothing."""
+    norms = np.linalg.norm(vectors, axis=-1, keepdims=True)
+    return vectors / np.where(norms == 0, 1.0, norms)
+
+
+def select_canonicals(vectors: np.ndarray, neighbors: list[Neighbors], threshold: float) -> list[tuple[int, float]]:
+    """
+    Greedily select groups in input order, assigning every other group to a directly matching selected group.
+
+    :param vectors: The vector of each group.
+    :param neighbors: The approximate neighbors of each group, as group indices and similarity scores.
+    :param threshold: The similarity threshold.
+    :return: The canonical group index and exact similarity score for each group; selected groups point to themselves.
+    """
+    # Normalized vectors of selected groups, in selection order, for comparing against all of them at once.
+    selected_vectors = np.empty(vectors.shape, dtype=np.float32)
+    selected_indices: list[int] = []
+    canonicals: list[tuple[int, float]] = []
+
+    def _closest(i: int, candidates: list[int], candidate_vectors: np.ndarray) -> tuple[int, float] | None:
+        """Return the candidate most similar to group i, if it reaches the threshold."""
+        if not candidates:
+            return None
+        scores = candidate_vectors @ normalize(vectors[i])
+        best = int(np.argmax(scores))
+        return (candidates[best], float(scores[best])) if scores[best] >= threshold else None
+
+    for i, group_neighbors in enumerate(neighbors):
+        matches = [j for j, score in group_neighbors if score >= threshold]
+        # Check the canonicals of earlier matching neighbors directly, to avoid transitive matches.
+        candidates = list({canonicals[j][0] for j in matches if j < i})
+        best_match = _closest(i, candidates, normalize(vectors[candidates]))
+        if best_match is None and len(matches) >= MAX_NEIGHBORS:
+            # The neighbors may be truncated, so compare against every selected group directly.
+            best_match = _closest(i, selected_indices, selected_vectors[: len(selected_indices)])
+        if best_match is None:
+            selected_vectors[len(selected_indices)] = normalize(vectors[i])
+            selected_indices.append(i)
+            best_match = (i, 1.0)
+        canonicals.append(best_match)
+    return canonicals

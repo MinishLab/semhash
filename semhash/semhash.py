@@ -26,6 +26,7 @@ from semhash.utils import (
     coerce_value,
     compute_candidate_limit,
     featurize,
+    normalize,
     to_frozendict,
 )
 
@@ -179,24 +180,19 @@ class SemHash(Generic[Record]):
             duplicate_records.append(duplicate_record)
 
         # Only embed and query the records that are left after removing exact duplicates
-        results = []
-        embeddings = np.empty((0, self.index.vectors.shape[1]))
+        deduplicated_records = []
         if dict_records:
             embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
             results = self.index.query_threshold(embeddings, threshold=threshold)
-
-        deduplicated_records = []
-        for record, embedding, similar_items in zip(dict_records, embeddings, results):
-            # Rescore the neighbors with exact cosine similarity, like self_deduplicate does.
-            indices = [index for index, _ in similar_items]
-            candidates = self.index.vectors[indices]
-            norms = np.linalg.norm(candidates, axis=1) * np.linalg.norm(embedding)
-            scores = candidates @ embedding / np.where(norms == 0, 1.0, norms)
-            best = int(np.argmax(scores)) if indices else 0
-            if not indices or scores[best] < threshold:
-                # No duplicates found, keep this record
-                deduplicated_records.append(record)
-            else:
+            for record, embedding, neighbors in zip(dict_records, embeddings, results):
+                # Rescore the neighbors with exact cosine similarity, like self_deduplicate does.
+                indices = [index for index, _ in neighbors]
+                scores = normalize(self.index.vectors[indices]) @ normalize(embedding)
+                if not indices or scores.max() < threshold:
+                    # No duplicates found, keep this record
+                    deduplicated_records.append(record)
+                    continue
+                best = int(np.argmax(scores))
                 duplicate_records.append(
                     DuplicateRecord(
                         record=record,
@@ -225,11 +221,14 @@ class SemHash(Generic[Record]):
         :param threshold: Similarity threshold for deduplication.
         :return: A deduplicated list of records.
         """
-        results = self.index.query_threshold(self.index.vectors, threshold=threshold)
+        neighbors = self.index.query_threshold(self.index.vectors, threshold=threshold)
         groups: list[list[Any]] = self.index.items
         if self._was_string:
+            # Convert before selection, so the result holds strings when rethreshold replays it.
             groups = [[dict_to_string(record, self.columns) for record in group] for group in groups]
-        return DeduplicationResult._from_groups(groups, results, self.index.vectors, threshold, self.columns)
+        return DeduplicationResult._from_groups(
+            groups=groups, neighbors=neighbors, vectors=self.index.vectors, threshold=threshold, columns=self.columns
+        )
 
     def _validate_if_strings(self, records: Sequence[dict[str, Any] | str]) -> list[dict[str, Any]]:
         """
