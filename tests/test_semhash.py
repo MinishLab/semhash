@@ -135,15 +135,17 @@ def test_deduplicate_with_only_exact_duplicates(model: Encoder) -> None:
     ]
     semhash = SemHash.from_records(texts1, model=model)
     deduplicated = semhash.self_deduplicate()
+    deduplicated.rethreshold(0.99)
     assert deduplicated.selected == ["It's dangerous to go alone!"]
     # Each copy lists only the kept record, so the output grows linearly with the number of copies.
-    assert [d.duplicates for d in deduplicated.filtered] == [[("It's dangerous to go alone!", 1.0)]] * 2
+    assert [(d.exact, d.duplicates) for d in deduplicated.filtered] == [(True, [(texts1[0], 1.0)])] * 2
 
     deduplicated = semhash.deduplicate(texts2)
+    deduplicated.rethreshold(0.99)
     assert deduplicated.selected == []
     # Records are mapped back to strings, also when every record is an exact duplicate.
     assert [d.record for d in deduplicated.filtered] == texts2
-    assert [d.duplicates for d in deduplicated.filtered] == [[("It's dangerous to go alone!", 1.0)]] * 3
+    assert [(d.exact, d.duplicates) for d in deduplicated.filtered] == [(True, [(texts2[0], 1.0)])] * 3
 
 
 def test_rethreshold_keeps_exact_duplicate_group(model: Encoder) -> None:
@@ -416,7 +418,7 @@ def test_cross_dataset_reports_one_canonical(angular_model: Encoder, backend: st
 def test_self_deduplication_uses_direct_canonicals(
     angular_model: Encoder, texts: str, threshold: float, selected: list[int], targets: list[int]
 ) -> None:
-    """Every filtered record points to one selected record it directly matches, and the groups are complete."""
+    """Every filtered record points to one selected record it directly matches, also after rethresholding."""
     records = [{"id": i, "text": text, "metadata": [i]} for i, text in enumerate(texts)]
     semhash = SemHash.from_records(records, model=angular_model, columns=["text"], ann_backend="basic")
     result = semhash.self_deduplicate(threshold)
@@ -430,14 +432,6 @@ def test_self_deduplication_uses_direct_canonicals(
         assert canonical in result.selected
         assert score == pytest.approx(float(vectors[0] @ vectors[1]), abs=1e-6)
         assert duplicate.exact is (duplicate.record["text"] == canonical["text"])
-
-
-@pytest.mark.parametrize("texts,threshold", [("ABBC", 0.6), ("ABC", 0.7), ("ACB", 0.75)])
-def test_self_rethreshold_matches_fresh_run(angular_model: Encoder, texts: str, threshold: float) -> None:
-    """Rethresholding a self-deduplication gives the same result as deduplicating at the new threshold."""
-    records = [{"id": i, "text": text, "metadata": [i]} for i, text in enumerate(texts)]
-    semhash = SemHash.from_records(records, model=angular_model, columns=["text"], ann_backend="basic")
-    result = semhash.self_deduplicate(threshold)
     for cutoff in (0.95, 0.99):
         result.rethreshold(cutoff)
         assert result == semhash.self_deduplicate(cutoff)
@@ -453,20 +447,6 @@ def test_dense_cluster_beyond_neighbor_limit(angular_model: Encoder) -> None:
     assert result.selected == ["0", "1"]
     result.rethreshold(0.95)
     assert result.selected == ["0", "1"]
-
-
-def test_exact_copies_report_one_canonical(angular_model: Encoder) -> None:
-    """Every exact copy points to one selected record in self and cross results, so reporting stays linear."""
-    n = 1000
-    semhash = SemHash.from_records(["A"] * n, model=angular_model, ann_backend="basic")
-    result = semhash.self_deduplicate()
-    cross = semhash.deduplicate(["A"] * n)
-    result.rethreshold(0.99)
-    cross.rethreshold(0.99)
-    assert len(result.filtered) == n - 1
-    assert len(cross.filtered) == n
-    assert all(d.exact and d.duplicates == [("A", 1.0)] for d in result.filtered + cross.filtered)
-    assert len(result.selected_with_duplicates[0].duplicates) == n - 1
 
 
 def test_zero_vectors_are_not_near_duplicates(model: Encoder) -> None:

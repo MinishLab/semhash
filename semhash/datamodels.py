@@ -69,8 +69,8 @@ class DeduplicationResult(Generic[Record]):
     threshold: float = field(default=0.9)
     columns: Sequence[str] | None = field(default=None)
 
-    # Self-deduplication inputs, kept so rethreshold can replay the selection.
-    _replay_state: tuple[list[list[Record]], list[Neighbors], np.ndarray] | None = field(
+    # Inputs of self_deduplicate, so rethreshold can rerun the selection at a higher threshold.
+    _selection_inputs: tuple[list[list[Record]], list[Neighbors], np.ndarray] | None = field(
         default=None, init=False, repr=False, compare=False
     )
 
@@ -96,7 +96,7 @@ class DeduplicationResult(Generic[Record]):
                 DuplicateRecord(record=record, exact=is_selected, duplicates=[(groups[canonical][0], score)])
                 for record in filtered_records
             )
-        result._replay_state = (groups, neighbors, vectors)
+        result._selection_inputs = (groups, neighbors, vectors)
         return result
 
     @property
@@ -130,9 +130,9 @@ class DeduplicationResult(Generic[Record]):
             raise ValueError("Threshold is smaller than the given value.")
         # Invalidate cached property before modifying data
         self.__dict__.pop("selected_with_duplicates", None)
-        if (state := self._replay_state) is not None:
-            # Replay the selection, since a record that is no longer filtered can become the canonical of later records.
-            groups, neighbors, vectors = state
+        if (inputs := self._selection_inputs) is not None:
+            # Rerun the selection, since a record that is no longer filtered can become the canonical of later records.
+            groups, neighbors, vectors = inputs
             result = self._from_groups(
                 groups=groups, neighbors=neighbors, vectors=vectors, threshold=threshold, columns=self.columns
             )

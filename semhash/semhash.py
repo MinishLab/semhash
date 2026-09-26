@@ -224,7 +224,7 @@ class SemHash(Generic[Record]):
         neighbors = self.index.query_threshold(self.index.vectors, threshold=threshold)
         groups: list[list[Any]] = self.index.items
         if self._was_string:
-            # Convert before selection, so the result holds strings when rethreshold replays it.
+            # Convert before selection, so the result holds strings when rethreshold reruns it.
             groups = [[dict_to_string(record, self.columns) for record in group] for group in groups]
         return DeduplicationResult._from_groups(
             groups=groups, neighbors=neighbors, vectors=self.index.vectors, threshold=threshold, columns=self.columns
