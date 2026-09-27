@@ -157,17 +157,12 @@ def map_deduplication_result_to_strings(result: DeduplicationResult, columns: Se
     mapped = []
     for dup_rec in result.filtered:
         record_as_str = dict_to_string(dup_rec.record, columns)
-        duplicates_as_str = [(dict_to_string(r, columns), score) for r, score in dup_rec.duplicates]
         mapped.append(
             DuplicateRecord(
                 record=record_as_str,
-                duplicates=duplicates_as_str,
+                duplicate_of=dict_to_string(dup_rec.duplicate_of, columns),
+                score=dup_rec.score,
                 exact=dup_rec.exact,
             )
         )
     return DeduplicationResult(selected=deduplicated_str, filtered=mapped, threshold=result.threshold, columns=columns)
-
-
-def add_scores_to_records(records: list[dict[str, str]]) -> list[tuple[dict[str, str], float]]:
-    """Add scores to records and return a DeduplicationResult."""
-    return [(record, 1.0) for record in records]
