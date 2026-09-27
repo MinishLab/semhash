@@ -406,9 +406,12 @@ def test_records_are_returned_unchanged(model: Encoder) -> None:
     assert semhash.deduplicate(["x\ty"]).selected == ["x\ty"]
 
     records = [{"id": 1, "text": "hello"}, {"id": 2, "text": "world"}]
-    result = SemHash.from_records(records, columns=["id", "text"], model=model).self_deduplicate(threshold=0.99)
+    semhash = SemHash.from_records(records, columns=["id", "text"], model=model)
+    result = semhash.self_deduplicate(threshold=0.99)
     assert result.selected == records
     assert all(type(record["id"]) is int for record in result.selected)
+    outliers = semhash.self_filter_outliers(outlier_percentage=0.5)
+    assert sorted(outliers.selected + outliers.filtered, key=lambda r: r["id"]) == records
 
 
 @pytest.fixture
