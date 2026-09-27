@@ -138,14 +138,14 @@ def test_deduplicate_with_only_exact_duplicates(model: Encoder) -> None:
     deduplicated.rethreshold(0.99)
     assert deduplicated.selected == ["It's dangerous to go alone!"]
     # Each copy lists only the kept record, so the output grows linearly with the number of copies.
-    assert [(d.exact, d.duplicates) for d in deduplicated.filtered] == [(True, [(texts1[0], 1.0)])] * 2
+    assert [(d.exact, d.duplicate_of, d.score) for d in deduplicated.filtered] == [(True, texts1[0], 1.0)] * 2
 
     deduplicated = semhash.deduplicate(texts2)
     deduplicated.rethreshold(0.99)
     assert deduplicated.selected == []
     # Records are mapped back to strings, also when every record is an exact duplicate.
     assert [d.record for d in deduplicated.filtered] == texts2
-    assert [(d.exact, d.duplicates) for d in deduplicated.filtered] == [(True, [(texts2[0], 1.0)])] * 3
+    assert [(d.exact, d.duplicate_of, d.score) for d in deduplicated.filtered] == [(True, texts2[0], 1.0)] * 3
 
 
 def test_rethreshold_keeps_exact_duplicate_group(model: Encoder) -> None:
@@ -405,8 +405,7 @@ def test_cross_dataset_reports_one_canonical(angular_model: Encoder, backend: st
     query = {"id": 3, "text": "C"}
     result = semhash.deduplicate([query], threshold=0.6)
     assert result.selected == []
-    assert len(result.filtered[0].duplicates) == 1
-    assert result.filtered[0].duplicates[0][0] == records[1]
+    assert result.filtered[0].duplicate_of == records[1]
     result.rethreshold(0.995)
     assert result.selected == [query]
 
@@ -423,14 +422,14 @@ def test_self_deduplication_uses_direct_canonicals(
     semhash = SemHash.from_records(records, model=angular_model, columns=["text"], ann_backend="basic")
     result = semhash.self_deduplicate(threshold)
     assert [r["id"] for r in result.selected] == selected
-    assert [d.duplicates[0][0]["id"] for d in result.filtered] == targets
+    assert [d.duplicate_of["id"] for d in result.filtered] == targets
     reconstructed = [r for g in result.selected_with_duplicates for r in [g.record] + [d for d, _ in g.duplicates]]
     assert sorted(reconstructed, key=lambda r: r["id"]) == records
     for duplicate in result.filtered:
-        [(canonical, score)] = duplicate.duplicates
+        canonical = duplicate.duplicate_of
         vectors = angular_model.encode([duplicate.record["text"], canonical["text"]])
         assert canonical in result.selected
-        assert score == pytest.approx(float(vectors[0] @ vectors[1]), abs=1e-6)
+        assert duplicate.score == pytest.approx(float(vectors[0] @ vectors[1]), abs=1e-6)
         assert duplicate.exact is (duplicate.record["text"] == canonical["text"])
     for cutoff in (0.95, 0.99):
         result.rethreshold(cutoff)

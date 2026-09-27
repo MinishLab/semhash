@@ -13,7 +13,6 @@ from vicinity import Backend
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult
 from semhash.index import Index
 from semhash.records import (
-    add_scores_to_records,
     dict_to_string,
     group_records_by_key,
     map_deduplication_result_to_strings,
@@ -175,8 +174,7 @@ class SemHash(Generic[Record]):
         )
         duplicate_records = []
         for record, duplicates in exact_duplicates:
-            duplicated_with_score = add_scores_to_records(duplicates)
-            duplicate_record = DuplicateRecord(record=record, duplicates=duplicated_with_score, exact=True)
+            duplicate_record = DuplicateRecord(record=record, duplicate_of=duplicates[0], score=1.0, exact=True)
             duplicate_records.append(duplicate_record)
 
         # Only embed and query the records that are left after removing exact duplicates
@@ -196,7 +194,8 @@ class SemHash(Generic[Record]):
                 duplicate_records.append(
                     DuplicateRecord(
                         record=record,
-                        duplicates=[(self.index.items[indices[best]][0], float(scores[best]))],
+                        duplicate_of=self.index.items[indices[best]][0],
+                        score=float(scores[best]),
                         exact=False,
                     )
                 )

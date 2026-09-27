@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from collections import defaultdict
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass, field
@@ -15,23 +16,32 @@ from semhash.utils import DuplicateList, Neighbors, Record, select_canonicals, t
 @dataclass
 class DuplicateRecord(Generic[Record]):
     """
-    A single record with its duplicates.
+    A record that was filtered as a duplicate of another record.
 
     Attributes
     ----------
         record: The original record being deduplicated.
         exact: Whether the record was identified as an exact match.
-        duplicates: The record it duplicates and their similarity score.
+        duplicate_of: The record that this record is a duplicate of.
+        score: The similarity score between record and duplicate_of.
+        duplicates: Deprecated, use duplicate_of and score instead.
 
     """
 
     record: Record
     exact: bool
-    duplicates: DuplicateList = field(default_factory=list)
+    duplicate_of: Record
+    score: float
 
-    def _rethreshold(self, threshold: float) -> None:
-        """Rethreshold the duplicates."""
-        self.duplicates = [(d, score) for d, score in self.duplicates if score >= threshold]
+    @property
+    def duplicates(self) -> DuplicateList:
+        """Deprecated, use duplicate_of and score instead."""
+        warnings.warn(
+            "'duplicates' is deprecated and will be removed in a future release. Use 'duplicate_of' and 'score' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return [(self.duplicate_of, self.score)]
 
 
 @dataclass
@@ -93,7 +103,7 @@ class DeduplicationResult(Generic[Record]):
             # The rest of a selected group are exact copies of its first record.
             filtered_records = group[1:] if is_selected else group
             result.filtered.extend(
-                DuplicateRecord(record=record, exact=is_selected, duplicates=[(groups[canonical][0], score)])
+                DuplicateRecord(record=record, exact=is_selected, duplicate_of=groups[canonical][0], score=score)
                 for record in filtered_records
             )
         result._selection_inputs = (groups, neighbors, vectors)
@@ -120,7 +130,7 @@ class DeduplicationResult(Generic[Record]):
         :param n: The number of least similar pairs to return.
         :return: A list of tuples consisting of (original_record, duplicate_record, score).
         """
-        all_pairs = [(dup.record, d, score) for dup in self.filtered for d, score in dup.duplicates]
+        all_pairs = [(dup.record, dup.duplicate_of, dup.score) for dup in self.filtered]
         sorted_pairs = sorted(all_pairs, key=lambda x: x[2])  # Sort by score
         return sorted_pairs[:n]
 
@@ -140,11 +150,10 @@ class DeduplicationResult(Generic[Record]):
         else:
             filtered = []
             for dup in self.filtered:
-                dup._rethreshold(threshold)
-                if not dup.duplicates:
-                    self.selected.append(dup.record)
-                else:
+                if dup.score >= threshold:
                     filtered.append(dup)
+                else:
+                    self.selected.append(dup.record)
             self.filtered = filtered
         self.threshold = threshold
 
@@ -167,8 +176,9 @@ class DeduplicationResult(Generic[Record]):
         # Build a mapping from original-record  to  [(duplicate, score), …]
         buckets: defaultdict[Hashable, DuplicateList] = defaultdict(list)
         for duplicate_record in self.filtered:
-            for original_record, score in duplicate_record.duplicates:
-                buckets[_to_hashable(original_record)].append((duplicate_record.record, float(score)))
+            buckets[_to_hashable(duplicate_record.duplicate_of)].append(
+                (duplicate_record.record, duplicate_record.score)
+            )
 
         result: list[SelectedWithDuplicates[Record]] = []
         for selected in self.selected:
