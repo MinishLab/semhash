@@ -7,7 +7,7 @@ from vicinity import Backend
 from vicinity.backends import AbstractBackend, get_backend_class
 from vicinity.datatypes import SingleQueryResult
 
-from semhash.utils import MAX_NEIGHBORS, Neighbors
+from semhash.utils import MAX_NEIGHBORS, NEIGHBORS_PER_QUERY, Neighbors
 
 DictItem = list[dict[str, str]]
 
@@ -53,12 +53,20 @@ class Index:
 
         :param vectors: The vectors to query.
         :param threshold: The similarity threshold.
-        :return: Group indices and cosine similarity scores for each query.
+        :return: Arrays of group indices and cosine similarity scores for each query.
         """
-        return [
-            [(int(index), 1 - distance) for index, distance in zip(*result)]
-            for result in self.backend.threshold(vectors, threshold=1 - threshold, max_k=MAX_NEIGHBORS)
+        neighbors = [
+            (indices, 1 - distances)
+            for indices, distances in self.backend.threshold(
+                vectors, threshold=1 - threshold, max_k=NEIGHBORS_PER_QUERY
+            )
         ]
+        # Query rows that hit the limit again with a larger one, so dense clusters rarely need a brute-force fallback.
+        if capped := [i for i, (indices, _) in enumerate(neighbors) if len(indices) >= NEIGHBORS_PER_QUERY]:
+            results = self.backend.threshold(vectors[capped], threshold=1 - threshold, max_k=MAX_NEIGHBORS)
+            for i, (indices, distances) in zip(capped, results):
+                neighbors[i] = (indices, 1 - distances)
+        return neighbors
 
     def query_top_k(self, vectors: np.ndarray, k: int, vectors_are_in_index: bool) -> list[SingleQueryResult]:
         """

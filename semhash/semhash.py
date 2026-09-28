@@ -182,11 +182,10 @@ class SemHash(Generic[Record]):
         if dict_records:
             embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
             results = self.index.query_threshold(embeddings, threshold=threshold)
-            for record, embedding, neighbors in zip(dict_records, embeddings, results):
+            for record, embedding, (indices, _) in zip(dict_records, embeddings, results):
                 # Rescore the neighbors with exact cosine similarity, like self_deduplicate does.
-                indices = [index for index, _ in neighbors]
                 scores = normalize(self.index.vectors[indices]) @ normalize(embedding)
-                if not indices or scores.max() < threshold:
+                if not len(indices) or scores.max() < threshold:
                     # No duplicates found, keep this record
                     deduplicated_records.append(record)
                     continue
