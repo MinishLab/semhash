@@ -23,7 +23,7 @@ classifiers = [
 
 dependencies = [
     "model2vec>=0.3.4",
-    "vicinity[usearch]>=0.4.3",
+    "vicinity[usearch]>=0.4.6",
     "frozendict",
     "pyversity",
 ]
@@ -106,3 +106,4 @@ version = {attr = "semhash.version.__version__"}
 
 [tool.uv]
 exclude-newer = "1 week"
+exclude-newer-package = { vicinity = false }
