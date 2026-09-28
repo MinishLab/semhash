@@ -333,7 +333,7 @@ class SemHash(Generic[Record]):
         """
         if outlier_percentage < 0.0 or outlier_percentage > 1.0:
             raise ValueError("outlier_percentage must be between 0 and 1")
-        return self._split_outliers(self._rank_by_average_similarity(records), outlier_percentage)
+        return self._split_into_outliers(self._rank_by_average_similarity(records), outlier_percentage)
 
     def self_filter_outliers(
         self,
@@ -359,7 +359,7 @@ class SemHash(Generic[Record]):
             for first, score in zip(ranking.selected, ranking.scores_selected)
             for record in groups[id(first)]
         ]
-        return self._split_outliers(
+        return self._split_into_outliers(
             FilterResult(
                 selected=[record for record, _ in ranked],
                 filtered=[],
@@ -368,7 +368,7 @@ class SemHash(Generic[Record]):
             outlier_percentage,
         )
 
-    def _split_outliers(self, ranking: FilterResult, outlier_percentage: float) -> FilterResult:
+    def _split_into_outliers(self, ranking: FilterResult, outlier_percentage: float) -> FilterResult:
         """
         Split a ranking into inliers and the bottom outlier_percentage of records as outliers.
 

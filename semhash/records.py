@@ -93,9 +93,9 @@ def validate_columns(records: Sequence[dict[str, Any]], columns: Sequence[str]) 
     """
     for record in records:
         for column in columns:
-            if column not in record:
-                raise ValueError(f"Missing column '{column}' in record {record}")
-            if record[column] is None:
+            if record.get(column) is None:
+                if column not in record:
+                    raise ValueError(f"Missing column '{column}' in record {record}")
                 raise ValueError(f"Column '{column}' has None value in record {record}")
 
 
@@ -143,6 +143,8 @@ def prepare_records(
 def dict_to_string(record: dict[str, str], columns: Sequence[str]) -> str:
     r"""
     Turn a record into a single string, joining the columns with '\t'.
+
+    Only used to return string records, which have a single column, so the separator never appears in the output.
 
     :param record: A record to unpack.
     :param columns: Columns to unpack.
