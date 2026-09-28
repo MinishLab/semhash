@@ -21,6 +21,7 @@ This directory contains the benchmarking code and results for SemHash. The bench
 ### Setup
 
 All text benchmarks were run with the following configuration:
+- **Device**: MacBook Pro (Apple M5, 48 GB RAM)
 - **CPU-only**: All benchmarks run on CPU (no GPU acceleration)
 - **ANN backend**: Default backend (USearch)
 - **Encoder**: Default encoder ([potion-base-8M](https://huggingface.co/minishlab/potion-base-8M))
@@ -35,23 +36,23 @@ This benchmark measures the performance of deduplicating within a single trainin
 
 | Dataset              |  Original Train Size |  Deduplicated Train Size |  % Removed |   Deduplication Time (s) |
 |----------------------|----------------------|--------------------------|------------|--------------------------|
-| bbc                  |                 1225 |                     1144 |       6.61 |                     0.57 |
-| senteval_cr          |                 3012 |                     2990 |       0.73 |                     0.14 |
-| tweet_sentiment_extraction |                27481 |                    26695 |       2.86 |                     1.77 |
-| emotion              |                16000 |                    15695 |       1.91 |                     0.77 |
-| amazon_counterfactual |                 5000 |                     4992 |       0.16 |                     0.33 |
-| ag_news              |               120000 |                   106921 |      10.90 |                     5.20 |
-| enron_spam           |                31716 |                    20540 |      35.24 |                     2.03 |
-| subj                 |                 8000 |                     7990 |       0.12 |                     0.63 |
-| sst5                 |                 8544 |                     8526 |       0.21 |                     0.58 |
-| 20_newgroups         |                11314 |                    10684 |       5.57 |                     0.73 |
-| hatespeech_offensive |                22783 |                    22090 |       3.04 |                     0.92 |
-| ade                  |                17637 |                    15718 |      10.88 |                     0.73 |
-| imdb                 |                25000 |                    24830 |       0.68 |                     1.76 |
-| massive_scenario     |                11514 |                     9366 |      18.66 |                     0.47 |
-| student              |               117519 |                    63856 |      45.66 |                     8.80 |
-| squad_v2             |               130319 |                   109698 |      15.82 |                     8.81 |
-| wikitext             |              1801350 |                   884645 |      50.89 |                    83.53 |
+| bbc                  |                 1225 |                     1148 |       6.29 |                     0.19 |
+| senteval_cr          |                 3012 |                     2992 |       0.66 |                     0.15 |
+| tweet_sentiment_extraction |                27481 |                    26775 |       2.57 |                     1.67 |
+| emotion              |                16000 |                    15739 |       1.63 |                     0.68 |
+| amazon_counterfactual |                 5000 |                     4992 |       0.16 |                     0.27 |
+| ag_news              |               120000 |                   107882 |      10.10 |                     5.75 |
+| enron_spam           |                31716 |                    21121 |      33.41 |                     1.63 |
+| subj                 |                 8000 |                     7990 |       0.12 |                     0.45 |
+| sst5                 |                 8544 |                     8526 |       0.21 |                     0.46 |
+| 20_newgroups         |                11314 |                    10717 |       5.28 |                     0.61 |
+| hatespeech_offensive |                22783 |                    22233 |       2.41 |                     0.96 |
+| ade                  |                17637 |                    15723 |      10.85 |                     0.74 |
+| imdb                 |                25000 |                    24847 |       0.61 |                     1.64 |
+| massive_scenario     |                11514 |                     9665 |      16.06 |                     0.45 |
+| student              |               117519 |                    69696 |      40.69 |                     8.28 |
+| squad_v2             |               130319 |                   110480 |      15.22 |                     9.66 |
+| wikitext             |              1801350 |                   900554 |      50.01 |                    74.31 |
 
 ### Train/Test Deduplication Benchmark
 
@@ -59,29 +60,29 @@ This benchmark measures the performance of deduplicating a test dataset against 
 
 | Dataset              |   Train Size |    Test Size |   Deduplicated Test Size |  % Removed |   Deduplication Time (s) |
 |----------------------|--------------|--------------|--------------------------|------------|--------------------------|
-| bbc                  |         1225 |         1000 |                      870 |      13.00 |                     0.71 |
-| senteval_cr          |         3012 |          753 |                      750 |       0.40 |                     0.13 |
-| tweet_sentiment_extraction |        27481 |         3534 |                     3412 |       3.45 |                     1.53 |
-| emotion              |        16000 |         2000 |                     1926 |       3.70 |                     0.65 |
-| amazon_counterfactual |         5000 |         5000 |                     4990 |       0.20 |                     0.51 |
-| ag_news              |       120000 |         7600 |                     6198 |      18.45 |                     3.74 |
-| enron_spam           |        31716 |         2000 |                     1060 |      47.00 |                     1.94 |
-| subj                 |         8000 |         2000 |                     1999 |       0.05 |                     0.62 |
-| sst5                 |         8544 |         2210 |                     2205 |       0.23 |                     0.59 |
-| 20_newgroups         |        11314 |         7532 |                     7098 |       5.76 |                     2.25 |
-| hatespeech_offensive |        22783 |         2000 |                     1925 |       3.75 |                     0.77 |
-| ade                  |        17637 |         5879 |                     4952 |      15.77 |                     0.81 |
-| imdb                 |        25000 |        25000 |                    24795 |       0.82 |                     2.81 |
-| massive_scenario     |        11514 |         2974 |                     2190 |      26.36 |                     0.46 |
-| student              |       117519 |         5000 |                     2393 |      52.14 |                     3.78 |
-| squad_v2             |       130319 |        11873 |                    11863 |       0.08 |                     7.13 |
-| wikitext             |      1801350 |         4358 |                     2139 |      50.92 |                    40.32 |
+| bbc                  |         1225 |         1000 |                      874 |      12.60 |                     0.29 |
+| senteval_cr          |         3012 |          753 |                      750 |       0.40 |                     0.15 |
+| tweet_sentiment_extraction |        27481 |         3534 |                     3411 |       3.48 |                     1.48 |
+| emotion              |        16000 |         2000 |                     1926 |       3.70 |                     0.58 |
+| amazon_counterfactual |         5000 |         5000 |                     4990 |       0.20 |                     0.44 |
+| ag_news              |       120000 |         7600 |                     6201 |      18.41 |                     3.95 |
+| enron_spam           |        31716 |         2000 |                     1064 |      46.80 |                     1.56 |
+| subj                 |         8000 |         2000 |                     1999 |       0.05 |                     0.44 |
+| sst5                 |         8544 |         2210 |                     2205 |       0.23 |                     0.45 |
+| 20_newgroups         |        11314 |         7532 |                     7098 |       5.76 |                     1.51 |
+| hatespeech_offensive |        22783 |         2000 |                     1925 |       3.75 |                     0.78 |
+| ade                  |        17637 |         5879 |                     4953 |      15.75 |                     0.79 |
+| imdb                 |        25000 |        25000 |                    24797 |       0.81 |                     2.55 |
+| massive_scenario     |        11514 |         2974 |                     2188 |      26.43 |                     0.47 |
+| student              |       117519 |         5000 |                     2400 |      52.00 |                     4.36 |
+| squad_v2             |       130319 |        11873 |                    11863 |       0.08 |                     7.07 |
+| wikitext             |      1801350 |         4358 |                     2134 |      51.03 |                    46.29 |
 
 ### Key Findings
 
 SemHash is extremely fast and scales to large datasets with millions of records. Some notable findings include:
 
-- **Speed**: Deduplication is fast even for large datasets (e.g., 1.8M records in ~83 seconds)
+- **Speed**: Deduplication is fast even for large datasets (e.g., 1.8M records in ~74 seconds)
 - **Train/Test Leakage**: Several datasets show significant train/test overlap:
   - `enron_spam`: 47% of test data overlaps with training data
   - `student`: 52% of test data overlaps with training data
@@ -106,7 +107,7 @@ make benchmark-text
 ### Setup
 
 All image benchmarks were run with the following configuration:
-- **Device**: Apple Silicon GPU (MPS)
+- **Device**: MacBook Pro (Apple M5, 48 GB RAM), GPU via MPS
 - **ANN backend**: Default backend (USearch)
 - **Encoder**: MobileNetV3-Small ([mobilenetv3_small_100.lamb_in1k](https://huggingface.co/timm/mobilenetv3_small_100.lamb_in1k))
 - **Batch size**: 128 images per batch
@@ -120,8 +121,8 @@ This benchmark measures the performance of deduplicating within a single trainin
 
 | Dataset              |  Original Train Size |  Deduplicated Train Size |  % Removed |   Deduplication Time (s) |
 |----------------------|----------------------|--------------------------|------------|--------------------------|
-| cifar10              |                50000 |                    48274 |       3.45 |                    61.20 |
-| fashion_mnist        |                60000 |                    16714 |      72.14 |                    86.61 |
+| cifar10              |                50000 |                    48390 |       3.22 |                    38.05 |
+| fashion_mnist        |                60000 |                    23549 |      60.75 |                    42.70 |
 
 #### Train/Test Deduplication Benchmark
 
@@ -129,14 +130,14 @@ This benchmark measures the performance of deduplicating a test dataset against 
 
 | Dataset              |   Train Size |    Test Size |   Deduplicated Test Size |  % Removed |   Deduplication Time (s) |
 |----------------------|--------------|--------------|--------------------------|------------|--------------------------|
-| cifar10              |        50000 |        10000 |                     9397 |       6.03 |                    67.43 |
-| fashion_mnist        |        60000 |        10000 |                     2052 |      79.48 |                    72.14 |
+| cifar10              |        50000 |        10000 |                     9397 |       6.03 |                    43.35 |
+| fashion_mnist        |        60000 |        10000 |                     2056 |      79.44 |                    46.89 |
 
 ### Key Findings
 
-- **Fashion-MNIST high deduplication**: Fashion-MNIST shows very high duplication rates (72% train, 79% test) due to the simple nature of the dataset (10 clothing categories with similar items)
-- **CIFAR-10 moderate deduplication**: CIFAR-10 shows lower duplication (3.45% train, 6.03% test) as it contains more diverse natural images
-- **Speed**: Image deduplication is fast even for large datasets (60k images in ~87 seconds on MPS); note that the actual deduplication step is quick, with most time spent on encoding images
+- **Fashion-MNIST high deduplication**: Fashion-MNIST shows very high duplication rates (61% train, 79% test) due to the simple nature of the dataset (10 clothing categories with similar items)
+- **CIFAR-10 moderate deduplication**: CIFAR-10 shows lower duplication (3.22% train, 6.03% test) as it contains more diverse natural images
+- **Speed**: Image deduplication is fast even for large datasets (60k images in ~43 seconds on MPS); note that the actual deduplication step is quick, with most time spent on encoding images
 
 ### Running Image Benchmarks
 

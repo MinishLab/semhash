@@ -2,19 +2,19 @@
   {
     "dataset": "cifar10",
     "original_train_size": 50000,
-    "deduplicated_train_size": 48274,
-    "percent_removed": 3.4519999999999995,
-    "build_time_seconds": 56.00128899999254,
-    "deduplication_time_seconds": 5.201297917010379,
-    "time_seconds": 61.20258691700292
+    "deduplicated_train_size": 48390,
+    "percent_removed": 3.2200000000000006,
+    "build_time_seconds": 36.14036558299995,
+    "deduplication_time_seconds": 1.9100148340003216,
+    "time_seconds": 38.05038041700027
   },
   {
     "dataset": "fashion_mnist",
     "original_train_size": 60000,
-    "deduplicated_train_size": 16714,
-    "percent_removed": 72.14333333333333,
-    "build_time_seconds": 61.14413262500602,
-    "deduplication_time_seconds": 25.46288070900482,
-    "time_seconds": 86.60701333401084
+    "deduplicated_train_size": 23549,
+    "percent_removed": 60.75166666666667,
+    "build_time_seconds": 38.96308354100256,
+    "deduplication_time_seconds": 3.733158041999559,
+    "time_seconds": 42.69624158300212
   }
 ]

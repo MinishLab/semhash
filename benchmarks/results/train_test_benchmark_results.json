@@ -3,11 +3,11 @@
     "dataset": "bbc",
     "train_size": 1225,
     "test_size": 1000,
-    "deduplicated_test_size": 870,
-    "percent_removed": 13.0,
-    "build_time_seconds": 0.5598082079086453,
-    "deduplication_time_seconds": 0.1528247919632122,
-    "time_seconds": 0.7126329998718575
+    "deduplicated_test_size": 874,
+    "percent_removed": 12.6,
+    "build_time_seconds": 0.1762163750026957,
+    "deduplication_time_seconds": 0.10950220800077659,
+    "time_seconds": 0.2857185830034723
   },
   {
     "dataset": "senteval_cr",
@@ -15,19 +15,19 @@
     "test_size": 753,
     "deduplicated_test_size": 750,
     "percent_removed": 0.3984063745019917,
-    "build_time_seconds": 0.10847400000784546,
-    "deduplication_time_seconds": 0.019297500024549663,
-    "time_seconds": 0.12777150003239512
+    "build_time_seconds": 0.12137100000109058,
+    "deduplication_time_seconds": 0.027684791002684506,
+    "time_seconds": 0.14905579100377508
   },
   {
     "dataset": "tweet_sentiment_extraction",
     "train_size": 27481,
     "test_size": 3534,
-    "deduplicated_test_size": 3412,
-    "percent_removed": 3.452178834182229,
-    "build_time_seconds": 1.3568968329345807,
-    "deduplication_time_seconds": 0.17268049996346235,
-    "time_seconds": 1.529577332898043
+    "deduplicated_test_size": 3411,
+    "percent_removed": 3.4804753820034007,
+    "build_time_seconds": 1.3021473750013683,
+    "deduplication_time_seconds": 0.1789753750017553,
+    "time_seconds": 1.4811227500031237
   },
   {
     "dataset": "emotion",
@@ -35,9 +35,9 @@
     "test_size": 2000,
     "deduplicated_test_size": 1926,
     "percent_removed": 3.7000000000000033,
-    "build_time_seconds": 0.5511152499821037,
-    "deduplication_time_seconds": 0.10135454102419317,
-    "time_seconds": 0.6524697910062969
+    "build_time_seconds": 0.4828177079980378,
+    "deduplication_time_seconds": 0.09223724999901606,
+    "time_seconds": 0.5750549579970539
   },
   {
     "dataset": "amazon_counterfactual",
@@ -45,29 +45,29 @@
     "test_size": 5000,
     "deduplicated_test_size": 4990,
     "percent_removed": 0.20000000000000018,
-    "build_time_seconds": 0.2848535830853507,
-    "deduplication_time_seconds": 0.22846354101784527,
-    "time_seconds": 0.513317124103196
+    "build_time_seconds": 0.22153624999918975,
+    "deduplication_time_seconds": 0.21453241600102047,
+    "time_seconds": 0.4360686660002102
   },
   {
     "dataset": "ag_news",
     "train_size": 120000,
     "test_size": 7600,
-    "deduplicated_test_size": 6198,
-    "percent_removed": 18.447368421052634,
-    "build_time_seconds": 3.0319770000642166,
-    "deduplication_time_seconds": 0.7034984159981832,
-    "time_seconds": 3.7354754160623997
+    "deduplicated_test_size": 6201,
+    "percent_removed": 18.407894736842103,
+    "build_time_seconds": 3.275759290998394,
+    "deduplication_time_seconds": 0.6717791250011942,
+    "time_seconds": 3.9475384159995883
   },
   {
     "dataset": "enron_spam",
     "train_size": 31716,
     "test_size": 2000,
-    "deduplicated_test_size": 1060,
-    "percent_removed": 47.0,
-    "build_time_seconds": 1.3818323339801282,
-    "deduplication_time_seconds": 0.553584959008731,
-    "time_seconds": 1.9354172929888591
+    "deduplicated_test_size": 1064,
+    "percent_removed": 46.8,
+    "build_time_seconds": 1.1878026249978575,
+    "deduplication_time_seconds": 0.37047674999848823,
+    "time_seconds": 1.5582793749963457
   },
   {
     "dataset": "subj",
@@ -75,9 +75,9 @@
     "test_size": 2000,
     "deduplicated_test_size": 1999,
     "percent_removed": 0.04999999999999449,
-    "build_time_seconds": 0.5059439589967951,
-    "deduplication_time_seconds": 0.11624520795885473,
-    "time_seconds": 0.6221891669556499
+    "build_time_seconds": 0.34191370800181176,
+    "deduplication_time_seconds": 0.09621087499908754,
+    "time_seconds": 0.4381245830008993
   },
   {
     "dataset": "sst5",
@@ -85,9 +85,9 @@
     "test_size": 2210,
     "deduplicated_test_size": 2205,
     "percent_removed": 0.2262443438914019,
-    "build_time_seconds": 0.4805819580797106,
-    "deduplication_time_seconds": 0.11375170899555087,
-    "time_seconds": 0.5943336670752615
+    "build_time_seconds": 0.35040350000053877,
+    "deduplication_time_seconds": 0.09645383300085086,
+    "time_seconds": 0.44685733300138963
   },
   {
     "dataset": "20_newgroups",
@@ -95,9 +95,9 @@
     "test_size": 7532,
     "deduplicated_test_size": 7098,
     "percent_removed": 5.762081784386619,
-    "build_time_seconds": 0.610724583035335,
-    "deduplication_time_seconds": 1.6346445409581065,
-    "time_seconds": 2.2453691239934415
+    "build_time_seconds": 0.49274829199930537,
+    "deduplication_time_seconds": 1.0146297089995642,
+    "time_seconds": 1.5073780009988695
   },
   {
     "dataset": "hatespeech_offensive",
@@ -105,49 +105,49 @@
     "test_size": 2000,
     "deduplicated_test_size": 1925,
     "percent_removed": 3.749999999999998,
-    "build_time_seconds": 0.6471997499465942,
-    "deduplication_time_seconds": 0.12372829194646329,
-    "time_seconds": 0.7709280418930575
+    "build_time_seconds": 0.6664763750013663,
+    "deduplication_time_seconds": 0.11403075000271201,
+    "time_seconds": 0.7805071250040783
   },
   {
     "dataset": "ade",
     "train_size": 17637,
     "test_size": 5879,
-    "deduplicated_test_size": 4952,
-    "percent_removed": 15.76798775301922,
-    "build_time_seconds": 0.5221591669833288,
-    "deduplication_time_seconds": 0.28758599993307143,
-    "time_seconds": 0.8097451669164002
+    "deduplicated_test_size": 4953,
+    "percent_removed": 15.75097805749277,
+    "build_time_seconds": 0.5355710839976382,
+    "deduplication_time_seconds": 0.2526170000019192,
+    "time_seconds": 0.7881880839995574
   },
   {
     "dataset": "imdb",
     "train_size": 25000,
     "test_size": 25000,
-    "deduplicated_test_size": 24795,
-    "percent_removed": 0.8199999999999985,
-    "build_time_seconds": 1.460668999934569,
-    "deduplication_time_seconds": 1.3489695829339325,
-    "time_seconds": 2.8096385828685015
+    "deduplicated_test_size": 24797,
+    "percent_removed": 0.8120000000000016,
+    "build_time_seconds": 1.325603665998642,
+    "deduplication_time_seconds": 1.2251233749993844,
+    "time_seconds": 2.5507270409980265
   },
   {
     "dataset": "massive_scenario",
     "train_size": 11514,
     "test_size": 2974,
-    "deduplicated_test_size": 2190,
-    "percent_removed": 26.36180228648285,
-    "build_time_seconds": 0.35503324994351715,
-    "deduplication_time_seconds": 0.10878237499855459,
-    "time_seconds": 0.46381562494207174
+    "deduplicated_test_size": 2188,
+    "percent_removed": 26.429051782111635,
+    "build_time_seconds": 0.3495884580006532,
+    "deduplication_time_seconds": 0.11969712500285823,
+    "time_seconds": 0.4692855830035114
   },
   {
     "dataset": "student",
     "train_size": 117519,
     "test_size": 5000,
-    "deduplicated_test_size": 2393,
-    "percent_removed": 52.14,
-    "build_time_seconds": 2.9044899590080604,
-    "deduplication_time_seconds": 0.8721794589655474,
-    "time_seconds": 3.776669417973608
+    "deduplicated_test_size": 2400,
+    "percent_removed": 52.0,
+    "build_time_seconds": 3.4031454579999263,
+    "deduplication_time_seconds": 0.9607139999970968,
+    "time_seconds": 4.363859457997023
   },
   {
     "dataset": "squad_v2",
@@ -155,18 +155,18 @@
     "test_size": 11873,
     "deduplicated_test_size": 11863,
     "percent_removed": 0.08422471153036737,
-    "build_time_seconds": 6.078755749971606,
-    "deduplication_time_seconds": 1.0497459589969367,
-    "time_seconds": 7.1285017089685425
+    "build_time_seconds": 5.937046999999438,
+    "deduplication_time_seconds": 1.1297352090005006,
+    "time_seconds": 7.066782208999939
   },
   {
     "dataset": "wikitext",
     "train_size": 1801350,
     "test_size": 4358,
-    "deduplicated_test_size": 2139,
-    "percent_removed": 50.91785222579165,
-    "build_time_seconds": 39.38258587510791,
-    "deduplication_time_seconds": 0.9325925830053166,
-    "time_seconds": 40.31517845811322
+    "deduplicated_test_size": 2134,
+    "percent_removed": 51.032583754015604,
+    "build_time_seconds": 44.6954585420026,
+    "deduplication_time_seconds": 1.594421958001476,
+    "time_seconds": 46.289880500004074
   }
 ]
