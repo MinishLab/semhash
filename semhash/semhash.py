@@ -18,11 +18,11 @@ from semhash.records import (
     map_deduplication_result_to_strings,
     prepare_records,
     remove_exact_duplicates,
+    validate_columns,
 )
 from semhash.utils import (
     Encoder,
     Record,
-    coerce_value,
     compute_candidate_limit,
     featurize,
     normalize,
@@ -233,7 +233,7 @@ class SemHash(Generic[Record]):
         Validate if the records are strings.
 
         If the records are strings, they are converted to dictionaries with a single column.
-        If the records are dicts, primitives are stringified and complex types (images, etc.) are kept raw.
+        If the records are dicts, they are returned unchanged.
 
         :param records: The records to validate.
         :return: The records as a list of dictionaries.
@@ -257,18 +257,9 @@ class SemHash(Generic[Record]):
         if not all(isinstance(r, dict) for r in records):
             raise ValueError("Records must be all dictionaries.")
 
-        dict_records: Sequence[dict[str, Any]] = records  # type: ignore[assignment]
-        result: list[dict[str, Any]] = []
-        for record in dict_records:
-            # Start with a copy of the full record to preserve non-embedding fields
-            out = dict(record)
-            # Then coerce only the embedding columns
-            for col in self.columns:
-                if (val := record.get(col)) is None:
-                    raise ValueError(f"Column '{col}' has None value in record {record}")
-                out[col] = coerce_value(val)
-            result.append(out)
-        return result
+        dict_records: list[dict[str, Any]] = list(records)  # type: ignore[arg-type]
+        validate_columns(dict_records, self.columns)
+        return dict_records
 
     def find_representative(
         self,
@@ -296,7 +287,7 @@ class SemHash(Generic[Record]):
         ranking = self._rank_by_average_similarity(records)
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
-        return self._diversify(ranking, candidate_limit, selection_size, diversity, strategy)
+        return self._to_output(self._diversify(ranking, candidate_limit, selection_size, diversity, strategy))
 
     def self_find_representative(
         self,
@@ -322,7 +313,7 @@ class SemHash(Generic[Record]):
         ranking = self._self_rank_by_average_similarity()
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
-        return self._diversify(ranking, candidate_limit, selection_size, diversity, strategy)
+        return self._to_output(self._diversify(ranking, candidate_limit, selection_size, diversity, strategy))
 
     def filter_outliers(
         self,
@@ -342,28 +333,7 @@ class SemHash(Generic[Record]):
         """
         if outlier_percentage < 0.0 or outlier_percentage > 1.0:
             raise ValueError("outlier_percentage must be between 0 and 1")
-        ranking = self._rank_by_average_similarity(records)
-        outlier_count = ceil(len(ranking.selected) * outlier_percentage)
-        if outlier_count == 0:
-            # If the outlier count is 0, return no outliers
-            return FilterResult(
-                selected=ranking.selected,
-                filtered=[],
-                scores_selected=ranking.scores_selected,
-                scores_filtered=[],
-            )
-
-        outlier_records = ranking.selected[-outlier_count:]
-        outlier_scores = ranking.scores_selected[-outlier_count:]
-        inlier_records = ranking.selected[:-outlier_count]
-        inlier_scores = ranking.scores_selected[:-outlier_count]
-
-        return FilterResult(
-            selected=inlier_records,
-            filtered=outlier_records,
-            scores_selected=inlier_scores,
-            scores_filtered=outlier_scores,
-        )
+        return self._split_into_outliers(self._rank_by_average_similarity(records), outlier_percentage)
 
     def self_filter_outliers(
         self,
@@ -382,26 +352,49 @@ class SemHash(Generic[Record]):
         if outlier_percentage < 0.0 or outlier_percentage > 1.0:
             raise ValueError("outlier_percentage must be between 0 and 1")
         ranking = self._self_rank_by_average_similarity()
-        outlier_count = ceil(len(ranking.selected) * outlier_percentage)
-        if outlier_count == 0:
-            # If the outlier count is 0, return no outliers
-            return FilterResult(
-                selected=ranking.selected,
+        # Exact copies share the score of their group, so every fitted record is returned.
+        groups = {id(group[0]): group for group in self.index.items}
+        ranked = [
+            (record, score)
+            for first, score in zip(ranking.selected, ranking.scores_selected)
+            for record in groups[id(first)]
+        ]
+        return self._split_into_outliers(
+            FilterResult(
+                selected=[record for record, _ in ranked],
                 filtered=[],
-                scores_selected=ranking.scores_selected,
-                scores_filtered=[],
+                scores_selected=[score for _, score in ranked],
+            ),
+            outlier_percentage,
+        )
+
+    def _split_into_outliers(self, ranking: FilterResult, outlier_percentage: float) -> FilterResult:
+        """
+        Split a ranking into inliers and the bottom outlier_percentage of records as outliers.
+
+        :param ranking: Records sorted by descending score.
+        :param outlier_percentage: The percentage (between 0 and 1) of records to consider outliers.
+        :return: A FilterResult where 'selected' contains the inliers and 'filtered' contains the outliers.
+        """
+        inlier_count = len(ranking.selected) - ceil(len(ranking.selected) * outlier_percentage)
+        return self._to_output(
+            FilterResult(
+                selected=ranking.selected[:inlier_count],
+                filtered=ranking.selected[inlier_count:],
+                scores_selected=ranking.scores_selected[:inlier_count],
+                scores_filtered=ranking.scores_selected[inlier_count:],
             )
+        )
 
-        outlier_records = ranking.selected[-outlier_count:]
-        outlier_scores = ranking.scores_selected[-outlier_count:]
-        inlier_records = ranking.selected[:-outlier_count]
-        inlier_scores = ranking.scores_selected[:-outlier_count]
-
+    def _to_output(self, result: FilterResult) -> FilterResult:
+        """Convert the records in a FilterResult back to strings if the records were originally strings."""
+        if not self._was_string:
+            return result
         return FilterResult(
-            selected=inlier_records,
-            filtered=outlier_records,
-            scores_selected=inlier_scores,
-            scores_filtered=outlier_scores,
+            selected=[dict_to_string(record, self.columns) for record in result.selected],
+            filtered=[dict_to_string(record, self.columns) for record in result.filtered],
+            scores_selected=result.scores_selected,
+            scores_filtered=result.scores_filtered,
         )
 
     def _rank_by_average_similarity(

@@ -167,7 +167,7 @@ def test_self_find_representative(model: Encoder, train_texts: list[str]) -> Non
     # Test with explicit candidate_limit
     result = semhash.self_find_representative(candidate_limit=5, selection_size=3, diversity=0.5)
     assert len(result.selected) == 3, "Expected 3 representatives"
-    selected = {r["text"] for r in result.selected}
+    selected = set(result.selected)
     assert selected == {"blueberry", "pineapple", "grape"}
 
     # Test with auto candidate_limit (default)
@@ -182,7 +182,7 @@ def test_find_representative(model: Encoder, train_texts: list[str], test_texts:
     # Test with explicit candidate_limit
     result = semhash.find_representative(records=test_texts, candidate_limit=5, selection_size=3, diversity=0.5)
     assert len(result.selected) == 3, "Expected 3 representatives"
-    selected = {r["text"] for r in result.selected}
+    selected = set(result.selected)
     assert selected == {"grapefruit", "banana", "apple"}
 
     # Test with auto candidate_limit (default)
@@ -196,7 +196,7 @@ def test_filter_outliers(model: Encoder, train_texts: list[str], test_texts: lis
     result = semhash.filter_outliers(records=test_texts, outlier_percentage=0.2)
     assert len(result.filtered) == 2, "Expected 2 outliers"
     assert len(result.selected) == len(test_texts) - 2
-    filtered = {r["text"] for r in result.filtered}
+    filtered = set(result.filtered)
     assert filtered == {"motorcycle", "plane"}, "Expected outliers to be motorcycle and plane"
 
     # Test FilterResult ratio properties
@@ -224,7 +224,7 @@ def test_self_filter_outliers(model: Encoder, train_texts: list[str]) -> None:
     result = semhash.self_filter_outliers(outlier_percentage=0.1)
     assert len(result.filtered) == 2, "Expected 2 outliers"
     assert len(result.selected) == len(train_texts) - 2
-    filtered = {r["text"] for r in result.filtered}
+    filtered = set(result.filtered)
     assert filtered == {"car", "bicycle"}, "Expected outliers to be car and bicycle"
 
     # Test with outlier_percentage=0.0 (should return no outliers)
@@ -318,6 +318,8 @@ def test_from_records_edge_cases(model: Encoder) -> None:
     # Rejects None values in dict records
     with pytest.raises(ValueError, match="has None value"):
         SemHash.from_records([{"text": "apple"}, {"text": None}], columns=["text"], model=model)
+    with pytest.raises(ValueError, match="Missing column 'text'"):
+        SemHash.from_records([{"text": "apple"}, {"other": "b"}], columns=["text"], model=model)
 
 
 def test_preserve_non_embedding_fields(model: Encoder) -> None:
@@ -366,6 +368,8 @@ def test_deduplicate_edge_cases(model: Encoder) -> None:
     # Rejects None values
     with pytest.raises(ValueError, match="has None value"):
         semhash.deduplicate([{"text": "cherry"}, {"text": None}], threshold=0.95)
+    with pytest.raises(ValueError, match="Missing column 'text'"):
+        semhash.deduplicate([{"other": "cherry"}], threshold=0.95)
 
     # Rejects empty records
     with pytest.raises(ValueError, match="records must not be empty"):
@@ -383,6 +387,31 @@ def test_deduplicate_edge_cases(model: Encoder) -> None:
     # Type mismatch: mixed dicts
     with pytest.raises(ValueError, match="Records must be all dictionaries"):
         semhash_dict.deduplicate([{"col": "a"}, "b"], threshold=0.95)
+
+
+def test_self_filter_outliers_keeps_exact_copies(model: Encoder, train_texts: list[str]) -> None:
+    """Exact copies are ranked with their group, so every fitted record is returned."""
+    records = train_texts + ["car", "car"]
+    result = SemHash.from_records(records, model=model).self_filter_outliers(outlier_percentage=0.2)
+    assert sorted(result.selected + result.filtered) == sorted(records)
+    assert result.filtered.count("car") == 3
+
+
+def test_records_are_returned_unchanged(model: Encoder) -> None:
+    """Records come back exactly as passed in, including tabs and non-string column values."""
+    texts = ["a\tb", "a\tb", "c"]
+    semhash = SemHash.from_records(texts, model=model)
+    result = semhash.self_deduplicate()
+    assert sorted(result.selected + [d.record for d in result.filtered]) == sorted(texts)
+    assert semhash.deduplicate(["x\ty"]).selected == ["x\ty"]
+
+    records = [{"id": 1, "text": "hello"}, {"id": 2, "text": "world"}]
+    semhash = SemHash.from_records(records, columns=["id", "text"], model=model)
+    result = semhash.self_deduplicate(threshold=0.99)
+    assert result.selected == records
+    assert all(type(record["id"]) is int for record in result.selected)
+    outliers = semhash.self_filter_outliers(outlier_percentage=0.5)
+    assert sorted(outliers.selected + outliers.filtered, key=lambda r: r["id"]) == records
 
 
 @pytest.fixture
