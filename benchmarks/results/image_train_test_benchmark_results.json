@@ -5,18 +5,18 @@
     "test_size": 10000,
     "deduplicated_test_size": 9397,
     "percent_removed": 6.030000000000002,
-    "build_time_seconds": 56.00128899999254,
-    "deduplication_time_seconds": 11.428115875009098,
-    "time_seconds": 67.42940487500164
+    "build_time_seconds": 36.14036558299995,
+    "deduplication_time_seconds": 7.210748125002283,
+    "time_seconds": 43.35111370800223
   },
   {
     "dataset": "fashion_mnist",
     "train_size": 60000,
     "test_size": 10000,
-    "deduplicated_test_size": 2052,
-    "percent_removed": 79.47999999999999,
-    "build_time_seconds": 61.14413262500602,
-    "deduplication_time_seconds": 10.998616750002839,
-    "time_seconds": 72.14274937500886
+    "deduplicated_test_size": 2056,
+    "percent_removed": 79.44,
+    "build_time_seconds": 38.96308354100256,
+    "deduplication_time_seconds": 7.9287375419989985,
+    "time_seconds": 46.89182108300156
   }
 ]

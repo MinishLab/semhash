@@ -527,7 +527,7 @@ deduplicated_records = semhash.self_deduplicate().selected
 
 ## Benchmarks
 
-SemHash is extremely fast and scales to large datasets with millions of records. We've benchmarked both text and image deduplication across a variety of datasets. For example, deduplicating text 1.8M records takes only ~83 seconds on CPU.
+SemHash is extremely fast and scales to large datasets with millions of records. We've benchmarked both text and image deduplication across a variety of datasets. For example, deduplicating text 1.8M records takes only ~74 seconds on CPU.
 
 For detailed benchmark results and analysis, see the [benchmarks directory](benchmarks/README.md).
 
