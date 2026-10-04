@@ -91,7 +91,7 @@ deduplicated_texts = semhash.self_deduplicate().selected
 # ['the master sword can seal the darkness', 'the legendary blade banishes evil']
 ```
 
-Scores are estimated Jaccard similarity, and the default threshold is 0.7. To configure the n-grams, pass a `MinHashEncoder` as the model, e.g. `SemHash.from_records(records=texts, model=MinHashEncoder(ngram_size=5, analyzer="char"))`.
+Scores are estimated Jaccard similarity (averaged over columns for multi-column records), and the default threshold is 0.7. To configure the n-grams, pass a `MinHashEncoder` as the model, e.g. `SemHash.from_records(records=texts, mode="lexical", model=MinHashEncoder(ngram_size=5, analyzer="char"))`.
 
 ### Image Deduplication, Filtering & Representative Sampling
 
@@ -167,9 +167,9 @@ semhash = SemHash.from_records(records=records, columns=["question", "context"])
 deduplicated_records = semhash.self_deduplicate().selected
 ```
 
-The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#L58). This object stores the deduplicated corpus, a set of duplicate objects (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result.
+The `deduplicate` and `self_deduplicate` functions return a [DeduplicationResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py). This object stores the deduplicated corpus, a set of duplicate objects (along with the objects that caused duplication), and several useful functions to further inspect the deduplication result.
 
-The `filter_outliers`, `self_filter_outliers`, `find_representative`, and `self_find_representative` functions return a [FilterResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py#179). This object stores the found outliers/representative samples.
+The `filter_outliers`, `self_filter_outliers`, `find_representative`, and `self_find_representative` functions return a [FilterResult](https://github.com/MinishLab/semhash/blob/main/semhash/datamodels.py). This object stores the found outliers/representative samples.
 
 For both the `DeduplicationResult` and `FilterResult` objects, you can easily view the filtered records with the `selected` attribute (e.g. to view outliers: `outliers = semhash.self_filter_outliers().filtered`)
 
@@ -548,7 +548,7 @@ deduplicated_records = semhash.self_deduplicate().selected
 
 ## Benchmarks
 
-SemHash is extremely fast and scales to large datasets with millions of records. We've benchmarked both text and image deduplication across a variety of datasets. For example, deduplicating text 1.8M records takes only ~83 seconds on CPU.
+SemHash is extremely fast and scales to large datasets with millions of records. We've benchmarked both text and image deduplication across a variety of datasets. For example, deduplicating text 1.8M records takes only ~74 seconds on CPU.
 
 For detailed benchmark results and analysis, see the [benchmarks directory](benchmarks/README.md).
 

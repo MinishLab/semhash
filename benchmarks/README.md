@@ -26,6 +26,7 @@ This directory contains the benchmarking code and results for SemHash. The bench
 ### Setup
 
 All text benchmarks were run with the following configuration:
+- **Device**: MacBook Pro (Apple M5, 48 GB RAM)
 - **CPU-only**: All benchmarks run on CPU (no GPU acceleration)
 - **ANN backend**: Default backend (USearch)
 - **Encoder**: Default encoder ([potion-base-8M](https://huggingface.co/minishlab/potion-base-8M)) for semantic mode, MinHash for lexical mode

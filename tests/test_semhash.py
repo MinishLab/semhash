@@ -1,8 +1,12 @@
+from collections.abc import Sequence
+from typing import Any
+
 import numpy as np
 import pytest
 
 from semhash import SemHash
 from semhash.datamodels import FilterResult
+from semhash.index import Index
 from semhash.utils import Encoder
 
 
@@ -132,15 +136,17 @@ def test_deduplicate_with_only_exact_duplicates(model: Encoder) -> None:
     ]
     semhash = SemHash.from_records(texts1, model=model)
     deduplicated = semhash.self_deduplicate()
+    deduplicated.rethreshold(0.99)
     assert deduplicated.selected == ["It's dangerous to go alone!"]
     # Each copy lists only the kept record, so the output grows linearly with the number of copies.
-    assert [d.duplicates for d in deduplicated.filtered] == [[("It's dangerous to go alone!", 1.0)]] * 2
+    assert [(d.exact, d.duplicate_of, d.score) for d in deduplicated.filtered] == [(True, texts1[0], 1.0)] * 2
 
     deduplicated = semhash.deduplicate(texts2)
+    deduplicated.rethreshold(0.99)
     assert deduplicated.selected == []
     # Records are mapped back to strings, also when every record is an exact duplicate.
     assert [d.record for d in deduplicated.filtered] == texts2
-    assert [d.duplicates for d in deduplicated.filtered] == [[("It's dangerous to go alone!", 1.0)]] * 3
+    assert [(d.exact, d.duplicate_of, d.score) for d in deduplicated.filtered] == [(True, texts2[0], 1.0)] * 3
 
 
 def test_rethreshold_keeps_exact_duplicate_group(model: Encoder) -> None:
@@ -162,7 +168,7 @@ def test_self_find_representative(model: Encoder, train_texts: list[str]) -> Non
     # Test with explicit candidate_limit
     result = semhash.self_find_representative(candidate_limit=5, selection_size=3, diversity=0.5)
     assert len(result.selected) == 3, "Expected 3 representatives"
-    selected = {r["text"] for r in result.selected}
+    selected = set(result.selected)
     assert selected == {"blueberry", "pineapple", "grape"}
 
     # Test with auto candidate_limit (default)
@@ -177,7 +183,7 @@ def test_find_representative(model: Encoder, train_texts: list[str], test_texts:
     # Test with explicit candidate_limit
     result = semhash.find_representative(records=test_texts, candidate_limit=5, selection_size=3, diversity=0.5)
     assert len(result.selected) == 3, "Expected 3 representatives"
-    selected = {r["text"] for r in result.selected}
+    selected = set(result.selected)
     assert selected == {"grapefruit", "banana", "apple"}
 
     # Test with auto candidate_limit (default)
@@ -191,7 +197,7 @@ def test_filter_outliers(model: Encoder, train_texts: list[str], test_texts: lis
     result = semhash.filter_outliers(records=test_texts, outlier_percentage=0.2)
     assert len(result.filtered) == 2, "Expected 2 outliers"
     assert len(result.selected) == len(test_texts) - 2
-    filtered = {r["text"] for r in result.filtered}
+    filtered = set(result.filtered)
     assert filtered == {"motorcycle", "plane"}, "Expected outliers to be motorcycle and plane"
 
     # Test FilterResult ratio properties
@@ -219,7 +225,7 @@ def test_self_filter_outliers(model: Encoder, train_texts: list[str]) -> None:
     result = semhash.self_filter_outliers(outlier_percentage=0.1)
     assert len(result.filtered) == 2, "Expected 2 outliers"
     assert len(result.selected) == len(train_texts) - 2
-    filtered = {r["text"] for r in result.filtered}
+    filtered = set(result.filtered)
     assert filtered == {"car", "bicycle"}, "Expected outliers to be car and bicycle"
 
     # Test with outlier_percentage=0.0 (should return no outliers)
@@ -234,30 +240,27 @@ def test_self_filter_outliers(model: Encoder, train_texts: list[str]) -> None:
         semhash.self_filter_outliers(outlier_percentage=1.5)
 
 
-def test__diversify(monkeypatch: pytest.MonkeyPatch) -> None:
+def test__diversify() -> None:
     """Test the _diversify method."""
-    from semhash import semhash
-
-    semhash_instance = SemHash(index=None, model=None, columns=["text"], was_string=True)
     # Prepare a fake ranking with three records
     records = ["a", "b", "c"]
     scores = [3.0, 2.0, 1.0]
     ranking = FilterResult(selected=records, filtered=[], scores_selected=scores, scores_filtered=[])
-    # Create dummy embeddings for the records
+    # Dummy embeddings for the records, in ranked order
     embeddings = np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]])
-    # Monkeypatch featurize to return the dummy embeddings
-    monkeypatch.setattr(semhash, "featurize", lambda records, columns, model: embeddings)
+    index = Index(vectors=embeddings, items=[], backend=None)
+    semhash_instance = SemHash(index=index, model=None, columns=["text"], was_string=True)
 
     # Test diversity=0.0: pure relevance, should pick top 2 by score
-    result_rel = semhash_instance._diversify(ranking, candidate_limit=3, selection_size=2, diversity=0.0)
+    result_rel = semhash_instance._diversify(ranking, embeddings, candidate_limit=3, selection_size=2, diversity=0.0)
     assert result_rel.selected == ["a", "b"]
 
     # Test diversity=1.0: pure diversity, should first pick 'a', then pick most dissimilar: 'c'
-    result_div = semhash_instance._diversify(ranking, candidate_limit=3, selection_size=2, diversity=1.0)
+    result_div = semhash_instance._diversify(ranking, embeddings, candidate_limit=3, selection_size=2, diversity=1.0)
     assert result_div.selected == ["a", "c"]
 
     # Test empty candidates (candidate_limit=0)
-    result_empty = semhash_instance._diversify(ranking, candidate_limit=0, selection_size=2, diversity=0.5)
+    result_empty = semhash_instance._diversify(ranking, embeddings, candidate_limit=0, selection_size=2, diversity=0.5)
     assert result_empty.selected == []
     assert result_empty.filtered == []
     assert result_empty.scores_selected == []
@@ -313,6 +316,8 @@ def test_from_records_edge_cases(model: Encoder) -> None:
     # Rejects None values in dict records
     with pytest.raises(ValueError, match="has None value"):
         SemHash.from_records([{"text": "apple"}, {"text": None}], columns=["text"], model=model)
+    with pytest.raises(ValueError, match="Missing column 'text'"):
+        SemHash.from_records([{"text": "apple"}, {"other": "b"}], columns=["text"], model=model)
 
 
 def test_preserve_non_embedding_fields(model: Encoder) -> None:
@@ -361,6 +366,8 @@ def test_deduplicate_edge_cases(model: Encoder) -> None:
     # Rejects None values
     with pytest.raises(ValueError, match="has None value"):
         semhash.deduplicate([{"text": "cherry"}, {"text": None}], threshold=0.95)
+    with pytest.raises(ValueError, match="Missing column 'text'"):
+        semhash.deduplicate([{"other": "cherry"}], threshold=0.95)
 
     # Rejects empty records
     with pytest.raises(ValueError, match="records must not be empty"):
@@ -378,3 +385,116 @@ def test_deduplicate_edge_cases(model: Encoder) -> None:
     # Type mismatch: mixed dicts
     with pytest.raises(ValueError, match="Records must be all dictionaries"):
         semhash_dict.deduplicate([{"col": "a"}, "b"], threshold=0.95)
+
+
+def test_representatives_reuse_embeddings(model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
+    """Representative selection reuses the ranking embeddings instead of encoding candidates again."""
+
+    class CountingEncoder:
+        calls = 0
+
+        def encode(self, inputs: Sequence[Any], **kwargs: Any) -> np.ndarray:
+            CountingEncoder.calls += 1
+            return model.encode(inputs, **kwargs)
+
+    semhash = SemHash.from_records(train_texts, model=CountingEncoder())
+    CountingEncoder.calls = 0
+    semhash.self_find_representative(selection_size=3)
+    assert CountingEncoder.calls == 0
+    semhash.find_representative(test_texts, selection_size=3)
+    assert CountingEncoder.calls == 1
+
+
+def test_self_filter_outliers_keeps_exact_copies(model: Encoder, train_texts: list[str]) -> None:
+    """Exact copies are ranked with their group, so every fitted record is returned."""
+    records = train_texts + ["car", "car"]
+    result = SemHash.from_records(records, model=model).self_filter_outliers(outlier_percentage=0.2)
+    assert sorted(result.selected + result.filtered) == sorted(records)
+    assert result.filtered.count("car") == 3
+
+
+def test_records_are_returned_unchanged(model: Encoder) -> None:
+    """Records come back exactly as passed in, including tabs and non-string column values."""
+    texts = ["a\tb", "a\tb", "c"]
+    semhash = SemHash.from_records(texts, model=model)
+    result = semhash.self_deduplicate()
+    assert sorted(result.selected + [d.record for d in result.filtered]) == sorted(texts)
+    assert semhash.deduplicate(["x\ty"]).selected == ["x\ty"]
+
+    records = [{"id": 1, "text": "hello"}, {"id": 2, "text": "world"}]
+    semhash = SemHash.from_records(records, columns=["id", "text"], model=model)
+    result = semhash.self_deduplicate(threshold=0.99)
+    assert result.selected == records
+    assert all(type(record["id"]) is int for record in result.selected)
+    outliers = semhash.self_filter_outliers(outlier_percentage=0.5)
+    assert sorted(outliers.selected + outliers.filtered, key=lambda r: r["id"]) == records
+
+
+@pytest.fixture
+def angular_model() -> Encoder:
+    """Encode known angles so similarity thresholds do not depend on a trained model."""
+
+    class AngularEncoder:
+        def encode(self, inputs: Sequence[Any] | Any, **kwargs: Any) -> np.ndarray:
+            angles = np.deg2rad([{"A": 0, "B": 40, "C": 50}[text] for text in inputs])
+            return np.column_stack((np.cos(angles), np.sin(angles))).astype(np.float32)
+
+    return AngularEncoder()
+
+
+@pytest.mark.parametrize("backend", ["basic", "usearch"])
+def test_cross_dataset_reports_one_canonical(angular_model: Encoder, backend: str) -> None:
+    """Report the best reference record, not every near match or exact copy."""
+    records = [{"id": i, "text": text} for i, text in enumerate("ABB")]
+    semhash = SemHash.from_records(records, columns=["text"], model=angular_model, ann_backend=backend)
+    query = {"id": 3, "text": "C"}
+    result = semhash.deduplicate([query], threshold=0.6)
+    assert result.selected == []
+    assert result.filtered[0].duplicate_of == records[1]
+    result.rethreshold(0.995)
+    assert result.selected == [query]
+
+
+@pytest.mark.parametrize(
+    "texts,threshold,selected,targets",
+    [("ABBC", 0.6, [0], [0, 0, 0]), ("ABC", 0.7, [0, 2], [0]), ("ACB", 0.75, [0, 1], [1])],
+)
+def test_self_deduplication_uses_direct_canonicals(
+    angular_model: Encoder, texts: str, threshold: float, selected: list[int], targets: list[int]
+) -> None:
+    """Every filtered record points to one selected record it directly matches, also after rethresholding."""
+    records = [{"id": i, "text": text, "metadata": [i]} for i, text in enumerate(texts)]
+    semhash = SemHash.from_records(records, model=angular_model, columns=["text"], ann_backend="basic")
+    result = semhash.self_deduplicate(threshold)
+    assert [r["id"] for r in result.selected] == selected
+    assert [d.duplicate_of["id"] for d in result.filtered] == targets
+    reconstructed = [r for g in result.selected_with_duplicates for r in [g.record] + [d for d, _ in g.duplicates]]
+    assert sorted(reconstructed, key=lambda r: r["id"]) == records
+    for duplicate in result.filtered:
+        canonical = duplicate.duplicate_of
+        vectors = angular_model.encode([duplicate.record["text"], canonical["text"]])
+        assert canonical in result.selected
+        assert duplicate.score == pytest.approx(float(vectors[0] @ vectors[1]), abs=1e-6)
+        assert duplicate.exact is (duplicate.record["text"] == canonical["text"])
+    for cutoff in (0.95, 0.99):
+        result.rethreshold(cutoff)
+        assert result == semhash.self_deduplicate(cutoff)
+
+
+def test_dense_cluster_beyond_neighbor_limit(angular_model: Encoder) -> None:
+    """A near-duplicate cluster larger than the ANN neighbor limit keeps a single record, next to a zero vector."""
+    rng = np.random.default_rng(0)
+    cluster = rng.normal(size=16) + rng.normal(scale=0.05, size=(2000, 16))
+    embeddings = np.vstack([np.zeros(16), cluster])
+    semhash = SemHash.from_embeddings(embeddings, [str(i) for i in range(2001)], model=angular_model)
+    result = semhash.self_deduplicate(0.9)
+    assert result.selected == ["0", "1"]
+    result.rethreshold(0.95)
+    assert result.selected == ["0", "1"]
+
+
+def test_zero_vectors_are_not_near_duplicates(model: Encoder) -> None:
+    """Texts that embed to zero vectors are never near duplicates, in self and cross deduplication."""
+    semhash = SemHash.from_records(["", " ", "hello world"], model=model)
+    assert semhash.self_deduplicate().selected == ["", " ", "hello world"]
+    assert semhash.deduplicate(["  ", "hello world"]).selected == ["  "]

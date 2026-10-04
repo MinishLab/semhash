@@ -40,7 +40,7 @@ def make_pairs(n: int) -> tuple[list[str], set[tuple[str, str]]]:
 def run_semhash(docs: list[str]) -> set[tuple[str, str]]:
     """Self-deduplicate with SemHash in lexical mode and return the duplicate pairs it found."""
     result = SemHash.from_records(records=docs, mode="lexical").self_deduplicate(threshold=THRESHOLD)
-    return {(original, dup.record) for dup in result.filtered for original, _ in dup.duplicates}
+    return {(dup.duplicate_of, dup.record) for dup in result.filtered}
 
 
 def run_datasketch(docs: list[str]) -> set[tuple[str, str]]:

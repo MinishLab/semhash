@@ -5,7 +5,7 @@ from typing import Any
 from frozendict import frozendict
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord
-from semhash.utils import Record, coerce_value, to_frozendict
+from semhash.utils import Record, to_frozendict
 
 
 def group_records_by_key(
@@ -82,6 +82,23 @@ def remove_exact_duplicates(
     return deduplicated, duplicates
 
 
+def validate_columns(records: Sequence[dict[str, Any]], columns: Sequence[str]) -> None:
+    """
+    Check that every record has a non-None value for each column.
+
+    :param records: The records to check.
+    :param columns: The columns that must be present.
+    :raises ValueError: If a column is missing from a record.
+    :raises ValueError: If a column has a None value in a record.
+    """
+    for record in records:
+        for column in columns:
+            if record.get(column) is None:
+                if column not in record:
+                    raise ValueError(f"Missing column '{column}' in record {record}")
+                raise ValueError(f"Column '{column}' has None value in record {record}")
+
+
 def prepare_records(
     records: Sequence[Record], columns: Sequence[str] | None
 ) -> tuple[list[dict[str, Any]], Sequence[str], bool]:
@@ -115,19 +132,9 @@ def prepare_records(
             raise ValueError("All records must be dicts when the first record is a dict.")
         assert columns is not None
 
-        # Coerce values: stringify primitives, keep complex types raw (for images, etc.)
-        dict_records_typed: list[dict[str, Any]] = list(records)
-        dict_records = []
-        for record in dict_records_typed:
-            # Start with a copy of the full record to preserve non-embedding fields
-            coerced: dict[str, Any] = dict(record)
-            # Then coerce only the embedding columns
-            for column in columns:
-                val = record.get(column)
-                if val is None:
-                    raise ValueError(f"Column '{column}' has None value in record {record}")
-                coerced[column] = coerce_value(val)
-            dict_records.append(coerced)
+        # Records are returned unchanged; values are only coerced when embedding and hashing them.
+        dict_records = list(records)  # type: ignore[arg-type]
+        validate_columns(dict_records, columns)
         was_string = False
 
     return dict_records, columns, was_string
@@ -135,16 +142,15 @@ def prepare_records(
 
 def dict_to_string(record: dict[str, str], columns: Sequence[str]) -> str:
     r"""
-    Turn a record into a single string.
+    Turn a record into a single string, joining the columns with '\t'.
 
-    Uses self.columns to determine the order of the text segments.
-    Each text is cleaned by replacing '\t' with ' '. The texts are then joined by '\t'.
+    Only used to return string records, which have a single column, so the separator never appears in the output.
 
     :param record: A record to unpack.
     :param columns: Columns to unpack.
     :return: A single string representation of the record.
     """
-    return "\t".join(record.get(c, "").replace("\t", " ") for c in columns)
+    return "\t".join(str(record.get(c, "")) for c in columns)
 
 
 def map_deduplication_result_to_strings(result: DeduplicationResult, columns: Sequence[str]) -> DeduplicationResult:
@@ -153,17 +159,12 @@ def map_deduplication_result_to_strings(result: DeduplicationResult, columns: Se
     mapped = []
     for dup_rec in result.filtered:
         record_as_str = dict_to_string(dup_rec.record, columns)
-        duplicates_as_str = [(dict_to_string(r, columns), score) for r, score in dup_rec.duplicates]
         mapped.append(
             DuplicateRecord(
                 record=record_as_str,
-                duplicates=duplicates_as_str,
+                duplicate_of=dict_to_string(dup_rec.duplicate_of, columns),
+                score=dup_rec.score,
                 exact=dup_rec.exact,
             )
         )
     return DeduplicationResult(selected=deduplicated_str, filtered=mapped, threshold=result.threshold, columns=columns)
-
-
-def add_scores_to_records(records: list[dict[str, str]]) -> list[tuple[dict[str, str], float]]:
-    """Add scores to records and return a DeduplicationResult."""
-    return [(record, 1.0) for record in records]

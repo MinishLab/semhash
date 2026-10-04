@@ -60,7 +60,8 @@ def test_encode_is_packed_and_deterministic(text: str, analyzer: Any) -> None:
         (lambda: MinHashEncoder(analyzer="sentence"), ValueError, "analyzer must be"),
         (lambda: MinHashEncoder().encode([b"bytes"]), TypeError, "only encodes strings"),
         (lambda: SemHash.from_records(["a b c"], mode="fuzzy"), ValueError, "mode must be"),
-        (lambda: SemHash.from_records(["a b c"], mode="lexical", model=MinHashEncoder()), ValueError, "cannot be"),
+        (lambda: SemHash.from_records(["a b c"], mode="lexical", model=object()), ValueError, "requires a MinHash"),
+        (lambda: SemHash.from_records(["a b c"], model=MinHashEncoder()), ValueError, "requires mode"),
         (lambda: SemHash.from_records(["a b c"], mode="lexical", ann_backend="basic"), ValueError, "usearch"),
         (lambda: SemHash.from_records(["a b c"], mode="lexical", metric="cos"), ValueError, "usearch"),
     ],
@@ -84,7 +85,9 @@ def test_lexical_mode_deduplicates_on_wording() -> None:
     assert result.threshold == 0.7
     assert result.selected == [texts[0], texts[2]]
     signatures = semhash.model.encode(texts[:2])  # type: ignore[union-attr]
-    assert result.filtered[0].duplicates[0][1] == pytest.approx(_estimated_jaccard(*signatures), abs=1e-6)
+    assert result.filtered[0].score == pytest.approx(_estimated_jaccard(*signatures), abs=1e-6)
+    cross_result = SemHash.from_records(records=texts[:1], mode="lexical").deduplicate(texts[1:2])
+    assert cross_result.filtered[0].score == result.filtered[0].score
     assert len(semhash.self_find_representative(selection_size=2).selected) == 2
 
 

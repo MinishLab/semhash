@@ -9,23 +9,25 @@ from frozendict import frozendict
 from model2vec import StaticModel
 from pyversity import Strategy, diversify
 from vicinity import Backend
+from vicinity.datatypes import SingleQueryResult
 
 from semhash.datamodels import DeduplicationResult, DuplicateRecord, FilterResult
 from semhash.index import Index
 from semhash.minhash import MinHashEncoder
 from semhash.records import (
-    add_scores_to_records,
+    dict_to_string,
     group_records_by_key,
     map_deduplication_result_to_strings,
     prepare_records,
     remove_exact_duplicates,
+    validate_columns,
 )
 from semhash.utils import (
     Encoder,
     Record,
-    coerce_value,
     compute_candidate_limit,
     featurize,
+    normalize,
     to_frozendict,
 )
 
@@ -49,7 +51,7 @@ class SemHash(Generic[Record]):
         self.model = model
         self.columns = columns
         self._was_string = was_string
-        self._ranking_cache: FilterResult | None = None
+        self._ranking_cache: tuple[FilterResult, np.ndarray] | None = None
 
     def _resolve_threshold(self, threshold: float | None) -> float:
         """Fall back to the default threshold for the mode, which the encoder determines."""
@@ -74,13 +76,14 @@ class SemHash(Generic[Record]):
 
         :param records: A list of records (strings or dictionaries).
         :param columns: Columns to featurize if records are dictionaries.
-        :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
+        :param model: (Optional) An Encoder model, or a MinHashEncoder in lexical mode. If None, the default model is
+            used (minishlab/potion-base-8M, or a default MinHashEncoder in lexical mode).
         :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
         :param mode: Deduplicate on meaning ("semantic") or on overlapping n-grams with MinHash ("lexical").
         :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
         :return: A SemHash instance with a fitted vicinity index.
         :raises ValueError: If mode is not "semantic" or "lexical".
-        :raises ValueError: If a model is passed in lexical mode.
+        :raises ValueError: If the model does not match the mode.
         """
         if mode not in _DEFAULT_THRESHOLD:
             raise ValueError(f"mode must be 'semantic' or 'lexical', got {mode!r}")
@@ -89,9 +92,12 @@ class SemHash(Generic[Record]):
         dict_records, columns, was_string = prepare_records(records, columns)
 
         if mode == "lexical":
-            if model is not None:
-                raise ValueError("mode='lexical' cannot be combined with a model, pass a MinHashEncoder instead")
-            model = MinHashEncoder()
+            if model is None:
+                model = MinHashEncoder()
+            elif not isinstance(model, MinHashEncoder):
+                raise ValueError("mode='lexical' requires a MinHashEncoder as the model")
+        elif isinstance(model, MinHashEncoder):
+            raise ValueError("A MinHashEncoder requires mode='lexical'")
         elif model is None:  # pragma: no cover
             # If no model is provided, load the default model
             model = StaticModel.from_pretrained("minishlab/potion-base-8M")
@@ -207,26 +213,29 @@ class SemHash(Generic[Record]):
         )
         duplicate_records = []
         for record, duplicates in exact_duplicates:
-            duplicated_with_score = add_scores_to_records(duplicates)
-            duplicate_record = DuplicateRecord(record=record, duplicates=duplicated_with_score, exact=True)
+            duplicate_record = DuplicateRecord(record=record, duplicate_of=duplicates[0], score=1.0, exact=True)
             duplicate_records.append(duplicate_record)
 
         # Only embed and query the records that are left after removing exact duplicates
-        results = []
+        deduplicated_records = []
         if dict_records:
             embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
             results = self.index.query_threshold(embeddings, threshold=threshold)
-
-        deduplicated_records = []
-        for record, similar_items in zip(dict_records, results):
-            if not similar_items:
-                # No duplicates found, keep this record
-                deduplicated_records.append(record)
-            else:
+            for record, embedding, (indices, _) in zip(
+                dict_records, self.index.similarity_vectors(embeddings), results
+            ):
+                # Rescore the neighbors with exact similarity, like self_deduplicate does.
+                scores = normalize(self.index.similarity_vectors(self.index.vectors[indices])) @ normalize(embedding)
+                if not len(indices) or scores.max() < threshold:
+                    # No duplicates found, keep this record
+                    deduplicated_records.append(record)
+                    continue
+                best = int(np.argmax(scores))
                 duplicate_records.append(
                     DuplicateRecord(
                         record=record,
-                        duplicates=[(item, score) for item, score in similar_items],
+                        duplicate_of=self.index.items[indices[best]][0],
+                        score=float(scores[best]),
                         exact=False,
                     )
                 )
@@ -252,61 +261,25 @@ class SemHash(Generic[Record]):
         :return: A deduplicated list of records.
         """
         threshold = self._resolve_threshold(threshold)
-        # Query the fitted index
-        results = self.index.query_threshold(self.index.vectors, threshold=threshold)
-        column_set = set(self.columns)
-
-        duplicate_records = []
-
-        deduplicated_records = []
-        seen_items: set[frozendict[str, str]] = set()
-        for item, similar_items in zip(self.index.items, results):
-            # Items is a list of items which are exact duplicates of each other.
-            # The first record is kept, and every other copy is an exact duplicate of it. Each copy only lists
-            # the kept record, since listing every other copy grows quadratically with the size of the group.
-            record, *duplicates = item
-            for curr_record in duplicates:
-                duplicate_records.append(DuplicateRecord(record=curr_record, duplicates=[(record, 1.0)], exact=True))
-
-            # If we don't see any similar_items, we know the record is not a duplicate.
-            # In rare cases, the item itself might not be returned by the index.
-            if not similar_items:  # pragma: no cover
-                deduplicated_records.append(record)
-                continue
-            items, _ = zip(*similar_items)
-            frozen_items = [to_frozendict(item, column_set) for item in items]
-            # similar_items includes 'record' itself
-            # If we've seen any of these items before, this is a duplicate cluster.
-            if any(item in seen_items for item in frozen_items):
-                duplicate_records.append(
-                    DuplicateRecord(
-                        record=record,
-                        duplicates=[(item, score) for item, score in similar_items if item != record],
-                        exact=False,
-                    )
-                )
-                continue
-            # This is the first time we see this cluster of similar items
-            deduplicated_records.append(record)
-            # Mark all items in this cluster as seen
-            seen_items.update(frozen_items)
-
-        result = DeduplicationResult(
-            selected=deduplicated_records, filtered=duplicate_records, threshold=threshold, columns=self.columns
-        )
-
+        neighbors = self.index.query_threshold(self.index.vectors, threshold=threshold)
+        groups: list[list[Any]] = self.index.items
         if self._was_string:
-            # Convert records back to strings if the records were originally strings
-            return map_deduplication_result_to_strings(result, columns=self.columns)
-
-        return result
+            # Convert before selection, so the result holds strings when rethreshold reruns it.
+            groups = [[dict_to_string(record, self.columns) for record in group] for group in groups]
+        return DeduplicationResult._from_groups(
+            groups=groups,
+            neighbors=neighbors,
+            vectors=self.index.similarity_vectors(self.index.vectors),
+            threshold=threshold,
+            columns=self.columns,
+        )
 
     def _validate_if_strings(self, records: Sequence[dict[str, Any] | str]) -> list[dict[str, Any]]:
         """
         Validate if the records are strings.
 
         If the records are strings, they are converted to dictionaries with a single column.
-        If the records are dicts, primitives are stringified and complex types (images, etc.) are kept raw.
+        If the records are dicts, they are returned unchanged.
 
         :param records: The records to validate.
         :return: The records as a list of dictionaries.
@@ -330,18 +303,9 @@ class SemHash(Generic[Record]):
         if not all(isinstance(r, dict) for r in records):
             raise ValueError("Records must be all dictionaries.")
 
-        dict_records: Sequence[dict[str, Any]] = records  # type: ignore[assignment]
-        result: list[dict[str, Any]] = []
-        for record in dict_records:
-            # Start with a copy of the full record to preserve non-embedding fields
-            out = dict(record)
-            # Then coerce only the embedding columns
-            for col in self.columns:
-                if (val := record.get(col)) is None:
-                    raise ValueError(f"Column '{col}' has None value in record {record}")
-                out[col] = coerce_value(val)
-            result.append(out)
-        return result
+        dict_records: list[dict[str, Any]] = list(records)  # type: ignore[arg-type]
+        validate_columns(dict_records, self.columns)
+        return dict_records
 
     def find_representative(
         self,
@@ -366,10 +330,12 @@ class SemHash(Generic[Record]):
         :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
         :return: A FilterResult with the diversified candidates.
         """
-        ranking = self._rank_by_average_similarity(records)
+        ranking, embeddings = self._rank_by_average_similarity(records)
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
-        return self._diversify(ranking, candidate_limit, selection_size, diversity, strategy)
+        return self._to_output(
+            self._diversify(ranking, embeddings, candidate_limit, selection_size, diversity, strategy)
+        )
 
     def self_find_representative(
         self,
@@ -392,10 +358,12 @@ class SemHash(Generic[Record]):
         :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
         :return: A FilterResult with the diversified representatives.
         """
-        ranking = self._self_rank_by_average_similarity()
+        ranking, embeddings = self._self_rank_by_average_similarity()
         if candidate_limit == "auto":
             candidate_limit = compute_candidate_limit(total=len(ranking.selected), selection_size=selection_size)
-        return self._diversify(ranking, candidate_limit, selection_size, diversity, strategy)
+        return self._to_output(
+            self._diversify(ranking, embeddings, candidate_limit, selection_size, diversity, strategy)
+        )
 
     def filter_outliers(
         self,
@@ -415,28 +383,8 @@ class SemHash(Generic[Record]):
         """
         if outlier_percentage < 0.0 or outlier_percentage > 1.0:
             raise ValueError("outlier_percentage must be between 0 and 1")
-        ranking = self._rank_by_average_similarity(records)
-        outlier_count = ceil(len(ranking.selected) * outlier_percentage)
-        if outlier_count == 0:
-            # If the outlier count is 0, return no outliers
-            return FilterResult(
-                selected=ranking.selected,
-                filtered=[],
-                scores_selected=ranking.scores_selected,
-                scores_filtered=[],
-            )
-
-        outlier_records = ranking.selected[-outlier_count:]
-        outlier_scores = ranking.scores_selected[-outlier_count:]
-        inlier_records = ranking.selected[:-outlier_count]
-        inlier_scores = ranking.scores_selected[:-outlier_count]
-
-        return FilterResult(
-            selected=inlier_records,
-            filtered=outlier_records,
-            scores_selected=inlier_scores,
-            scores_filtered=outlier_scores,
-        )
+        ranking, _ = self._rank_by_average_similarity(records)
+        return self._split_into_outliers(ranking, outlier_percentage)
 
     def self_filter_outliers(
         self,
@@ -454,92 +402,110 @@ class SemHash(Generic[Record]):
         """
         if outlier_percentage < 0.0 or outlier_percentage > 1.0:
             raise ValueError("outlier_percentage must be between 0 and 1")
-        ranking = self._self_rank_by_average_similarity()
-        outlier_count = ceil(len(ranking.selected) * outlier_percentage)
-        if outlier_count == 0:
-            # If the outlier count is 0, return no outliers
-            return FilterResult(
-                selected=ranking.selected,
+        ranking, _ = self._self_rank_by_average_similarity()
+        # Exact copies share the score of their group, so every fitted record is returned.
+        groups = {id(group[0]): group for group in self.index.items}
+        ranked = [
+            (record, score)
+            for first, score in zip(ranking.selected, ranking.scores_selected)
+            for record in groups[id(first)]
+        ]
+        return self._split_into_outliers(
+            FilterResult(
+                selected=[record for record, _ in ranked],
                 filtered=[],
-                scores_selected=ranking.scores_selected,
-                scores_filtered=[],
+                scores_selected=[score for _, score in ranked],
+            ),
+            outlier_percentage,
+        )
+
+    def _split_into_outliers(self, ranking: FilterResult, outlier_percentage: float) -> FilterResult:
+        """
+        Split a ranking into inliers and the bottom outlier_percentage of records as outliers.
+
+        :param ranking: Records sorted by descending score.
+        :param outlier_percentage: The percentage (between 0 and 1) of records to consider outliers.
+        :return: A FilterResult where 'selected' contains the inliers and 'filtered' contains the outliers.
+        """
+        inlier_count = len(ranking.selected) - ceil(len(ranking.selected) * outlier_percentage)
+        return self._to_output(
+            FilterResult(
+                selected=ranking.selected[:inlier_count],
+                filtered=ranking.selected[inlier_count:],
+                scores_selected=ranking.scores_selected[:inlier_count],
+                scores_filtered=ranking.scores_selected[inlier_count:],
             )
+        )
 
-        outlier_records = ranking.selected[-outlier_count:]
-        outlier_scores = ranking.scores_selected[-outlier_count:]
-        inlier_records = ranking.selected[:-outlier_count]
-        inlier_scores = ranking.scores_selected[:-outlier_count]
-
+    def _to_output(self, result: FilterResult) -> FilterResult:
+        """Convert the records in a FilterResult back to strings if the records were originally strings."""
+        if not self._was_string:
+            return result
         return FilterResult(
-            selected=inlier_records,
-            filtered=outlier_records,
-            scores_selected=inlier_scores,
-            scores_filtered=outlier_scores,
+            selected=[dict_to_string(record, self.columns) for record in result.selected],
+            filtered=[dict_to_string(record, self.columns) for record in result.filtered],
+            scores_selected=result.scores_selected,
+            scores_filtered=result.scores_filtered,
         )
 
     def _rank_by_average_similarity(
         self,
         records: Sequence[Record],
-    ) -> FilterResult:
+    ) -> tuple[FilterResult, np.ndarray]:
         """
-        Rank a given set of records based on the average cosine similarity of the neighbors in the fitted index.
+        Rank a given set of records based on the average similarity of the neighbors in the fitted index.
 
         :param records: A sequence of records.
-        :return: A FilterResult containing the ranking (records sorted and their average similarity scores).
+        :return: A FilterResult containing the ranking, and the embeddings of the records in ranked order.
         """
         dict_records = self._validate_if_strings(records)
         embeddings = featurize(records=dict_records, columns=self.columns, model=self.model)
         results = self.index.query_top_k(embeddings, k=100, vectors_are_in_index=False)
-
-        # Compute the average similarity for each record.
-        sorted_scores = sorted(
-            ((record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        selected, scores_selected = zip(*sorted_scores)
-
-        return FilterResult(
-            selected=list(selected),
-            filtered=[],
-            scores_selected=list(scores_selected),
-            scores_filtered=[],
-        )
+        return self._rank_from_neighbors(dict_records, embeddings, results)
 
     def _self_rank_by_average_similarity(
         self,
-    ) -> FilterResult:
+    ) -> tuple[FilterResult, np.ndarray]:
         """
-        Rank the records stored in the fitted index based on the average cosine similarity of the neighbors.
+        Rank the records stored in the fitted index based on the average similarity of the neighbors.
 
-        :return: A FilterResult containing the ranking.
+        :return: A FilterResult containing the ranking, and the embeddings of the records in ranked order.
         """
         if self._ranking_cache is not None:
             return self._ranking_cache
 
         dict_records = [record[0] for record in self.index.items]
         results = self.index.query_top_k(self.index.vectors, k=100, vectors_are_in_index=True)
+        self._ranking_cache = self._rank_from_neighbors(dict_records, self.index.vectors, results)
+        return self._ranking_cache
 
-        # Compute the average similarity for each record.
-        sorted_scores = sorted(
-            ((record, np.mean(sims)) for record, (_, sims) in zip(dict_records, results)),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        selected, scores_selected = zip(*sorted_scores)
+    @staticmethod
+    def _rank_from_neighbors(
+        records: list[dict[str, Any]], embeddings: np.ndarray, neighbors: list[SingleQueryResult]
+    ) -> tuple[FilterResult, np.ndarray]:
+        """
+        Rank records by the average similarity of their already computed neighbors, keeping their embeddings aligned.
 
+        :param records: The records to rank.
+        :param embeddings: The embeddings of the records.
+        :param neighbors: The nearest neighbors of each record.
+        :return: A FilterResult containing the ranking, and the embeddings of the records in ranked order.
+        """
+        scores = [np.mean(sims) for _, sims in neighbors]
+        # Stable descending sort, so ties keep their input order.
+        order = sorted(range(len(records)), key=lambda i: scores[i], reverse=True)
         ranking = FilterResult(
-            selected=list(selected),
+            selected=[records[i] for i in order],
             filtered=[],
-            scores_selected=list(scores_selected),
+            scores_selected=[scores[i] for i in order],
             scores_filtered=[],
         )
-        self._ranking_cache = ranking
-        return ranking
+        return ranking, embeddings[order]
 
     def _diversify(
         self,
         ranked_results: FilterResult,
+        ranked_embeddings: np.ndarray,
         candidate_limit: int,
         selection_size: int,
         diversity: float,
@@ -552,12 +518,8 @@ class SemHash(Generic[Record]):
         if not candidates:
             return FilterResult(selected=[], filtered=[], scores_selected=[], scores_filtered=[])
 
-        embeddings = featurize(records=candidates, columns=self.columns, model=self.model)
-        if isinstance(self.model, MinHashEncoder):
-            # Unpack binary signatures to +-1 vectors, whose cosine similarity matches the Hamming index.
-            embeddings = np.unpackbits(embeddings, axis=1).astype(np.float32) * 2 - 1
         result = diversify(
-            embeddings=embeddings,
+            embeddings=self.index.similarity_vectors(ranked_embeddings[:candidate_limit]),
             scores=np.array(relevance),
             k=selection_size,
             strategy=strategy,

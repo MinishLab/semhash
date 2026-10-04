@@ -8,6 +8,10 @@ from frozendict import frozendict
 # Type definitions
 Record = TypeVar("Record", str, dict[str, Any])
 DuplicateList: TypeAlias = list[tuple[Record, float]]
+Neighbors: TypeAlias = tuple[np.ndarray, np.ndarray]
+
+NEIGHBORS_PER_QUERY = 100
+MAX_NEIGHBORS = 1000
 
 
 class Encoder(Protocol):
@@ -79,7 +83,7 @@ def to_frozendict(record: dict[str, Any], columns: Sequence[str] | set[str]) -> 
     :raises ValueError: If a column is missing from the record.
     """
     try:
-        return frozendict({k: make_hashable(record[k]) for k in columns})
+        return frozendict({k: make_hashable(coerce_value(record[k])) for k in columns})
     except KeyError as e:
         missing = e.args[0]
         raise ValueError(f"Missing column '{missing}' in record {record}") from e
@@ -132,7 +136,7 @@ def featurize(
     embeddings_per_col = []
     for col in columns:
         try:
-            col_texts = [r[col] for r in records]
+            col_texts = [coerce_value(r[col]) for r in records]
         except KeyError as e:
             raise ValueError(f"Missing column '{col}' in one or more records") from e
         try:
@@ -147,3 +151,46 @@ def featurize(
         embeddings_per_col.append(np.asarray(col_emb))
 
     return np.concatenate(embeddings_per_col, axis=1)
+
+
+def normalize(vectors: np.ndarray) -> np.ndarray:
+    """Scale vectors to unit length, leaving zero vectors (e.g. empty text) at zero so they are similar to nothing."""
+    norms = np.linalg.norm(vectors, axis=-1, keepdims=True)
+    return vectors / np.where(norms == 0, 1.0, norms)
+
+
+def select_canonicals(vectors: np.ndarray, neighbors: list[Neighbors], threshold: float) -> list[tuple[int, float]]:
+    """
+    Greedily select groups in input order, assigning every other group to a directly matching selected group.
+
+    :param vectors: The vector of each group.
+    :param neighbors: The approximate neighbors of each group, as arrays of group indices and similarity scores.
+    :param threshold: The similarity threshold.
+    :return: The canonical group index and exact similarity score for each group; selected groups point to themselves.
+    """
+    unit_vectors = normalize(vectors)
+    canonical_indices = np.empty(len(neighbors), dtype=np.int64)
+    selected_indices: list[int] = []
+    canonicals: list[tuple[int, float]] = []
+
+    def _closest(i: int, candidates: np.ndarray) -> tuple[int, float] | None:
+        """Return the candidate most similar to group i, if it reaches the threshold."""
+        if not len(candidates):
+            return None
+        scores = unit_vectors[candidates] @ unit_vectors[i]
+        best = int(np.argmax(scores))
+        return (int(candidates[best]), float(scores[best])) if scores[best] >= threshold else None
+
+    for i, (indices, scores) in enumerate(neighbors):
+        matches = indices[scores >= threshold]
+        # Check the canonicals of earlier matching neighbors directly, to avoid transitive matches.
+        best_match = _closest(i, np.unique(canonical_indices[matches[matches < i]]))
+        if best_match is None and len(matches) >= MAX_NEIGHBORS:
+            # The neighbors may be truncated, so compare against every selected group directly.
+            best_match = _closest(i, np.asarray(selected_indices))
+        if best_match is None:
+            selected_indices.append(i)
+            best_match = (i, 1.0)
+        canonical_indices[i] = best_match[0]
+        canonicals.append(best_match)
+    return canonicals
