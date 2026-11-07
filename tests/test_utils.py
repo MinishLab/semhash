@@ -53,6 +53,24 @@ def test_coerce_value() -> None:
     assert coerce_value(img) is img
 
 
+def test_make_hashable_preserves_array_structure() -> None:
+    """Exact array matches require equal shape and dtype as well as equal bytes."""
+    pixels = np.array([255, 0, 255, 0], dtype=np.uint8)
+    square = pixels.reshape(2, 2)
+    portrait = pixels.reshape(4, 1)
+    assert square.tobytes() == portrait.tobytes()
+    assert make_hashable(square) != make_hashable(portrait)
+
+    floats = np.zeros((2, 2), dtype=np.float32)
+    integers = floats.view(np.int32)
+    assert floats.tobytes() == integers.tobytes()
+    assert make_hashable(floats) != make_hashable(integers)
+
+    # Memory layout does not change the logical array content.
+    assert make_hashable(square) == make_hashable(square.copy())
+    assert make_hashable(square) == make_hashable(np.asfortranarray(square))
+
+
 def test_to_frozendict() -> None:
     """Test converting dict to frozendict, including error cases."""
     record = {"a": "1", "b": "2", "c": "3"}

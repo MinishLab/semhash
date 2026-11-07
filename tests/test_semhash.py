@@ -496,3 +496,28 @@ def test_zero_vectors_are_not_near_duplicates(model: Encoder) -> None:
     semhash = SemHash.from_records(["", " ", "hello world"], model=model)
     assert semhash.self_deduplicate().selected == ["", " ", "hello world"]
     assert semhash.deduplicate(["  ", "hello world"]).selected == ["  "]
+
+
+@pytest.mark.parametrize("backend", ["basic", "usearch"])
+def test_array_shapes_are_not_exact_duplicates(backend: str) -> None:
+    """Different array shapes reach the encoder in both self and cross-dataset deduplication."""
+
+    class RowEncoder:
+        def encode(self, inputs: Sequence[Any], **kwargs: Any) -> np.ndarray:
+            return np.asarray([[image[0].mean(), image[-1].mean()] for image in inputs], dtype=np.float32)
+
+    pixels = np.array([255, 0, 255, 0], dtype=np.uint8)
+    square = {"id": 0, "image": pixels.reshape(2, 2)}
+    portrait = {"id": 1, "image": pixels.reshape(4, 1)}
+    square_copy = {"id": 2, "image": square["image"].copy()}
+    records = [square, portrait, square_copy]
+
+    semhash = SemHash.from_records(records, columns=["image"], model=RowEncoder(), ann_backend=backend)
+    result = semhash.self_deduplicate(threshold=0.9)
+    assert [r["id"] for r in result.selected] == [0, 1]
+    assert [(d.record["id"], d.duplicate_of["id"], d.exact) for d in result.filtered] == [(2, 0, True)]
+
+    reference = SemHash.from_records([square], columns=["image"], model=RowEncoder(), ann_backend=backend)
+    result = reference.deduplicate([portrait, square_copy], threshold=0.9)
+    assert [r["id"] for r in result.selected] == [1]
+    assert [(d.record["id"], d.duplicate_of["id"], d.exact) for d in result.filtered] == [(2, 0, True)]
