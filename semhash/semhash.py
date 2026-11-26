@@ -283,7 +283,7 @@ class SemHash(Generic[Record]):
             Defaults to "auto", which calculates the limit based on the total number of records.
         :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
         :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
-        :return: A FilterResult with the diversified candidates.
+        :return: A FilterResult with diversified candidates and all excluded records with their ranking scores.
         """
         ranking, embeddings = self._rank_by_average_similarity(records)
         if candidate_limit == "auto":
@@ -311,7 +311,7 @@ class SemHash(Generic[Record]):
             Defaults to "auto", which calculates the limit based on the total number of records.
         :param diversity: Trade-off between diversity (1.0) and relevance (0.0). Default is 0.5.
         :param strategy: Diversification strategy (MMR, MSD, DPP, COVER, SSD). Default is MMR.
-        :return: A FilterResult with the diversified representatives.
+        :return: A FilterResult with diversified representatives and all excluded records with their ranking scores.
         """
         ranking, embeddings = self._self_rank_by_average_similarity()
         if candidate_limit == "auto":
@@ -471,7 +471,12 @@ class SemHash(Generic[Record]):
         relevance = ranked_results.scores_selected[:candidate_limit]
 
         if not candidates:
-            return FilterResult(selected=[], filtered=[], scores_selected=[], scores_filtered=[])
+            return FilterResult(
+                selected=[],
+                filtered=ranked_results.selected.copy(),
+                scores_selected=[],
+                scores_filtered=ranked_results.scores_selected.copy(),
+            )
 
         result = diversify(
             embeddings=ranked_embeddings[:candidate_limit],
@@ -484,7 +489,7 @@ class SemHash(Generic[Record]):
         selected_set = set(result.indices)
         return FilterResult(
             selected=[candidates[i] for i in result.indices],
-            filtered=[rec for i, rec in enumerate(candidates) if i not in selected_set],
+            filtered=[rec for i, rec in enumerate(ranked_results.selected) if i not in selected_set],
             scores_selected=result.selection_scores.tolist(),
-            scores_filtered=[score for i, score in enumerate(relevance) if i not in selected_set],
+            scores_filtered=[score for i, score in enumerate(ranked_results.scores_selected) if i not in selected_set],
         )

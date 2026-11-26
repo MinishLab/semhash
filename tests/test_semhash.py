@@ -190,6 +190,53 @@ def test_find_representative(model: Encoder, train_texts: list[str], test_texts:
     assert len(result_auto.selected) == 3
 
 
+@pytest.mark.parametrize("candidate_limit", [0, 5, 25])
+@pytest.mark.parametrize("self_query", [False, True])
+@pytest.mark.parametrize("use_dicts", [False, True])
+def test_representatives_include_records_outside_candidates(
+    model: Encoder, train_texts: list[str], candidate_limit: int, self_query: bool, use_dicts: bool
+) -> None:
+    """Keep every excluded record with its ranking score, including outside the reranking pool."""
+    records = [{"text": text, "id": i} for i, text in enumerate(train_texts)] if use_dicts else train_texts
+    semhash = SemHash.from_records(records=records, columns=["text"] if use_dicts else None, model=model)
+    if self_query:
+        ranking = semhash.self_filter_outliers(outlier_percentage=0)
+        result = semhash.self_find_representative(candidate_limit=candidate_limit, selection_size=3)
+    else:
+        ranking = semhash.filter_outliers(records=records, outlier_percentage=0)
+        result = semhash.find_representative(records=records, candidate_limit=candidate_limit, selection_size=3)
+
+    assert len(result.selected) == (3 if candidate_limit else 0)
+    expected_filtered = [
+        (record, score)
+        for record, score in zip(ranking.selected, ranking.scores_selected)
+        if record not in result.selected
+    ]
+    assert result.filtered == [record for record, _ in expected_filtered]
+    assert result.scores_filtered == pytest.approx([score for _, score in expected_filtered])
+    assert len(result.selected) + len(result.filtered) == 20
+    assert result.selected_ratio == pytest.approx(0.15 if candidate_limit else 0)
+    assert result.filter_ratio == pytest.approx(0.85 if candidate_limit else 1)
+
+
+@pytest.mark.parametrize("self_query", [False, True])
+def test_representatives_auto_limit_keeps_all_records(model: Encoder, self_query: bool) -> None:
+    """Preserve the tail when the automatic candidate pool is smaller than the dataset."""
+    records = [f"apple {i}" for i in range(110)]
+    semhash = SemHash.from_records(records=records, model=model)
+    result = (
+        semhash.self_find_representative(selection_size=3)
+        if self_query
+        else semhash.find_representative(records=records, selection_size=3)
+    )
+
+    assert len(result.selected) == 3
+    assert len(result.filtered) == 107
+    assert sorted(result.selected + result.filtered) == sorted(records)
+    assert len(result.scores_filtered) == 107
+    assert result.selected_ratio == pytest.approx(3 / 110)
+
+
 def test_filter_outliers(model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
     """Test the filter_outliers method."""
     semhash = SemHash.from_records(records=train_texts, model=model)
@@ -260,9 +307,9 @@ def test__diversify() -> None:
     # Test empty candidates (candidate_limit=0)
     result_empty = semhash_instance._diversify(ranking, embeddings, candidate_limit=0, selection_size=2, diversity=0.5)
     assert result_empty.selected == []
-    assert result_empty.filtered == []
+    assert result_empty.filtered == records
     assert result_empty.scores_selected == []
-    assert result_empty.scores_filtered == []
+    assert result_empty.scores_filtered == scores
 
 
 def test_from_embeddings(model: Encoder, train_texts: list[str]) -> None:
