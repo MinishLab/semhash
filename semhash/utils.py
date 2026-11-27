@@ -39,6 +39,7 @@ def make_hashable(value: Any) -> Any:
     Strings and other hashable types are returned as-is.
     Non-hashable types (like PIL images, numpy arrays) are hashed to a string.
     Array shape and dtype are included, since matching bytes can represent different array content.
+    Image keys include size, mode, palette colors and transparency alongside the pixel bytes.
 
     :param value: The value to make hashable.
     :return: A hashable representation of the value.
@@ -53,7 +54,15 @@ def make_hashable(value: Any) -> Any:
         return digest.hexdigest()
     # Handle other objects with tobytes() (PIL Image, etc.)
     if hasattr(value, "tobytes"):
-        return hashlib.md5(value.tobytes()).hexdigest()
+        digest = hashlib.md5()
+        if hasattr(value, "mode") and hasattr(value, "size"):
+            # Raw image bytes omit dimensions, pixel format, palette colors and transparency.
+            palette = value.getpalette("RGBA") if hasattr(value, "getpalette") else None
+            transparency = getattr(value, "info", {}).get("transparency")
+            digest.update(repr((value.mode, value.size, palette, transparency)).encode("utf-8"))
+            digest.update(b"\0")
+        digest.update(value.tobytes())
+        return digest.hexdigest()
     # Fallback: try to hash, otherwise stringify
     try:
         hash(value)
