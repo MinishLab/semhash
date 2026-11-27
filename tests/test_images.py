@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from types import MethodType
 from typing import Any
 
 import numpy as np
@@ -6,6 +7,22 @@ import pytest
 from PIL import Image
 
 from semhash import SemHash
+from semhash.utils import Encoder
+
+
+def test_images_with_legacy_palette_api(model: Encoder) -> None:
+    """Images remain usable with Pillow's pre-9.1 zero-argument palette API."""
+
+    def getpalette(self: Image.Image) -> list[int] | None:
+        return Image.Image.getpalette(self)
+
+    image = Image.new("L", (1, 1), 255)
+    image.getpalette = MethodType(getpalette, image)
+    records = [{"image": image}]
+    semhash = SemHash.from_embeddings(
+        np.array([[1.0, 0.0]]), records=records, columns=["image"], model=model, ann_backend="basic"
+    )
+    assert semhash.self_deduplicate().selected == records
 
 
 @pytest.mark.parametrize("backend", ["basic", "usearch"])

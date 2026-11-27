@@ -54,14 +54,16 @@ def make_hashable(value: Any) -> Any:
         return digest.hexdigest()
     # Handle other objects with tobytes() (PIL Image, etc.)
     if hasattr(value, "tobytes"):
+        data = value.tobytes()
         digest = hashlib.md5()
         if hasattr(value, "mode") and hasattr(value, "size"):
             # Raw image bytes omit dimensions, pixel format, palette colors and transparency.
-            palette = value.getpalette("RGBA") if hasattr(value, "getpalette") else None
+            palette = getattr(value, "palette", None)
+            palette_data = palette.getdata() if palette is not None and hasattr(palette, "getdata") else None
             transparency = getattr(value, "info", {}).get("transparency")
-            digest.update(repr((value.mode, value.size, palette, transparency)).encode("utf-8"))
+            digest.update(repr((value.mode, value.size, palette_data, transparency)).encode("utf-8"))
             digest.update(b"\0")
-        digest.update(value.tobytes())
+        digest.update(data)
         return digest.hexdigest()
     # Fallback: try to hash, otherwise stringify
     try:
