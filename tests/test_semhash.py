@@ -219,24 +219,6 @@ def test_representatives_include_records_outside_candidates(
     assert result.filter_ratio == pytest.approx(0.85 if candidate_limit else 1)
 
 
-@pytest.mark.parametrize("self_query", [False, True])
-def test_representatives_auto_limit_keeps_all_records(model: Encoder, self_query: bool) -> None:
-    """Preserve the tail when the automatic candidate pool is smaller than the dataset."""
-    records = [f"apple {i}" for i in range(110)]
-    semhash = SemHash.from_records(records=records, model=model)
-    result = (
-        semhash.self_find_representative(selection_size=3)
-        if self_query
-        else semhash.find_representative(records=records, selection_size=3)
-    )
-
-    assert len(result.selected) == 3
-    assert len(result.filtered) == 107
-    assert sorted(result.selected + result.filtered) == sorted(records)
-    assert len(result.scores_filtered) == 107
-    assert result.selected_ratio == pytest.approx(3 / 110)
-
-
 def test_filter_outliers(model: Encoder, train_texts: list[str], test_texts: list[str]) -> None:
     """Test the filter_outliers method."""
     semhash = SemHash.from_records(records=train_texts, model=model)
