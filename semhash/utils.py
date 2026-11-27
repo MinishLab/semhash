@@ -32,6 +32,33 @@ class Encoder(Protocol):
         ...  # pragma: no cover
 
 
+def _image_palette_key(image: Any) -> tuple[str, str] | None:
+    """
+    Hash interpreted palette colors, including alpha, across Pillow versions.
+
+    :param image: A Pillow-compatible image.
+    :return: A tagged palette digest, or None for an image without a palette.
+    """
+    try:
+        palette = image.getpalette("RGBA")
+    except TypeError:
+        # Pillow before 9.1 cannot expose palette alpha through getpalette().
+        palette = image.getpalette()
+        if palette is None:
+            return None
+        # Keep unused colors/alpha too; rendering alone only covers referenced entries.
+        stored = getattr(image, "palette", None)
+        storage = stored.getdata() if stored is not None else None
+        digest = hashlib.md5(repr((palette, storage)).encode("utf-8"))
+        digest.update(b"\0")
+        with image.convert("RGBA") as converted:
+            digest.update(converted.tobytes())
+        return "pixels", digest.hexdigest()
+    if palette is None:
+        return None
+    return "palette", hashlib.md5(bytes(palette)).hexdigest()
+
+
 def make_hashable(value: Any) -> Any:
     """
     Convert a value to a hashable representation for use as dict keys.
@@ -39,6 +66,7 @@ def make_hashable(value: Any) -> Any:
     Strings and other hashable types are returned as-is.
     Non-hashable types (like PIL images, numpy arrays) are hashed to a string.
     Array shape and dtype are included, since matching bytes can represent different array content.
+    Image keys include size, mode, palette colors and transparency alongside the pixel bytes.
 
     :param value: The value to make hashable.
     :return: A hashable representation of the value.
@@ -53,7 +81,16 @@ def make_hashable(value: Any) -> Any:
         return digest.hexdigest()
     # Handle other objects with tobytes() (PIL Image, etc.)
     if hasattr(value, "tobytes"):
-        return hashlib.md5(value.tobytes()).hexdigest()
+        data = value.tobytes()
+        digest = hashlib.md5()
+        if hasattr(value, "mode") and hasattr(value, "size"):
+            # Raw image bytes omit dimensions, pixel format, palette colors and transparency.
+            palette = _image_palette_key(value) if hasattr(value, "getpalette") else None
+            transparency = getattr(value, "info", {}).get("transparency")
+            digest.update(repr((value.mode, value.size, palette, transparency)).encode("utf-8"))
+            digest.update(b"\0")
+        digest.update(data)
+        return digest.hexdigest()
     # Fallback: try to hash, otherwise stringify
     try:
         hash(value)

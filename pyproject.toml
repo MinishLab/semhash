@@ -37,6 +37,7 @@ dev = [
     "black",
     "ipython",
     "mypy",
+    "pillow",
     "pre-commit",
     "pytest",
     "pytest-coverage",

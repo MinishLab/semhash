@@ -1,0 +1,158 @@
+from collections.abc import Sequence
+from types import MethodType
+from typing import Any
+
+import numpy as np
+import pytest
+from PIL import Image
+
+from semhash import SemHash
+from semhash.utils import Encoder
+
+
+def _legacy_getpalette(self: Image.Image) -> list[int] | None:
+    """Adapt the installed Pillow method to its pre-9.1 signature."""
+    return Image.Image.getpalette(self)
+
+
+def test_images_with_legacy_palette_api(model: Encoder) -> None:
+    """Images remain usable with Pillow's pre-9.1 zero-argument palette API."""
+    image = Image.new("L", (1, 1), 255)
+    image.getpalette = MethodType(_legacy_getpalette, image)
+    records = [{"image": image}]
+    semhash = SemHash.from_embeddings(
+        np.array([[1.0, 0.0]]), records=records, columns=["image"], model=model, ann_backend="basic"
+    )
+    assert semhash.self_deduplicate().selected == records
+
+
+@pytest.mark.parametrize("backend", ["basic", "usearch"])
+@pytest.mark.parametrize("constructor", ["from_records", "from_embeddings"])
+@pytest.mark.parametrize("operation", ["self", "cross"])
+def test_image_sizes_are_not_exact_duplicates(backend: str, constructor: str, operation: str) -> None:
+    """Images with different sizes reach the encoder despite having identical raw bytes."""
+
+    class RowEncoder:
+        def encode(self, inputs: Sequence[Any], **kwargs: Any) -> np.ndarray:
+            return np.asarray([[np.asarray(image)[0].mean(), np.asarray(image)[-1].mean()] for image in inputs])
+
+    square = Image.frombytes("L", (2, 2), bytes([255, 0, 255, 0]))
+    portrait = Image.frombytes("L", (1, 4), square.tobytes())
+    records = [{"id": 0, "image": square}, {"id": 1, "image": portrait}, {"id": 2, "image": square.copy()}]
+    model = RowEncoder()
+    reference_records = records if operation == "self" else records[:1]
+    kwargs: dict[str, Any] = {"columns": ["image"], "model": model, "ann_backend": backend}
+    if constructor == "from_embeddings":
+        kwargs["embeddings"] = model.encode([record["image"] for record in reference_records])
+    semhash = getattr(SemHash, constructor)(records=reference_records, **kwargs)
+    result = (
+        semhash.self_deduplicate(threshold=0.9)
+        if operation == "self"
+        else semhash.deduplicate(records[1:], threshold=0.9)
+    )
+    assert [record["id"] for record in result.selected] == ([0, 1] if operation == "self" else [1])
+    assert [(dup.record["id"], dup.duplicate_of["id"], dup.exact) for dup in result.filtered] == [(2, 0, True)]
+
+
+@pytest.mark.parametrize("backend", ["basic", "usearch"])
+@pytest.mark.parametrize("operation", ["self", "cross"])
+@pytest.mark.parametrize("difference", ["color", "alpha"])
+def test_legacy_api_preserves_unused_palette_entries(backend: str, operation: str, difference: str) -> None:
+    """An encoder can inspect palette entries that the current pixels do not reference."""
+
+    class PaletteEncoder:
+        def encode(self, inputs: Sequence[Any], **kwargs: Any) -> np.ndarray:
+            colors = []
+            for image in inputs:
+                with image.copy() as probe:
+                    probe.putpixel((0, 0), 1)
+                    with probe.convert("RGBA") as rgba:
+                        colors.append(rgba.getpixel((0, 0)))
+            return np.asarray(colors, dtype=np.float32)
+
+    first = Image.new("P", (1, 1))
+    first.putpalette([255, 0, 0, 255, 0, 255, 0, 255], rawmode="RGBA")
+    second = first.copy()
+    other_color = [0, 0, 255, 255] if difference == "color" else [0, 255, 0, 0]
+    second.putpalette([255, 0, 0, 255] + other_color, rawmode="RGBA")
+    copy = first.copy()
+    for image in (first, second, copy):
+        image.getpalette = MethodType(_legacy_getpalette, image)
+    records = [{"id": 0, "image": first}, {"id": 1, "image": second}, {"id": 2, "image": copy}]
+    reference = records if operation == "self" else records[:1]
+    semhash = SemHash.from_records(reference, columns=["image"], model=PaletteEncoder(), ann_backend=backend)
+    result = semhash.self_deduplicate() if operation == "self" else semhash.deduplicate(records[1:])
+    assert [record["id"] for record in result.selected] == ([0, 1] if operation == "self" else [1])
+    assert [(dup.record["id"], dup.duplicate_of["id"], dup.exact) for dup in result.filtered] == [(2, 0, True)]
+
+
+@pytest.mark.parametrize("backend", ["basic", "usearch"])
+@pytest.mark.parametrize("constructor", ["from_records", "from_embeddings"])
+@pytest.mark.parametrize("operation", ["self", "cross"])
+@pytest.mark.parametrize("legacy_api", [False, True])
+@pytest.mark.parametrize(
+    "difference",
+    [
+        "mode",
+        "palette",
+        "palette-alpha",
+        "palette-raw-mode",
+        "transparent-index",
+        "transparent-table",
+        "rgb-transparency",
+    ],
+)
+def test_image_colors_are_not_exact_duplicates(
+    backend: str, constructor: str, operation: str, legacy_api: bool, difference: str
+) -> None:
+    """Color interpretation participates in exact matching, while true copies still match."""
+
+    class ColorEncoder:
+        def encode(self, inputs: Sequence[Any], **kwargs: Any) -> np.ndarray:
+            return np.asarray([np.asarray(image.convert("RGBA")).reshape(-1) for image in inputs], dtype=np.float32)
+
+    if difference in ("mode", "rgb-transparency"):
+        first = Image.new("RGB", (1, 1), (255, 0, 0))
+        second = first.copy()
+        if difference == "mode":
+            second = Image.frombytes("HSV", first.size, first.tobytes())
+        else:
+            second.info["transparency"] = (255, 0, 0)
+    elif difference == "palette-raw-mode":
+        first = Image.new("P", (1, 1))
+        second = Image.new("P", (1, 1))
+        data = bytes([100, 255, 200, 255])
+        first.info["transparency"] = second.info["transparency"] = 1
+        first.putpalette(data, rawmode="LA")
+        second.putpalette(data, rawmode="RGBA")
+    else:
+        first = Image.new("P", (1, 1))
+        first.putpalette([255, 0, 0, 255], rawmode="RGBA")
+        second = first.copy()
+        if difference == "palette":
+            second.putpalette([0, 255, 0, 255], rawmode="RGBA")
+        elif difference == "palette-alpha":
+            second.putpalette([255, 0, 0, 0], rawmode="RGBA")
+        else:
+            second.info["transparency"] = 0 if difference == "transparent-index" else b"\0"
+
+    assert first.tobytes() == second.tobytes()
+    copy = first.copy()
+    copy.info["comment"] = "Unrelated metadata does not change the pixels."
+    if legacy_api:
+        for image in (first, second, copy):
+            image.getpalette = MethodType(_legacy_getpalette, image)
+    records = [{"id": 0, "image": first}, {"id": 1, "image": second}, {"id": 2, "image": copy}]
+    model = ColorEncoder()
+    reference_records = records if operation == "self" else records[:1]
+    kwargs: dict[str, Any] = {"columns": ["image"], "model": model, "ann_backend": backend}
+    if constructor == "from_embeddings":
+        kwargs["embeddings"] = model.encode([record["image"] for record in reference_records])
+    semhash = getattr(SemHash, constructor)(records=reference_records, **kwargs)
+    result = (
+        semhash.self_deduplicate(threshold=0.95)
+        if operation == "self"
+        else semhash.deduplicate(records[1:], threshold=0.95)
+    )
+    assert [record["id"] for record in result.selected] == ([0, 1] if operation == "self" else [1])
+    assert [(dup.record["id"], dup.duplicate_of["id"], dup.exact) for dup in result.filtered] == [(2, 0, True)]
