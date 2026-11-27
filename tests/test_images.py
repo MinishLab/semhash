@@ -55,6 +55,38 @@ def test_image_sizes_are_not_exact_duplicates(backend: str, constructor: str, op
 
 
 @pytest.mark.parametrize("backend", ["basic", "usearch"])
+@pytest.mark.parametrize("operation", ["self", "cross"])
+@pytest.mark.parametrize("difference", ["color", "alpha"])
+def test_legacy_api_preserves_unused_palette_entries(backend: str, operation: str, difference: str) -> None:
+    """An encoder can inspect palette entries that the current pixels do not reference."""
+
+    class PaletteEncoder:
+        def encode(self, inputs: Sequence[Any], **kwargs: Any) -> np.ndarray:
+            colors = []
+            for image in inputs:
+                with image.copy() as probe:
+                    probe.putpixel((0, 0), 1)
+                    with probe.convert("RGBA") as rgba:
+                        colors.append(rgba.getpixel((0, 0)))
+            return np.asarray(colors, dtype=np.float32)
+
+    first = Image.new("P", (1, 1))
+    first.putpalette([255, 0, 0, 255, 0, 255, 0, 255], rawmode="RGBA")
+    second = first.copy()
+    other_color = [0, 0, 255, 255] if difference == "color" else [0, 255, 0, 0]
+    second.putpalette([255, 0, 0, 255] + other_color, rawmode="RGBA")
+    copy = first.copy()
+    for image in (first, second, copy):
+        image.getpalette = MethodType(_legacy_getpalette, image)
+    records = [{"id": 0, "image": first}, {"id": 1, "image": second}, {"id": 2, "image": copy}]
+    reference = records if operation == "self" else records[:1]
+    semhash = SemHash.from_records(reference, columns=["image"], model=PaletteEncoder(), ann_backend=backend)
+    result = semhash.self_deduplicate() if operation == "self" else semhash.deduplicate(records[1:])
+    assert [record["id"] for record in result.selected] == ([0, 1] if operation == "self" else [1])
+    assert [(dup.record["id"], dup.duplicate_of["id"], dup.exact) for dup in result.filtered] == [(2, 0, True)]
+
+
+@pytest.mark.parametrize("backend", ["basic", "usearch"])
 @pytest.mark.parametrize("constructor", ["from_records", "from_embeddings"])
 @pytest.mark.parametrize("operation", ["self", "cross"])
 @pytest.mark.parametrize("legacy_api", [False, True])

@@ -43,10 +43,17 @@ def _image_palette_key(image: Any) -> tuple[str, str] | None:
         palette = image.getpalette("RGBA")
     except TypeError:
         # Pillow before 9.1 cannot expose palette alpha through getpalette().
-        if image.getpalette() is None:
+        palette = image.getpalette()
+        if palette is None:
             return None
+        # Keep unused colors/alpha too; rendering alone only covers referenced entries.
+        stored = getattr(image, "palette", None)
+        storage = stored.getdata() if stored is not None else None
+        digest = hashlib.md5(repr((palette, storage)).encode("utf-8"))
+        digest.update(b"\0")
         with image.convert("RGBA") as converted:
-            return "pixels", hashlib.md5(converted.tobytes()).hexdigest()
+            digest.update(converted.tobytes())
+        return "pixels", digest.hexdigest()
     if palette is None:
         return None
     return "palette", hashlib.md5(bytes(palette)).hexdigest()
