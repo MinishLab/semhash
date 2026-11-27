@@ -32,6 +32,26 @@ class Encoder(Protocol):
         ...  # pragma: no cover
 
 
+def _image_palette_key(image: Any) -> tuple[str, str] | None:
+    """
+    Hash interpreted palette colors, including alpha, across Pillow versions.
+
+    :param image: A Pillow-compatible image.
+    :return: A tagged palette digest, or None for an image without a palette.
+    """
+    try:
+        palette = image.getpalette("RGBA")
+    except TypeError:
+        # Pillow before 9.1 cannot expose palette alpha through getpalette().
+        if image.getpalette() is None:
+            return None
+        with image.convert("RGBA") as converted:
+            return "pixels", hashlib.md5(converted.tobytes()).hexdigest()
+    if palette is None:
+        return None
+    return "palette", hashlib.md5(bytes(palette)).hexdigest()
+
+
 def make_hashable(value: Any) -> Any:
     """
     Convert a value to a hashable representation for use as dict keys.
@@ -58,10 +78,9 @@ def make_hashable(value: Any) -> Any:
         digest = hashlib.md5()
         if hasattr(value, "mode") and hasattr(value, "size"):
             # Raw image bytes omit dimensions, pixel format, palette colors and transparency.
-            palette = getattr(value, "palette", None)
-            palette_data = palette.getdata() if palette is not None and hasattr(palette, "getdata") else None
+            palette = _image_palette_key(value) if hasattr(value, "getpalette") else None
             transparency = getattr(value, "info", {}).get("transparency")
-            digest.update(repr((value.mode, value.size, palette_data, transparency)).encode("utf-8"))
+            digest.update(repr((value.mode, value.size, palette, transparency)).encode("utf-8"))
             digest.update(b"\0")
         digest.update(data)
         return digest.hexdigest()

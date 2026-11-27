@@ -10,14 +10,15 @@ from semhash import SemHash
 from semhash.utils import Encoder
 
 
+def _legacy_getpalette(self: Image.Image) -> list[int] | None:
+    """Adapt the installed Pillow method to its pre-9.1 signature."""
+    return Image.Image.getpalette(self)
+
+
 def test_images_with_legacy_palette_api(model: Encoder) -> None:
     """Images remain usable with Pillow's pre-9.1 zero-argument palette API."""
-
-    def getpalette(self: Image.Image) -> list[int] | None:
-        return Image.Image.getpalette(self)
-
     image = Image.new("L", (1, 1), 255)
-    image.getpalette = MethodType(getpalette, image)
+    image.getpalette = MethodType(_legacy_getpalette, image)
     records = [{"image": image}]
     semhash = SemHash.from_embeddings(
         np.array([[1.0, 0.0]]), records=records, columns=["image"], model=model, ann_backend="basic"
@@ -56,10 +57,22 @@ def test_image_sizes_are_not_exact_duplicates(backend: str, constructor: str, op
 @pytest.mark.parametrize("backend", ["basic", "usearch"])
 @pytest.mark.parametrize("constructor", ["from_records", "from_embeddings"])
 @pytest.mark.parametrize("operation", ["self", "cross"])
+@pytest.mark.parametrize("legacy_api", [False, True])
 @pytest.mark.parametrize(
-    "difference", ["mode", "palette", "palette-alpha", "transparent-index", "transparent-table", "rgb-transparency"]
+    "difference",
+    [
+        "mode",
+        "palette",
+        "palette-alpha",
+        "palette-raw-mode",
+        "transparent-index",
+        "transparent-table",
+        "rgb-transparency",
+    ],
 )
-def test_image_colors_are_not_exact_duplicates(backend: str, constructor: str, operation: str, difference: str) -> None:
+def test_image_colors_are_not_exact_duplicates(
+    backend: str, constructor: str, operation: str, legacy_api: bool, difference: str
+) -> None:
     """Color interpretation participates in exact matching, while true copies still match."""
 
     class ColorEncoder:
@@ -73,6 +86,13 @@ def test_image_colors_are_not_exact_duplicates(backend: str, constructor: str, o
             second = Image.frombytes("HSV", first.size, first.tobytes())
         else:
             second.info["transparency"] = (255, 0, 0)
+    elif difference == "palette-raw-mode":
+        first = Image.new("P", (1, 1))
+        second = Image.new("P", (1, 1))
+        data = bytes([100, 255, 200, 255])
+        first.info["transparency"] = second.info["transparency"] = 1
+        first.putpalette(data, rawmode="LA")
+        second.putpalette(data, rawmode="RGBA")
     else:
         first = Image.new("P", (1, 1))
         first.putpalette([255, 0, 0, 255], rawmode="RGBA")
@@ -87,6 +107,9 @@ def test_image_colors_are_not_exact_duplicates(backend: str, constructor: str, o
     assert first.tobytes() == second.tobytes()
     copy = first.copy()
     copy.info["comment"] = "Unrelated metadata does not change the pixels."
+    if legacy_api:
+        for image in (first, second, copy):
+            image.getpalette = MethodType(_legacy_getpalette, image)
     records = [{"id": 0, "image": first}, {"id": 1, "image": second}, {"id": 2, "image": copy}]
     model = ColorEncoder()
     reference_records = records if operation == "self" else records[:1]
