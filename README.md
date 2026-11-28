@@ -364,7 +364,7 @@ from semhash import SemHash
 texts = load_dataset("ag_news", split="train")["text"]
 
 # Load an embedding model (in this example, a multilingual model)
-model = StaticModel.from_pretrained("minishlab/potion-multilingual-128M")
+model = StaticModel.from_pretrained("minishlab/blink-multilingual-64M-int8")
 
 # Initialize a SemHash with the model and custom encoder
 semhash = SemHash.from_records(records=texts, model=model)
@@ -469,7 +469,7 @@ from semhash import SemHash
 texts = load_dataset("ag_news", split="train")["text"]
 
 # Load an embedding model
-model = StaticModel.from_pretrained("minishlab/potion-base-8M")
+model = StaticModel.from_pretrained("minishlab/blink-8M-int8")
 
 # Create embeddings
 embeddings = model.encode(texts)

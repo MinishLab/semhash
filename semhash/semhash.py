@@ -30,6 +30,8 @@ from semhash.utils import (
     to_frozendict,
 )
 
+_DEFAULT_MODEL = "minishlab/blink-8M-int8"
+
 
 class SemHash(Generic[Record]):
     def __init__(self, index: Index, model: Encoder, columns: Sequence[str], was_string: bool) -> None:
@@ -63,7 +65,7 @@ class SemHash(Generic[Record]):
 
         :param records: A list of records (strings or dictionaries).
         :param columns: Columns to featurize if records are dictionaries.
-        :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/potion-base-8M).
+        :param model: (Optional) An Encoder model. If None, the default model is used (minishlab/blink-8M-int8).
         :param ann_backend: (Optional) The ANN backend to use. Defaults to Backend.USEARCH.
         :param **kwargs: Any additional keyword arguments to pass to the Vicinity index.
         :return: A SemHash instance with a fitted vicinity index.
@@ -73,7 +75,7 @@ class SemHash(Generic[Record]):
 
         # If no model is provided, load the default model
         if model is None:  # pragma: no cover
-            model = StaticModel.from_pretrained("minishlab/potion-base-8M")
+            model = StaticModel.from_pretrained(_DEFAULT_MODEL)
 
         # Group by exact match, preserving first-occurrence order
         deduplicated_records, items = group_records_by_key(dict_records, columns)
