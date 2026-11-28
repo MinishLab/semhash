@@ -106,4 +106,4 @@ version = {attr = "semhash.version.__version__"}
 
 [tool.uv]
 exclude-newer = "1 week"
-exclude-newer-package = { vicinity = false, model2vec = false }
+exclude-newer-package = { vicinity = false, model2vec = false, model2vec-rs = false }
