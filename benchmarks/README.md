@@ -24,7 +24,7 @@ All text benchmarks were run with the following configuration:
 - **Device**: MacBook Pro (Apple M5, 48 GB RAM)
 - **CPU-only**: All benchmarks run on CPU (no GPU acceleration)
 - **ANN backend**: Default backend (USearch)
-- **Encoder**: Default encoder ([potion-base-8M](https://huggingface.co/minishlab/potion-base-8M))
+- **Encoder**: Default encoder ([blink-8M-int8](https://huggingface.co/minishlab/blink-8M-int8))
 - **Timing**: Includes encoding time, index building time, and deduplication time
 - **Dependencies**: Requires `datasets` package (`pip install datasets`)
 

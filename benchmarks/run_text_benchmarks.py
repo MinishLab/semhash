@@ -19,7 +19,7 @@ def main() -> None:  # noqa: C901
     train_test_dedup_results = []
     # Load the model and initialize SemHash
 
-    model = StaticModel.from_pretrained("minishlab/potion-base-8m")
+    model = StaticModel.from_pretrained("minishlab/blink-8M-int8")
 
     for dataset_name, record in DATASET_DICT.items():
         logger.info(f"Loading dataset: {dataset_name} from {record.name}")
