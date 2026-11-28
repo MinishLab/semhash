@@ -36,23 +36,23 @@ This benchmark measures the performance of deduplicating within a single trainin
 
 | Dataset              |  Original Train Size |  Deduplicated Train Size |  % Removed |   Deduplication Time (s) |
 |----------------------|----------------------|--------------------------|------------|--------------------------|
-| bbc                  |                 1225 |                     1148 |       6.29 |                     0.19 |
-| senteval_cr          |                 3012 |                     2992 |       0.66 |                     0.15 |
-| tweet_sentiment_extraction |                27481 |                    26775 |       2.57 |                     1.67 |
-| emotion              |                16000 |                    15739 |       1.63 |                     0.68 |
-| amazon_counterfactual |                 5000 |                     4992 |       0.16 |                     0.27 |
-| ag_news              |               120000 |                   107882 |      10.10 |                     5.75 |
-| enron_spam           |                31716 |                    21121 |      33.41 |                     1.63 |
-| subj                 |                 8000 |                     7990 |       0.12 |                     0.45 |
-| sst5                 |                 8544 |                     8526 |       0.21 |                     0.46 |
-| 20_newgroups         |                11314 |                    10717 |       5.28 |                     0.61 |
-| hatespeech_offensive |                22783 |                    22233 |       2.41 |                     0.96 |
-| ade                  |                17637 |                    15723 |      10.85 |                     0.74 |
-| imdb                 |                25000 |                    24847 |       0.61 |                     1.64 |
-| massive_scenario     |                11514 |                     9665 |      16.06 |                     0.45 |
-| student              |               117519 |                    69696 |      40.69 |                     8.28 |
-| squad_v2             |               130319 |                   110480 |      15.22 |                     9.66 |
-| wikitext             |              1801350 |                   900554 |      50.01 |                    74.31 |
+| bbc                  |                 1225 |                     1160 |       5.31 |                     0.09 |
+| senteval_cr          |                 3012 |                     3004 |       0.27 |                     0.08 |
+| tweet_sentiment_extraction |                27481 |                    27046 |       1.58 |                     0.92 |
+| emotion              |                16000 |                    15889 |       0.69 |                     0.47 |
+| amazon_counterfactual |                 5000 |                     4998 |       0.04 |                     0.12 |
+| ag_news              |               120000 |                   109946 |       8.38 |                     4.73 |
+| enron_spam           |                31716 |                    21852 |      31.10 |                     0.81 |
+| subj                 |                 8000 |                     7991 |       0.11 |                     0.25 |
+| sst5                 |                 8544 |                     8531 |       0.15 |                     0.33 |
+| 20_newgroups         |                11314 |                    10742 |       5.06 |                     0.27 |
+| hatespeech_offensive |                22783 |                    22453 |       1.45 |                     0.61 |
+| ade                  |                17637 |                    15798 |      10.43 |                     0.66 |
+| imdb                 |                25000 |                    24875 |       0.50 |                     0.75 |
+| massive_scenario     |                11514 |                    10468 |       9.08 |                     0.28 |
+| student              |               117519 |                    91064 |      22.51 |                     4.34 |
+| squad_v2             |               130319 |                   112866 |      13.39 |                     6.29 |
+| wikitext             |              1801350 |                   935800 |      48.05 |                    67.29 |
 
 ### Train/Test Deduplication Benchmark
 
@@ -60,33 +60,33 @@ This benchmark measures the performance of deduplicating a test dataset against 
 
 | Dataset              |   Train Size |    Test Size |   Deduplicated Test Size |  % Removed |   Deduplication Time (s) |
 |----------------------|--------------|--------------|--------------------------|------------|--------------------------|
-| bbc                  |         1225 |         1000 |                      874 |      12.60 |                     0.29 |
-| senteval_cr          |         3012 |          753 |                      750 |       0.40 |                     0.15 |
-| tweet_sentiment_extraction |        27481 |         3534 |                     3411 |       3.48 |                     1.48 |
-| emotion              |        16000 |         2000 |                     1926 |       3.70 |                     0.58 |
-| amazon_counterfactual |         5000 |         5000 |                     4990 |       0.20 |                     0.44 |
-| ag_news              |       120000 |         7600 |                     6201 |      18.41 |                     3.95 |
-| enron_spam           |        31716 |         2000 |                     1064 |      46.80 |                     1.56 |
-| subj                 |         8000 |         2000 |                     1999 |       0.05 |                     0.44 |
-| sst5                 |         8544 |         2210 |                     2205 |       0.23 |                     0.45 |
-| 20_newgroups         |        11314 |         7532 |                     7098 |       5.76 |                     1.51 |
-| hatespeech_offensive |        22783 |         2000 |                     1925 |       3.75 |                     0.78 |
-| ade                  |        17637 |         5879 |                     4953 |      15.75 |                     0.79 |
-| imdb                 |        25000 |        25000 |                    24797 |       0.81 |                     2.55 |
-| massive_scenario     |        11514 |         2974 |                     2188 |      26.43 |                     0.47 |
-| student              |       117519 |         5000 |                     2400 |      52.00 |                     4.36 |
-| squad_v2             |       130319 |        11873 |                    11863 |       0.08 |                     7.07 |
-| wikitext             |      1801350 |         4358 |                     2134 |      51.03 |                    46.29 |
+| bbc                  |         1225 |         1000 |                      894 |      10.60 |                     0.11 |
+| senteval_cr          |         3012 |          753 |                      751 |       0.27 |                     0.07 |
+| tweet_sentiment_extraction |        27481 |         3534 |                     3453 |       2.29 |                     0.62 |
+| emotion              |        16000 |         2000 |                     1968 |       1.60 |                     0.33 |
+| amazon_counterfactual |         5000 |         5000 |                     4995 |       0.10 |                     0.17 |
+| ag_news              |       120000 |         7600 |                     6419 |      15.54 |                     3.03 |
+| enron_spam           |        31716 |         2000 |                     1115 |      44.25 |                     0.53 |
+| subj                 |         8000 |         2000 |                     1999 |       0.05 |                     0.20 |
+| sst5                 |         8544 |         2210 |                     2207 |       0.14 |                     0.26 |
+| 20_newgroups         |        11314 |         7532 |                     7134 |       5.28 |                     0.33 |
+| hatespeech_offensive |        22783 |         2000 |                     1951 |       2.45 |                     0.43 |
+| ade                  |        17637 |         5879 |                     4989 |      15.14 |                     0.51 |
+| imdb                 |        25000 |        25000 |                    24869 |       0.52 |                     1.00 |
+| massive_scenario     |        11514 |         2974 |                     2476 |      16.75 |                     0.24 |
+| student              |       117519 |         5000 |                     3290 |      34.20 |                     2.47 |
+| squad_v2             |       130319 |        11873 |                    11868 |       0.04 |                     3.78 |
+| wikitext             |      1801350 |         4358 |                     2225 |      48.94 |                    40.45 |
 
 ### Key Findings
 
 SemHash is extremely fast and scales to large datasets with millions of records. Some notable findings include:
 
-- **Speed**: Deduplication is fast even for large datasets (e.g., 1.8M records in ~74 seconds)
+- **Speed**: Deduplication is fast even for large datasets (e.g., 1.8M records in ~67 seconds)
 - **Train/Test Leakage**: Several datasets show significant train/test overlap:
-  - `enron_spam`: 47% of test data overlaps with training data
-  - `student`: 52% of test data overlaps with training data
-  - `wikitext`: 51% of test data overlaps with training data
+  - `enron_spam`: 44% of test data overlaps with training data
+  - `student`: 34% of test data overlaps with training data
+  - `wikitext`: 49% of test data overlaps with training data
 
 ### Running Text Benchmarks
 

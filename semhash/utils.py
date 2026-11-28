@@ -20,13 +20,12 @@ class Encoder(Protocol):
     def encode(
         self,
         inputs: Sequence[Any] | Any,
-        **kwargs: Any,
+        /,
     ) -> np.ndarray:
         """
         Encode a list of inputs into embeddings.
 
         :param inputs: A list of inputs to encode (strings, images, etc.).
-        :param **kwargs: Additional keyword arguments.
         :return: The embeddings of the inputs.
         """
         ...  # pragma: no cover
